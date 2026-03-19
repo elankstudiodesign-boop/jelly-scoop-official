@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Product, ScoopConfig, Transaction, LiveSession } from '../types';
 import { useSupabaseConfigs } from '../hooks/useSupabase';
 import { defaultConfigs } from './Simulator';
 import { v4 as uuidv4 } from 'uuid';
-import { CheckCircle, Trash2 } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import { formatCurrency } from '../lib/format';
 
 interface OrderItem {
@@ -24,24 +24,12 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
   const [selectedConfigId, setSelectedConfigId] = useState<string>('');
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string>('');
-  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
-  const selectAllRef = useRef<HTMLInputElement>(null);
-
-  const allItemIds = orderItems.map(item => item.product.id);
-  const allSelected = allItemIds.length > 0 && selectedItemIds.size === allItemIds.length;
-  const someSelected = selectedItemIds.size > 0 && !allSelected;
 
   useEffect(() => {
     if (configs.length > 0 && !selectedConfigId) {
       setSelectedConfigId(configs[0].id);
     }
   }, [configs, selectedConfigId]);
-
-  useEffect(() => {
-    if (selectAllRef.current) {
-      selectAllRef.current.indeterminate = someSelected;
-    }
-  }, [someSelected]);
 
   if (loading) {
     return <div className="p-8 text-center text-slate-500">Đang tải cấu hình...</div>;
@@ -87,32 +75,8 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
     }).filter(item => item.quantity > 0));
   };
 
-  const toggleSelectedItem = (id: string) => {
-    setSelectedItemIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleSelectAllItems = () => {
-    setSelectedItemIds(prev => {
-      if (allSelected) return new Set();
-      const next = new Set(prev);
-      allItemIds.forEach(id => next.add(id));
-      return next;
-    });
-  };
-
-  const handleDeleteSelectedItems = () => {
-    setOrderItems(prev => prev.filter(item => !selectedItemIds.has(item.product.id)));
-    setSelectedItemIds(new Set());
-  };
-
   const handleClearOrder = () => {
     setOrderItems([]);
-    setSelectedItemIds(new Set());
   };
 
   const handleCompleteOrder = () => {
@@ -230,40 +194,11 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
               {/* Order Items List */}
               {orderItems.length > 0 && (
                 <div className="mt-6 pt-6 border-t border-slate-100">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-semibold text-slate-700">Danh sách sản phẩm trong đơn ({totalItemsCount} món)</h3>
-                    <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-2 text-xs text-slate-500 select-none cursor-pointer">
-                        <input
-                          ref={selectAllRef}
-                          type="checkbox"
-                          checked={allSelected}
-                          onChange={toggleSelectAllItems}
-                          className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                        Chọn tất cả
-                      </label>
-                      <button
-                        type="button"
-                        onClick={handleDeleteSelectedItems}
-                        disabled={selectedItemIds.size === 0}
-                        className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                        Xoá {selectedItemIds.size > 0 ? `(${selectedItemIds.size})` : ''}
-                      </button>
-                    </div>
-                  </div>
+                  <h3 className="text-sm font-semibold text-slate-700 mb-4">Danh sách sản phẩm trong đơn ({totalItemsCount} món)</h3>
                   <div className="space-y-3">
                     {orderItems.map((item) => (
-                      <div key={item.product.id} className={`flex items-center justify-between p-3 rounded-lg border transition-all ${selectedItemIds.has(item.product.id) ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-200'}`}>
+                      <div key={item.product.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
                         <div className="flex items-center gap-3">
-                          <input
-                            type="checkbox"
-                            checked={selectedItemIds.has(item.product.id)}
-                            onChange={() => toggleSelectedItem(item.product.id)}
-                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                          />
                           <img src={item.product.imageUrl} alt={item.product.name} className="w-10 h-10 rounded object-cover border border-slate-200" />
                           <div>
                             <p className="font-medium text-slate-900 text-sm">{item.product.name}</p>
@@ -298,7 +233,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
 
         {/* Right Column: Financial Summary */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm sticky top-6">
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm lg:sticky lg:top-6">
             <h3 className="text-base font-semibold text-slate-800 mb-5">Tổng kết đơn hàng</h3>
             
             <div className="space-y-4">

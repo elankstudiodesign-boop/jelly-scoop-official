@@ -18,7 +18,7 @@ export default function App() {
 
   if (productsLoading || sessionsLoading || transactionsLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="flex min-h-screen min-h-[100dvh] items-center justify-center bg-slate-50">
         <div className="text-indigo-600 font-medium">Đang tải dữ liệu từ Supabase...</div>
       </div>
     );
@@ -26,7 +26,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-indigo-100 selection:text-indigo-900 pb-20 md:pb-0">
+      <div className="flex min-h-screen min-h-[100dvh] bg-slate-50 font-sans text-slate-900 selection:bg-indigo-100 selection:text-indigo-900 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
         <Sidebar />
         <main className="flex-1 p-4 md:p-8 lg:p-10 overflow-y-auto">
           <div className="max-w-7xl mx-auto">

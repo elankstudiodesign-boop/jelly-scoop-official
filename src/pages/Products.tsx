@@ -201,7 +201,7 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
   return (
     <div className="space-y-6">
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg border ${
+        <div className={`fixed top-[calc(env(safe-area-inset-top)+1rem)] left-4 right-4 md:top-4 md:left-auto md:right-4 md:max-w-md z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg border ${
           notification.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
         }`}>
           <span className="font-medium text-sm">{notification.message}</span>
