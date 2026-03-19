@@ -7,10 +7,9 @@ interface ProductsProps {
   products: Product[];
   addProduct: (p: Product) => void;
   updateProduct: (id: string, updates: Partial<Product>) => void;
-  deleteProduct: (id: string) => void;
 }
 
-export default function Products({ products, updateProduct, deleteProduct }: ProductsProps) {
+export default function Products({ products, updateProduct }: ProductsProps) {
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [margin, setMargin] = useState('50'); // Default 50%
   const [retailPrice, setRetailPrice] = useState('');
@@ -93,7 +92,22 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
   };
 
   const handleUpdateQuantity = (id: string, newQuantity: number) => {
-    updateProduct(id, { quantity: newQuantity });
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+    
+    const currentPoolQty = product.quantity || 0;
+    const currentWarehouseQty = product.warehouseQuantity || 0;
+    const diff = newQuantity - currentPoolQty;
+    
+    if (diff > currentWarehouseQty) {
+      alert('Không đủ hàng trong kho để thêm vào bể!');
+      return;
+    }
+    
+    updateProduct(id, { 
+      quantity: newQuantity,
+      warehouseQuantity: currentWarehouseQty - diff
+    });
   };
 
   const totalItems = products.reduce((sum, p) => sum + (p.quantity || 0), 0);
@@ -131,15 +145,27 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
     });
   };
 
-  const handleDeleteMany = (ids: string[]) => {
-    if (!confirm(`Bạn có chắc chắn muốn xoá ${ids.length} sản phẩm này không?`)) return;
-    ids.forEach(id => deleteProduct(id));
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      ids.forEach(id => next.delete(id));
-      return next;
+  const handleRemoveFromPool = (ids: string[]) => {
+    if (!confirm(`Bạn có chắc chắn muốn xoá ${ids.length} sản phẩm này khỏi bể và hoàn lại kho không?`)) return;
+    
+    ids.forEach(id => {
+      const product = products.find(p => p.id === id);
+      if (product) {
+        const poolQty = product.quantity || 0;
+        const warehouseQty = product.warehouseQuantity || 0;
+        
+        updateProduct(id, {
+          quantity: 0,
+          warehouseQuantity: warehouseQty + poolQty,
+          retailPrice: 0, // Clear retail price to remove from pool view
+          margin: 0
+        });
+      }
     });
+    
+    setSelectedIds(new Set());
     setDeleteConfirmIds(null);
+    alert(`Đã hoàn ${ids.length} sản phẩm về kho thành công!`);
   };
 
   useEffect(() => {
@@ -291,12 +317,12 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
               <div className="w-px h-4 bg-slate-200"></div>
               <button
                 type="button"
-                onClick={() => handleDeleteMany(Array.from(selectedIds))}
+                onClick={() => handleRemoveFromPool(Array.from(selectedIds))}
                 disabled={selectedIds.size === 0}
                 className="text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
               >
                 <Trash2 className="w-4 h-4" />
-                Xoá {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+                Hoàn kho {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
               </button>
             </div>
           </div>
@@ -344,8 +370,20 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
                       <Package className="w-6 h-6 sm:w-8 sm:h-8 opacity-50" />
                     </div>
                   )}
-                  <div className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-white/90 backdrop-blur-sm px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-semibold text-slate-700 border border-slate-200 shadow-sm">
-                    {product.priceGroup}
+                  <div className="absolute top-3 right-3 sm:top-4 sm:right-4 flex flex-col items-end gap-2">
+                    <div className="bg-white/90 backdrop-blur-sm px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-semibold text-slate-700 border border-slate-200 shadow-sm">
+                      {product.priceGroup}
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveFromPool([product.id]);
+                      }}
+                      className="p-1.5 bg-white/90 backdrop-blur-sm text-red-500 hover:text-red-700 rounded-md border border-slate-200 shadow-sm transition-colors"
+                      title="Hoàn lại kho"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
                 <div className="w-2/3 sm:w-full p-3 sm:p-4 flex-1 flex flex-col bg-white min-w-0">

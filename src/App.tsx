@@ -45,7 +45,7 @@ export default function App() {
             )}
             <Routes>
               <Route path="/" element={<Analytics sessions={sessions} addSession={addSession} deleteSession={deleteSession} />} />
-              <Route path="/products" element={<Products products={products} addProduct={addProduct} updateProduct={updateProduct} deleteProduct={deleteProduct} />} />
+              <Route path="/products" element={<Products products={products} addProduct={addProduct} updateProduct={updateProduct} />} />
               <Route path="/import" element={<Import products={products} addProduct={addProduct} updateProduct={updateProduct} addTransaction={addTransaction} deleteProduct={deleteProduct} />} />
               <Route path="/simulator" element={<Simulator products={products} />} />
               <Route path="/live" element={<Live products={products} updateProduct={updateProduct} addTransaction={addTransaction} addSession={addSession} />} />
