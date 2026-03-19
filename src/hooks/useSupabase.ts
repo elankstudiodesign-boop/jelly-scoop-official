@@ -3,6 +3,16 @@ import { supabase, hasSupabaseConfig } from '../lib/supabase';
 import { Product, LiveSession, ScoopConfig, Transaction } from '../types';
 import { useLocalStorage } from './useLocalStorage';
 
+function upsertById<T extends { id: string }>(items: T[], next: T, sortFn?: (a: T, b: T) => number) {
+  const idx = items.findIndex(x => x.id === next.id);
+  const out = idx === -1 ? [...items, next] : items.map(x => (x.id === next.id ? next : x));
+  return sortFn ? [...out].sort(sortFn) : out;
+}
+
+function removeById<T extends { id: string }>(items: T[], id: string) {
+  return items.filter(x => x.id !== id);
+}
+
 export function useSupabaseProducts() {
   const [products, setProducts] = useLocalStorage<Product[]>('scoop_products', []);
   const [loading, setLoading] = useState(true);
@@ -13,6 +23,29 @@ export function useSupabaseProducts() {
       return;
     }
     fetchProducts();
+
+    const channel = supabase
+      .channel('realtime:products')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        (payload: any) => {
+          if (payload.eventType === 'DELETE') {
+            const id = payload.old?.id;
+            if (typeof id === 'string') setProducts(prev => removeById(prev, id));
+            return;
+          }
+          const row = payload.new;
+          if (!row) return;
+          const mapped = mapProductFromDB(row);
+          setProducts(prev => upsertById(prev, mapped, (a, b) => a.name.localeCompare(b.name)));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchProducts = async () => {
@@ -59,6 +92,29 @@ export function useSupabaseSessions() {
       return;
     }
     fetchSessions();
+
+    const channel = supabase
+      .channel('realtime:sessions')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'sessions' },
+        (payload: any) => {
+          if (payload.eventType === 'DELETE') {
+            const id = payload.old?.id;
+            if (typeof id === 'string') setSessions(prev => removeById(prev, id));
+            return;
+          }
+          const row = payload.new;
+          if (!row) return;
+          const mapped = mapSessionFromDB(row);
+          setSessions(prev => upsertById(prev, mapped, (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchSessions = async () => {
@@ -106,6 +162,47 @@ export function useSupabaseConfigs(defaultConfigs: ScoopConfig[]) {
       return;
     }
     fetchConfigs();
+
+    const channel = supabase
+      .channel('realtime:scoop_configs')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'scoop_configs' },
+        (payload: any) => {
+          if (payload.eventType === 'DELETE') {
+            const id = payload.old?.id;
+            if (typeof id === 'string') {
+              setConfigs(prev => {
+                const next = removeById(prev, id);
+                if (defaultConfigs.length === 1) {
+                  const wantedId = defaultConfigs[0]?.id;
+                  const preferred = next.find(c => c.id === wantedId) || next.find(c => (c.name || '').toLowerCase().includes('lớn')) || next[0];
+                  return preferred ? [preferred] : defaultConfigs;
+                }
+                return next;
+              });
+            }
+            return;
+          }
+          const row = payload.new;
+          if (!row) return;
+          const mapped = mapConfigFromDB(row);
+          setConfigs(prev => {
+            const next = upsertById(prev, mapped, (a, b) => a.id.localeCompare(b.id));
+            if (defaultConfigs.length === 1) {
+              const wantedId = defaultConfigs[0]?.id;
+              const preferred = next.find(c => c.id === wantedId) || next.find(c => (c.name || '').toLowerCase().includes('lớn')) || next[0];
+              return preferred ? [preferred] : defaultConfigs;
+            }
+            return next;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchConfigs = async () => {
@@ -226,6 +323,29 @@ export function useSupabaseTransactions() {
       return;
     }
     fetchTransactions();
+
+    const channel = supabase
+      .channel('realtime:transactions')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'transactions' },
+        (payload: any) => {
+          if (payload.eventType === 'DELETE') {
+            const id = payload.old?.id;
+            if (typeof id === 'string') setTransactions(prev => removeById(prev, id));
+            return;
+          }
+          const row = payload.new;
+          if (!row) return;
+          const mapped = mapTransactionFromDB(row);
+          setTransactions(prev => upsertById(prev, mapped, (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchTransactions = async () => {
