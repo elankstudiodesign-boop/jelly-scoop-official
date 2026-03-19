@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Transaction } from '../types';
-import { Wallet, TrendingUp, TrendingDown, Trash2, AlertTriangle, X, Plus } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, Trash2, AlertTriangle, X, Plus, ChevronDown } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '../lib/format';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -59,6 +59,27 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
       totalExpense: exp,
       netProfit: rev - exp
     };
+  }, [transactions]);
+
+  const expenseByCategory = useMemo(() => {
+    const totals = new Map<Transaction['category'], number>();
+    let total = 0;
+
+    transactions.forEach(t => {
+      if (t.type !== 'OUT') return;
+      total += t.amount;
+      totals.set(t.category, (totals.get(t.category) || 0) + t.amount);
+    });
+
+    const items = Array.from(totals.entries())
+      .map(([category, amount]) => ({
+        category,
+        amount,
+        percent: total > 0 ? (amount / total) * 100 : 0
+      }))
+      .sort((a, b) => b.amount - a.amount);
+
+    return { total, items };
   }, [transactions]);
 
   const sortedTransactions = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -150,6 +171,36 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
             <Wallet className="w-6 h-6" />
           </div>
         </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+          <h2 className="text-lg font-bold text-slate-900">Chi phí theo danh mục</h2>
+          <div className="text-sm text-slate-500">Tổng: {formatCurrency(expenseByCategory.total)}đ</div>
+        </div>
+        {expenseByCategory.items.length === 0 ? (
+          <div className="text-sm text-slate-500">Chưa có dữ liệu chi phí.</div>
+        ) : (
+          <div className="space-y-3">
+            {expenseByCategory.items.map(item => (
+              <div key={item.category} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-slate-800 truncate">{getCategoryLabel(item.category)}</div>
+                    <div className="text-xs text-slate-500">{item.percent.toFixed(1)}%</div>
+                  </div>
+                  <div className="text-sm font-bold text-rose-600 whitespace-nowrap">{formatCurrency(item.amount)}đ</div>
+                </div>
+                <div className="mt-2 h-2 rounded-full bg-slate-200 overflow-hidden">
+                  <div
+                    className="h-full bg-rose-500"
+                    style={{ width: `${Math.max(2, Math.min(100, item.percent))}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Transactions List */}
@@ -401,30 +452,33 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Danh mục</label>
-                <select
-                  value={newTxCategory}
-                  onChange={(e) => setNewTxCategory(e.target.value as any)}
-                  className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                >
-                  {newTxType === 'IN' ? (
-                    <>
-                      <option value="ORDER">Đơn hàng (Doanh thu bán hàng)</option>
-                      <option value="REFUND">Hoàn tiền (Nhận lại tiền)</option>
-                      <option value="OTHER">Thu nhập khác</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value="PACKAGING">Chi phí đóng gói (Hộp, mộc, giấy gói...)</option>
-                      <option value="IMPORT">Nhập kho (Mua hàng hóa)</option>
-                      <option value="SHIPPING">Phí vận chuyển (Giao hàng)</option>
-                      <option value="PLATFORM_FEE">Phí sàn (TikTok, Shopee...)</option>
-                      <option value="MARKETING">Marketing / Quảng cáo</option>
-                      <option value="TOOL">Dụng cụ / Thiết bị</option>
-                      <option value="FEE">Chi phí phát sinh khác</option>
-                      <option value="OTHER">Chi phí khác</option>
-                    </>
-                  )}
-                </select>
+                <div className="relative">
+                  <select
+                    value={newTxCategory}
+                    onChange={(e) => setNewTxCategory(e.target.value as any)}
+                    className="w-full appearance-none px-4 pr-10 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  >
+                    {newTxType === 'IN' ? (
+                      <>
+                        <option value="ORDER">Đơn hàng (Doanh thu bán hàng)</option>
+                        <option value="REFUND">Hoàn tiền (Nhận lại tiền)</option>
+                        <option value="OTHER">Thu nhập khác</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="PACKAGING">Chi phí đóng gói (Hộp, mộc, giấy gói...)</option>
+                        <option value="IMPORT">Nhập kho (Mua hàng hóa)</option>
+                        <option value="SHIPPING">Phí vận chuyển (Giao hàng)</option>
+                        <option value="PLATFORM_FEE">Phí sàn (TikTok, Shopee...)</option>
+                        <option value="MARKETING">Marketing / Quảng cáo</option>
+                        <option value="TOOL">Dụng cụ / Thiết bị</option>
+                        <option value="FEE">Chi phí phát sinh khác</option>
+                        <option value="OTHER">Chi phí khác</option>
+                      </>
+                    )}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                </div>
               </div>
 
               <div>

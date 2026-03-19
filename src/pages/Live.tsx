@@ -3,7 +3,7 @@ import { Product, ScoopConfig, Transaction, LiveSession } from '../types';
 import { useSupabaseConfigs } from '../hooks/useSupabase';
 import { defaultConfigs } from './Simulator';
 import { v4 as uuidv4 } from 'uuid';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, ChevronDown } from 'lucide-react';
 import { formatCurrency } from '../lib/format';
 
 interface OrderItem {
@@ -21,7 +21,7 @@ interface LiveProps {
 export default function Live({ products, updateProduct, addTransaction, addSession }: LiveProps) {
   const { configs, loading } = useSupabaseConfigs(defaultConfigs);
   
-  const [selectedConfigId, setSelectedConfigId] = useState<string>('');
+  const [selectedConfigId, setSelectedConfigId] = useState<string>(defaultConfigs[0]?.id || '');
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string>('');
 
@@ -152,35 +152,41 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
               {/* Select Scoop Size */}
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">Chọn Size Scoop</label>
-                <select 
-                  value={selectedConfigId}
-                  onChange={e => setSelectedConfigId(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-4 py-2.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
-                >
-                  {configs.map(config => (
-                    <option key={config.id} value={config.id}>
-                      {config.name} - {formatCurrency(config.price)}đ
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select 
+                    value={selectedConfigId}
+                    onChange={e => setSelectedConfigId(e.target.value)}
+                    className="w-full appearance-none border border-slate-300 rounded-lg px-4 pr-10 py-2.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
+                  >
+                    {configs.map(config => (
+                      <option key={config.id} value={config.id}>
+                        {config.name} - {formatCurrency(config.price)}đ
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                </div>
               </div>
 
               {/* Add Product */}
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">Thêm sản phẩm vào đơn</label>
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <select 
-                    value={selectedProductId}
-                    onChange={e => setSelectedProductId(e.target.value)}
-                    className="flex-1 min-w-0 border border-slate-300 rounded-lg px-4 py-2.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
-                  >
-                    <option value="">-- Chọn sản phẩm từ kho --</option>
-                    {products.map(product => (
-                      <option key={product.id} value={product.id}>
-                        {product.name} ({product.priceGroup}) - Vốn: {formatCurrency(product.cost)}đ
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative flex-1 min-w-0">
+                    <select 
+                      value={selectedProductId}
+                      onChange={e => setSelectedProductId(e.target.value)}
+                      className="w-full appearance-none border border-slate-300 rounded-lg px-4 pr-10 py-2.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
+                    >
+                      <option value="">-- Chọn sản phẩm từ kho --</option>
+                      {products.map(product => (
+                        <option key={product.id} value={product.id}>
+                          {product.name} ({product.priceGroup}) - Vốn: {formatCurrency(product.cost)}đ
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  </div>
                   <button 
                     onClick={handleAddProduct}
                     disabled={!selectedProductId}
