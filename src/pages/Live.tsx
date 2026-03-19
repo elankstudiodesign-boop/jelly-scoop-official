@@ -27,6 +27,10 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const selectAllRef = useRef<HTMLInputElement>(null);
 
+  const allItemIds = orderItems.map(item => item.product.id);
+  const allSelected = allItemIds.length > 0 && selectedItemIds.size === allItemIds.length;
+  const someSelected = selectedItemIds.size > 0 && !allSelected;
+
   useEffect(() => {
     if (configs.length > 0 && !selectedConfigId) {
       setSelectedConfigId(configs[0].id);
@@ -91,10 +95,6 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
       return next;
     });
   };
-
-  const allItemIds = orderItems.map(item => item.product.id);
-  const allSelected = allItemIds.length > 0 && selectedItemIds.size === allItemIds.length;
-  const someSelected = selectedItemIds.size > 0 && !allSelected;
 
   const toggleSelectAllItems = () => {
     setSelectedItemIds(prev => {
