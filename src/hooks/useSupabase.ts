@@ -13,6 +13,32 @@ function removeById<T extends { id: string }>(items: T[], id: string) {
   return items.filter(x => x.id !== id);
 }
 
+function bindAutoRefresh(refetch: () => Promise<void> | void, intervalMs: number) {
+  let running = false;
+  const run = () => {
+    if (running) return;
+    running = true;
+    Promise.resolve(refetch()).finally(() => {
+      running = false;
+    });
+  };
+
+  const onFocus = () => run();
+  const onVisibility = () => {
+    if (document.visibilityState === 'visible') run();
+  };
+
+  window.addEventListener('focus', onFocus);
+  document.addEventListener('visibilitychange', onVisibility);
+  const timer = intervalMs > 0 ? window.setInterval(run, intervalMs) : null;
+
+  return () => {
+    window.removeEventListener('focus', onFocus);
+    document.removeEventListener('visibilitychange', onVisibility);
+    if (timer) window.clearInterval(timer);
+  };
+}
+
 export function useSupabaseProducts() {
   const [products, setProducts] = useLocalStorage<Product[]>('scoop_products', []);
   const [loading, setLoading] = useState(true);
@@ -43,8 +69,11 @@ export function useSupabaseProducts() {
       )
       .subscribe();
 
+    const stopAutoRefresh = bindAutoRefresh(fetchProducts, 8000);
+
     return () => {
       supabase.removeChannel(channel);
+      stopAutoRefresh();
     };
   }, []);
 
@@ -62,21 +91,30 @@ export function useSupabaseProducts() {
     setProducts(prev => [...prev, product]);
     if (!hasSupabaseConfig) return;
     const { error } = await supabase.from('products').insert([mapProductToDB(product)]);
-    if (error) console.error('Error adding product:', error);
+    if (error) {
+      console.error('Error adding product:', error);
+      fetchProducts();
+    }
   };
 
   const updateProduct = async (id: string, updates: Partial<Product>) => {
     setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
     if (!hasSupabaseConfig) return;
     const { error } = await supabase.from('products').update(mapProductToDB(updates)).eq('id', id);
-    if (error) console.error('Error updating product:', error);
+    if (error) {
+      console.error('Error updating product:', error);
+      fetchProducts();
+    }
   };
 
   const deleteProduct = async (id: string) => {
     setProducts(prev => prev.filter(p => p.id !== id));
     if (!hasSupabaseConfig) return;
     const { error } = await supabase.from('products').delete().eq('id', id);
-    if (error) console.error('Error deleting product:', error);
+    if (error) {
+      console.error('Error deleting product:', error);
+      fetchProducts();
+    }
   };
 
   return { products, addProduct, updateProduct, deleteProduct, loading };
@@ -112,8 +150,11 @@ export function useSupabaseSessions() {
       )
       .subscribe();
 
+    const stopAutoRefresh = bindAutoRefresh(fetchSessions, 15000);
+
     return () => {
       supabase.removeChannel(channel);
+      stopAutoRefresh();
     };
   }, []);
 
@@ -131,14 +172,20 @@ export function useSupabaseSessions() {
     setSessions(prev => [...prev, session].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
     if (!hasSupabaseConfig) return;
     const { error } = await supabase.from('sessions').insert([mapSessionToDB(session)]);
-    if (error) console.error('Error adding session:', error);
+    if (error) {
+      console.error('Error adding session:', error);
+      fetchSessions();
+    }
   };
 
   const deleteSession = async (id: string) => {
     setSessions(prev => prev.filter(s => s.id !== id));
     if (!hasSupabaseConfig) return;
     const { error } = await supabase.from('sessions').delete().eq('id', id);
-    if (error) console.error('Error deleting session:', error);
+    if (error) {
+      console.error('Error deleting session:', error);
+      fetchSessions();
+    }
   };
 
   return { sessions, addSession, deleteSession, loading };
@@ -200,8 +247,11 @@ export function useSupabaseConfigs(defaultConfigs: ScoopConfig[]) {
       )
       .subscribe();
 
+    const stopAutoRefresh = bindAutoRefresh(fetchConfigs, 15000);
+
     return () => {
       supabase.removeChannel(channel);
+      stopAutoRefresh();
     };
   }, []);
 
@@ -241,7 +291,10 @@ export function useSupabaseConfigs(defaultConfigs: ScoopConfig[]) {
     setConfigs(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
     if (!hasSupabaseConfig) return;
     const { error } = await supabase.from('scoop_configs').update(mapConfigToDB(updates)).eq('id', id);
-    if (error) console.error('Error updating config:', error);
+    if (error) {
+      console.error('Error updating config:', error);
+      fetchConfigs();
+    }
   };
 
   return { configs, updateConfig, loading };
@@ -343,8 +396,11 @@ export function useSupabaseTransactions() {
       )
       .subscribe();
 
+    const stopAutoRefresh = bindAutoRefresh(fetchTransactions, 8000);
+
     return () => {
       supabase.removeChannel(channel);
+      stopAutoRefresh();
     };
   }, []);
 
@@ -362,14 +418,20 @@ export function useSupabaseTransactions() {
     setTransactions(prev => [transaction, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     if (!hasSupabaseConfig) return;
     const { error } = await supabase.from('transactions').insert([mapTransactionToDB(transaction)]);
-    if (error) console.error('Error adding transaction:', error);
+    if (error) {
+      console.error('Error adding transaction:', error);
+      fetchTransactions();
+    }
   };
 
   const deleteTransaction = async (id: string) => {
     setTransactions(prev => prev.filter(t => t.id !== id));
     if (!hasSupabaseConfig) return;
     const { error } = await supabase.from('transactions').delete().eq('id', id);
-    if (error) console.error('Error deleting transaction:', error);
+    if (error) {
+      console.error('Error deleting transaction:', error);
+      fetchTransactions();
+    }
   };
 
   return { transactions, addTransaction, deleteTransaction, loading };
