@@ -1,0 +1,30 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  font-family: "Nunito", sans-serif;
+  background-color: #f0f9ff; /* sky-50 */
+  color: #0c4a6e; /* sky-900 */
+}
+
+/* Custom scrollbar for a cuter look */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #f0f9ff; 
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #bae6fd; 
+  border-radius: 10px;
+  border: 2px solid #f0f9ff;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #7dd3fc; 
+}
