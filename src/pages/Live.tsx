@@ -1,14 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Product, ScoopConfig } from '../types';
+import { Product, ScoopConfig, Transaction, LiveSession } from '../types';
 import { useSupabaseConfigs } from '../hooks/useSupabase';
 import { defaultConfigs } from './Simulator';
+import { v4 as uuidv4 } from 'uuid';
+import { CheckCircle } from 'lucide-react';
 
 interface OrderItem {
   product: Product;
   quantity: number;
 }
 
-export default function Live({ products }: { products: Product[] }) {
+interface LiveProps {
+  products: Product[];
+  updateProduct: (id: string, updates: Partial<Product>) => void;
+  addTransaction: (transaction: Transaction) => void;
+  addSession: (session: LiveSession) => void;
+}
+
+export default function Live({ products, updateProduct, addTransaction, addSession }: LiveProps) {
   const { configs, loading } = useSupabaseConfigs(defaultConfigs);
   
   const [selectedConfigId, setSelectedConfigId] = useState<string>('');
@@ -67,6 +76,54 @@ export default function Live({ products }: { products: Product[] }) {
 
   const handleClearOrder = () => {
     setOrderItems([]);
+  };
+
+  const handleCompleteOrder = () => {
+    if (orderItems.length === 0) return;
+
+    const now = new Date().toISOString();
+
+    // 1. Deduct inventory
+    orderItems.forEach(item => {
+      const currentQty = item.product.quantity || 0;
+      updateProduct(item.product.id, { quantity: Math.max(0, currentQty - item.quantity) });
+    });
+
+    // 2. Add Income Transaction (Revenue)
+    addTransaction({
+      id: uuidv4(),
+      type: 'IN',
+      category: 'ORDER',
+      amount: scoopPrice,
+      description: `Đơn hàng ${selectedConfig?.name} (${totalItemsCount} món)`,
+      date: now
+    });
+
+    // 3. Add Expense Transaction (Packaging)
+    if (packagingCost > 0) {
+      addTransaction({
+        id: uuidv4(),
+        type: 'OUT',
+        category: 'FEE',
+        amount: packagingCost,
+        description: `Chi phí bao bì đơn hàng ${selectedConfig?.name}`,
+        date: now
+      });
+    }
+
+    // 4. Record Session (Analytics)
+    addSession({
+      id: uuidv4(),
+      date: now,
+      scoopsSold: 1,
+      revenue: scoopPrice,
+      tiktokFeePercent: 0,
+      packagingCostPerScoop: packagingCost,
+      averageScoopCost: totalCost
+    });
+
+    alert('Hoàn tất đơn hàng thành công!');
+    handleClearOrder();
   };
 
   return (
@@ -225,6 +282,18 @@ export default function Live({ products }: { products: Product[] }) {
                     : 'Biên lợi nhuận thấp, cân nhắc giảm bớt món VIP hoặc thêm món rẻ.'}
                 </div>
               )}
+
+              {/* Complete Order Button */}
+              <div className="pt-4 border-t border-slate-200 mt-6">
+                <button
+                  onClick={handleCompleteOrder}
+                  disabled={orderItems.length === 0}
+                  className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-3.5 rounded-xl font-bold hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                >
+                  <CheckCircle className="w-5 h-5" />
+                  Hoàn tất đơn hàng
+                </button>
+              </div>
             </div>
           </div>
         </div>

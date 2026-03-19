@@ -9,6 +9,7 @@ export interface Product {
   imageUrl: string;
   priceGroup: PriceGroup;
   quantity?: number;
+  warehouseQuantity?: number;
 }
 
 export interface LiveSession {
@@ -29,4 +30,13 @@ export interface ScoopConfig {
   ratioLow: number;
   ratioMedium: number;
   ratioHigh: number;
+}
+
+export interface Transaction {
+  id: string;
+  type: 'IN' | 'OUT';
+  category: 'ORDER' | 'IMPORT' | 'FEE' | 'OTHER';
+  amount: number;
+  description: string;
+  date: string;
 }

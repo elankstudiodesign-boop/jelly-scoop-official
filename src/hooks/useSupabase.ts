@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, hasSupabaseConfig } from '../lib/supabase';
-import { Product, LiveSession, ScoopConfig } from '../types';
+import { Product, LiveSession, ScoopConfig, Transaction } from '../types';
 import { useLocalStorage } from './useLocalStorage';
 
 export function useSupabaseProducts() {
@@ -132,6 +132,7 @@ function mapProductToDB(p: Partial<Product>) {
   if (p.retailPrice !== undefined) { res.retail_price = p.retailPrice; delete res.retailPrice; }
   if (p.imageUrl !== undefined) { res.image_url = p.imageUrl; delete res.imageUrl; }
   if (p.priceGroup !== undefined) { res.price_group = p.priceGroup; delete res.priceGroup; }
+  if (p.warehouseQuantity !== undefined) { res.warehouse_quantity = p.warehouseQuantity; delete res.warehouseQuantity; }
   return res;
 }
 
@@ -144,7 +145,8 @@ function mapProductFromDB(p: any): Product {
     margin: Number(p.margin),
     imageUrl: p.image_url,
     priceGroup: p.price_group,
-    quantity: Number(p.quantity)
+    quantity: Number(p.quantity),
+    warehouseQuantity: Number(p.warehouse_quantity || 0)
   };
 }
 
@@ -187,5 +189,60 @@ function mapConfigFromDB(c: any): ScoopConfig {
     ratioLow: Number(c.ratio_low),
     ratioMedium: Number(c.ratio_medium),
     ratioHigh: Number(c.ratio_high)
+  };
+}
+
+export function useSupabaseTransactions() {
+  const [transactions, setTransactions] = useLocalStorage<Transaction[]>('scoop_transactions', []);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!hasSupabaseConfig) {
+      setLoading(false);
+      return;
+    }
+    fetchTransactions();
+  }, []);
+
+  const fetchTransactions = async () => {
+    const { data, error } = await supabase.from('transactions').select('*').order('created_at', { ascending: false });
+    if (error) {
+      console.error('Error fetching transactions:', error);
+    } else if (data) {
+      setTransactions(data.map(mapTransactionFromDB));
+    }
+    setLoading(false);
+  };
+
+  const addTransaction = async (transaction: Transaction) => {
+    const updated = [transaction, ...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    setTransactions(updated);
+    if (!hasSupabaseConfig) return;
+    const { error } = await supabase.from('transactions').insert([mapTransactionToDB(transaction)]);
+    if (error) console.error('Error adding transaction:', error);
+  };
+
+  const deleteTransaction = async (id: string) => {
+    setTransactions(transactions.filter(t => t.id !== id));
+    if (!hasSupabaseConfig) return;
+    const { error } = await supabase.from('transactions').delete().eq('id', id);
+    if (error) console.error('Error deleting transaction:', error);
+  };
+
+  return { transactions, addTransaction, deleteTransaction, loading };
+}
+
+function mapTransactionToDB(t: Partial<Transaction>) {
+  return { ...t };
+}
+
+function mapTransactionFromDB(t: any): Transaction {
+  return {
+    id: t.id,
+    type: t.type,
+    category: t.category,
+    amount: Number(t.amount),
+    description: t.description,
+    date: t.date
   };
 }

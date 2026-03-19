@@ -8,6 +8,7 @@ CREATE TABLE products (
   image_url TEXT,
   price_group TEXT NOT NULL,
   quantity NUMERIC DEFAULT 0,
+  warehouse_quantity NUMERIC DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
@@ -35,10 +36,22 @@ CREATE TABLE sessions (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
+-- Tạo bảng transactions
+CREATE TABLE transactions (
+  id TEXT PRIMARY KEY,
+  type TEXT NOT NULL,
+  category TEXT NOT NULL,
+  amount NUMERIC NOT NULL,
+  description TEXT,
+  date TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
 -- Bật RLS (Row Level Security) nhưng cho phép truy cập công khai (vì đây là app nội bộ)
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE scoop_configs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow public read access on products" ON products FOR SELECT USING (true);
 CREATE POLICY "Allow public insert access on products" ON products FOR INSERT WITH CHECK (true);
@@ -54,6 +67,11 @@ CREATE POLICY "Allow public read access on sessions" ON sessions FOR SELECT USIN
 CREATE POLICY "Allow public insert access on sessions" ON sessions FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update access on sessions" ON sessions FOR UPDATE USING (true);
 CREATE POLICY "Allow public delete access on sessions" ON sessions FOR DELETE USING (true);
+
+CREATE POLICY "Allow public read access on transactions" ON transactions FOR SELECT USING (true);
+CREATE POLICY "Allow public insert access on transactions" ON transactions FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update access on transactions" ON transactions FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete access on transactions" ON transactions FOR DELETE USING (true);
 
 -- Thêm dữ liệu mặc định cho scoop_configs
 INSERT INTO scoop_configs (id, name, price, total_items, ratio_low, ratio_medium, ratio_high)

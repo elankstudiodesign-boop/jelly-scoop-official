@@ -5,14 +5,17 @@ import Analytics from './pages/Analytics';
 import Products from './pages/Products';
 import Simulator from './pages/Simulator';
 import Live from './pages/Live';
-import { useSupabaseProducts, useSupabaseSessions } from './hooks/useSupabase';
+import Import from './pages/Import';
+import Finance from './pages/Finance';
+import { useSupabaseProducts, useSupabaseSessions, useSupabaseTransactions } from './hooks/useSupabase';
 import { hasSupabaseConfig } from './lib/supabase';
 
 export default function App() {
   const { products, addProduct, updateProduct, deleteProduct, loading: productsLoading } = useSupabaseProducts();
   const { sessions, addSession, deleteSession, loading: sessionsLoading } = useSupabaseSessions();
+  const { transactions, addTransaction, deleteTransaction, loading: transactionsLoading } = useSupabaseTransactions();
 
-  if (productsLoading || sessionsLoading) {
+  if (productsLoading || sessionsLoading || transactionsLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="text-indigo-600 font-medium">Đang tải dữ liệu từ Supabase...</div>
@@ -22,9 +25,9 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-indigo-100 selection:text-indigo-900">
+      <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-indigo-100 selection:text-indigo-900 pb-20 md:pb-0">
         <Sidebar />
-        <main className="flex-1 p-8 lg:p-10 overflow-y-auto">
+        <main className="flex-1 p-4 md:p-8 lg:p-10 overflow-y-auto">
           <div className="max-w-7xl mx-auto">
             {!hasSupabaseConfig && (
               <div className="mb-8 bg-amber-50 border border-amber-200 rounded-xl p-5 shadow-sm">
@@ -42,8 +45,10 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Analytics sessions={sessions} addSession={addSession} deleteSession={deleteSession} />} />
               <Route path="/products" element={<Products products={products} addProduct={addProduct} updateProduct={updateProduct} deleteProduct={deleteProduct} />} />
+              <Route path="/import" element={<Import products={products} addProduct={addProduct} updateProduct={updateProduct} addTransaction={addTransaction} deleteProduct={deleteProduct} />} />
               <Route path="/simulator" element={<Simulator products={products} />} />
-              <Route path="/live" element={<Live products={products} />} />
+              <Route path="/live" element={<Live products={products} updateProduct={updateProduct} addTransaction={addTransaction} addSession={addSession} />} />
+              <Route path="/finance" element={<Finance transactions={transactions} deleteTransaction={deleteTransaction} />} />
             </Routes>
           </div>
         </main>
