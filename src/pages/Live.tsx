@@ -167,11 +167,11 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
               {/* Add Product */}
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">Thêm sản phẩm vào đơn</label>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <select 
                     value={selectedProductId}
                     onChange={e => setSelectedProductId(e.target.value)}
-                    className="flex-1 border border-slate-300 rounded-lg px-4 py-2.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
+                    className="flex-1 min-w-0 border border-slate-300 rounded-lg px-4 py-2.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
                   >
                     <option value="">-- Chọn sản phẩm từ kho --</option>
                     {products.map(product => (
@@ -183,7 +183,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
                   <button 
                     onClick={handleAddProduct}
                     disabled={!selectedProductId}
-                    className="bg-indigo-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
+                    className="flex-shrink-0 whitespace-nowrap bg-indigo-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
                   >
                     Thêm
                   </button>

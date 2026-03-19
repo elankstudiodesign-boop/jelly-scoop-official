@@ -98,6 +98,18 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
   // Only show products that are in the pool or have been configured for the pool
   const poolProducts = products.filter(p => (p.quantity || 0) > 0 || p.retailPrice);
 
+  const [filterGroup, setFilterGroup] = useState<'Tất cả' | PriceGroup>('Tất cả');
+
+  const filteredPoolProducts = filterGroup === 'Tất cả' 
+    ? poolProducts 
+    : poolProducts.filter(p => p.priceGroup === filterGroup);
+
+  const groupStats = {
+    Thấp: poolProducts.filter(p => p.priceGroup === 'Thấp').reduce((sum, p) => sum + (p.quantity || 0), 0),
+    Trung: poolProducts.filter(p => p.priceGroup === 'Trung').reduce((sum, p) => sum + (p.quantity || 0), 0),
+    Cao: poolProducts.filter(p => p.priceGroup === 'Cao').reduce((sum, p) => sum + (p.quantity || 0), 0),
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -195,69 +207,104 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
         </form>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-        {poolProducts.map(product => {
-          const poolQty = product.quantity || 0;
-          const isLowInPool = poolQty <= 10;
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm w-fit">
+            {(['Tất cả', 'Thấp', 'Trung', 'Cao'] as const).map((group) => (
+              <button
+                key={group}
+                onClick={() => setFilterGroup(group)}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                  filterGroup === group
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                {group}
+              </button>
+            ))}
+          </div>
           
-          return (
-            <div key={product.id} className="group relative bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-md transition-all duration-200 flex flex-col">
-              <div className="aspect-square bg-slate-50 relative p-3">
-                {product.imageUrl ? (
-                  <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover rounded-lg border border-slate-200" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-slate-400 bg-white rounded-lg border border-dashed border-slate-300">
-                    <Package className="w-8 h-8 opacity-50" />
-                  </div>
-                )}
-                <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-md text-xs font-semibold text-slate-700 border border-slate-200 shadow-sm">
-                  {product.priceGroup}
-                </div>
-              </div>
-              <div className="p-4 flex-1 flex flex-col bg-white">
-                <h3 className="font-semibold text-base text-slate-900 truncate mb-3">{product.name}</h3>
-                
-                {isLowInPool && (
-                  <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1.5 rounded-md border border-amber-100">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    Sắp hết trong bể, cần refill!
-                  </div>
-                )}
-
-                {(product.warehouseQuantity || 0) <= 10 && (
-                  <div className="mb-3 flex items-center gap-1.5 text-xs font-medium text-red-700 bg-red-50 px-2 py-1.5 rounded-md border border-red-100">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    Kho sắp hết, cần nhập thêm!
-                  </div>
-                )}
-
-                <div className="mt-auto space-y-1.5 text-sm bg-slate-50 p-3 rounded-lg border border-slate-100">
-                  <div className="flex justify-between items-center text-slate-600">
-                    <span className="font-medium text-indigo-700">Trong bể:</span>
-                    <input 
-                      type="number" 
-                      value={poolQty} 
-                      onChange={(e) => handleUpdateQuantity(product.id, Number(e.target.value))}
-                      className="w-20 text-right border border-indigo-200 rounded px-2 py-1 text-xs font-bold text-indigo-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none bg-white"
-                    />
-                  </div>
-                  <div className="flex justify-between text-slate-600 pt-1.5 border-t border-slate-200 mt-1.5">
-                    <span>Trong kho:</span>
-                    <span className="font-medium">{product.warehouseQuantity || 0}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-600 pt-1.5 border-t border-slate-200 mt-1.5">
-                    <span>Giá vốn:</span>
-                    <span className="font-medium">{product.cost.toLocaleString()}đ</span>
-                  </div>
-                  <div className="flex justify-between text-slate-600 pt-1.5 border-t border-slate-200 mt-1.5">
-                    <span>Giá bán lẻ:</span>
-                    <span className="font-medium text-emerald-600">{(product.retailPrice || 0).toLocaleString()}đ</span>
-                  </div>
-                </div>
-              </div>
+          <div className="flex gap-3 overflow-x-auto pb-1 sm:pb-0">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm whitespace-nowrap">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span className="text-xs font-medium text-slate-600">Thấp: <span className="text-slate-900">{groupStats.Thấp}</span></span>
             </div>
-          );
-        })}
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm whitespace-nowrap">
+              <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+              <span className="text-xs font-medium text-slate-600">Trung: <span className="text-slate-900">{groupStats.Trung}</span></span>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm whitespace-nowrap">
+              <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+              <span className="text-xs font-medium text-slate-600">Cao: <span className="text-slate-900">{groupStats.Cao}</span></span>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          {filteredPoolProducts.map(product => {
+            const poolQty = product.quantity || 0;
+            const isLowInPool = poolQty <= 10;
+            
+            return (
+              <div key={product.id} className="group relative bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-md transition-all duration-200 flex flex-col">
+                <div className="aspect-square bg-slate-50 relative p-3">
+                  {product.imageUrl ? (
+                    <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover rounded-lg border border-slate-200" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-400 bg-white rounded-lg border border-dashed border-slate-300">
+                      <Package className="w-8 h-8 opacity-50" />
+                    </div>
+                  )}
+                  <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-md text-xs font-semibold text-slate-700 border border-slate-200 shadow-sm">
+                    {product.priceGroup}
+                  </div>
+                </div>
+                <div className="p-4 flex-1 flex flex-col bg-white">
+                  <h3 className="font-semibold text-base text-slate-900 truncate mb-3">{product.name}</h3>
+                  
+                  {isLowInPool && (
+                    <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1.5 rounded-md border border-amber-100">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      Sắp hết trong bể, cần refill!
+                    </div>
+                  )}
+
+                  {(product.warehouseQuantity || 0) <= 10 && (
+                    <div className="mb-3 flex items-center gap-1.5 text-xs font-medium text-red-700 bg-red-50 px-2 py-1.5 rounded-md border border-red-100">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      Kho sắp hết, cần nhập thêm!
+                    </div>
+                  )}
+
+                  <div className="mt-auto space-y-1.5 text-sm bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <div className="flex justify-between items-center text-slate-600">
+                      <span className="font-medium text-indigo-700">Trong bể:</span>
+                      <input 
+                        type="number" 
+                        value={poolQty} 
+                        onChange={(e) => handleUpdateQuantity(product.id, Number(e.target.value))}
+                        className="w-20 text-right border border-indigo-200 rounded px-2 py-1 text-xs font-bold text-indigo-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none bg-white"
+                      />
+                    </div>
+                    <div className="flex justify-between text-slate-600 pt-1.5 border-t border-slate-200 mt-1.5">
+                      <span>Trong kho:</span>
+                      <span className="font-medium">{product.warehouseQuantity || 0}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600 pt-1.5 border-t border-slate-200 mt-1.5">
+                      <span>Giá vốn:</span>
+                      <span className="font-medium">{product.cost.toLocaleString()}đ</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600 pt-1.5 border-t border-slate-200 mt-1.5">
+                      <span>Giá bán lẻ:</span>
+                      <span className="font-medium text-emerald-600">{(product.retailPrice || 0).toLocaleString()}đ</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
