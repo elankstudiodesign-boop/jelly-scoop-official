@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="jellyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF9A9E" />
+      <stop offset="100%" stop-color="#FECFEF" />
+    </linearGradient>
+    <linearGradient id="scoopGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FBC2EB" />
+      <stop offset="100%" stop-color="#A6C1EE" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000000" flood-opacity="0.15" />
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" rx="120" fill="url(#jellyGrad)" />
+  
+  <!-- Jelly / Ice Cream Scoop -->
+  <g filter="url(#shadow)" transform="translate(126, 140)">
+    <!-- Main Scoop Body -->
+    <path d="M130 20 C 50 20, 20 90, 20 160 C 20 230, 240 230, 240 160 C 240 90, 210 20, 130 20 Z" fill="url(#scoopGrad)" />
+    
+    <!-- Bottom Ruffles (Jelly/Ice cream texture) -->
+    <path d="M10 160 Q 40 200 70 160 T 130 160 T 190 160 T 250 160" fill="none" stroke="#FFFFFF" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" />
+    
+    <!-- Highlights -->
+    <path d="M60 80 Q 90 40 130 40" fill="none" stroke="#FFFFFF" stroke-width="16" stroke-linecap="round" opacity="0.6" />
+    <circle cx="180" cy="90" r="12" fill="#FFFFFF" opacity="0.8" />
+    <circle cx="200" cy="110" r="8" fill="#FFFFFF" opacity="0.6" />
+  </g>
+  
+  <!-- Cone / Cup -->
+  <path d="M176 320 L 256 440 L 336 320 Z" fill="#FFD1A9" filter="url(#shadow)" />
+  <path d="M176 320 L 256 440 L 336 320 Z" fill="none" stroke="#E8A87C" stroke-width="8" stroke-linejoin="round" />
+  
+  <!-- Grid lines on cone -->
+  <path d="M200 320 L 256 400 M 230 320 L 256 360 M 312 320 L 256 400 M 282 320 L 256 360" fill="none" stroke="#E8A87C" stroke-width="6" opacity="0.5" />
+</svg>
