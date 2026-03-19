@@ -136,3 +136,10 @@ WHERE NOT EXISTS (SELECT 1 FROM scoop_configs WHERE id = '2');
 INSERT INTO scoop_configs (id, name, price, total_items, ratio_low, ratio_medium, ratio_high)
 SELECT '3', 'Scoop Lớn', 299000, 35, 12, 11, 12
 WHERE NOT EXISTS (SELECT 1 FROM scoop_configs WHERE id = '3');
+
+-- 7. (Tùy chọn) Cập nhật dữ liệu cũ sang các danh mục giao dịch mới
+-- Chạy các lệnh dưới đây nếu bạn muốn chuyển đổi các giao dịch cũ sang danh mục chi tiết hơn
+-- UPDATE transactions SET category = 'PACKAGING' WHERE category = 'FEE' AND description ILIKE '%bao bì%';
+-- UPDATE transactions SET category = 'PACKAGING' WHERE category = 'FEE' AND description ILIKE '%hộp%';
+-- UPDATE transactions SET category = 'SHIPPING' WHERE category = 'FEE' AND description ILIKE '%ship%';
+-- UPDATE transactions SET category = 'SHIPPING' WHERE category = 'FEE' AND description ILIKE '%vận chuyển%';
