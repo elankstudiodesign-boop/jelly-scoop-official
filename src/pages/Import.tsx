@@ -20,11 +20,13 @@ export default function Import({ products, addProduct, updateProduct, addTransac
   const [totalCost, setTotalCost] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [imageUrl, setImageUrl] = useState<string>('');
+  const [imageProcessing, setImageProcessing] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [deleteConfirmIds, setDeleteConfirmIds] = useState<string[] | null>(null);
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
+  const imageDropzoneRef = useRef<HTMLDivElement>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const filteredProducts = products.filter(p => 
@@ -41,6 +43,86 @@ export default function Import({ products, addProduct, updateProduct, addTransac
     if (cost < 13000) return 'Trung';
     if (cost <= 20000) return 'Cao';
     return 'Cao cấp';
+  };
+
+  const fileToCompressedDataUrl = async (file: File) => {
+    const maxDimension = 900;
+    const quality = 0.82;
+
+    const bitmap = await (async () => {
+      if ('createImageBitmap' in window) {
+        return await createImageBitmap(file);
+      }
+      const objectUrl = URL.createObjectURL(file);
+      try {
+        const img = new Image();
+        img.decoding = 'async';
+        img.src = objectUrl;
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error('Không thể đọc ảnh'));
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Không thể xử lý ảnh');
+        ctx.drawImage(img, 0, 0);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        return { width: canvas.width, height: canvas.height, close: () => {}, __dataUrl: dataUrl } as any;
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    })();
+
+    if ((bitmap as any).__dataUrl) return (bitmap as any).__dataUrl as string;
+
+    const w = (bitmap as ImageBitmap).width;
+    const h = (bitmap as ImageBitmap).height;
+    const scale = Math.min(1, maxDimension / Math.max(w, h));
+    const outW = Math.max(1, Math.round(w * scale));
+    const outH = Math.max(1, Math.round(h * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Không thể xử lý ảnh');
+    ctx.drawImage(bitmap as ImageBitmap, 0, 0, outW, outH);
+    (bitmap as ImageBitmap).close?.();
+
+    return canvas.toDataURL('image/jpeg', quality);
+  };
+
+  const handleClipboardPaste = async (clipboardData: DataTransfer | null | undefined) => {
+    if (!clipboardData) return false;
+
+    const items = clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.includes('image')) {
+        const file = items[i].getAsFile();
+        if (!file) continue;
+        try {
+          setImageProcessing(true);
+          const dataUrl = await fileToCompressedDataUrl(file);
+          setImageUrl(dataUrl);
+        } catch {
+          setNotification({ type: 'error', message: 'Không thể dán ảnh. Vui lòng thử lại.' });
+          setTimeout(() => setNotification(null), 3000);
+        } finally {
+          setImageProcessing(false);
+        }
+        return true;
+      }
+    }
+
+    const text = clipboardData.getData('text/plain')?.trim();
+    if (text && (/^https?:\/\//i.test(text) || /^data:image\//i.test(text))) {
+      setImageUrl(text);
+      return true;
+    }
+
+    return false;
   };
 
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,29 +156,24 @@ export default function Import({ products, addProduct, updateProduct, addTransac
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+    setImageProcessing(true);
+    fileToCompressedDataUrl(file)
+      .then(dataUrl => {
+        setImageUrl(dataUrl);
+      })
+      .catch(() => {
+        setNotification({ type: 'error', message: 'Không thể tải ảnh. Vui lòng thử lại.' });
+        setTimeout(() => setNotification(null), 3000);
+      })
+      .finally(() => {
+        setImageProcessing(false);
+      });
   };
 
-  const handlePaste = (e: React.ClipboardEvent) => {
-    const items = e.clipboardData.items;
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf('image') !== -1) {
-        const file = items[i].getAsFile();
-        if (file) {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            setImageUrl(reader.result as string);
-          };
-          reader.readAsDataURL(file);
-        }
-      }
-    }
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const handled = await handleClipboardPaste(e.clipboardData);
+    if (handled) e.preventDefault();
   };
 
   const handleImport = (e: React.FormEvent) => {
@@ -220,6 +297,15 @@ export default function Import({ products, addProduct, updateProduct, addTransac
     }
   }, [someSelected]);
 
+  useEffect(() => {
+    const onWindowPaste = async (e: ClipboardEvent) => {
+      const handled = await handleClipboardPaste(e.clipboardData);
+      if (handled) e.preventDefault();
+    };
+    window.addEventListener('paste', onWindowPaste);
+    return () => window.removeEventListener('paste', onWindowPaste);
+  }, []);
+
   return (
     <div className="space-y-6 relative">
       {notification && (
@@ -337,7 +423,11 @@ export default function Import({ products, addProduct, updateProduct, addTransac
             <div className="space-y-3">
               <label className="block text-sm font-medium text-slate-700">Hình ảnh sản phẩm (Tùy chọn)</label>
               <div 
-                className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-lg hover:border-indigo-500 transition-colors bg-slate-50 relative overflow-hidden group"
+                ref={imageDropzoneRef}
+                tabIndex={0}
+                onClick={() => imageDropzoneRef.current?.focus()}
+                onPaste={handlePaste}
+                className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-lg hover:border-indigo-500 transition-colors bg-slate-50 relative overflow-hidden group focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 {imageUrl ? (
                   <div className="relative w-32 h-32 mx-auto">
@@ -367,6 +457,9 @@ export default function Import({ products, addProduct, updateProduct, addTransac
                       <p className="pl-1 py-1">hoặc Paste (Ctrl+V) ảnh vào đây</p>
                     </div>
                     <p className="text-xs text-slate-500">PNG, JPG, GIF lên đến 5MB</p>
+                    {imageProcessing && (
+                      <p className="text-xs text-indigo-600 font-medium mt-2">Đang xử lý ảnh...</p>
+                    )}
                   </div>
                 )}
               </div>
