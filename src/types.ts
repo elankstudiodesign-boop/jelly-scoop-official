@@ -1,4 +1,4 @@
-export type PriceGroup = 'Thấp' | 'Trung' | 'Cao';
+export type PriceGroup = 'Thấp' | 'Trung' | 'Cao' | 'Cao cấp';
 
 export interface Product {
   id: string;

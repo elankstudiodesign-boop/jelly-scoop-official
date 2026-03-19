@@ -7,6 +7,7 @@ import Simulator from './pages/Simulator';
 import Live from './pages/Live';
 import Import from './pages/Import';
 import Finance from './pages/Finance';
+import PoolDistribution from './pages/PoolDistribution';
 import { useSupabaseProducts, useSupabaseSessions, useSupabaseTransactions } from './hooks/useSupabase';
 import { hasSupabaseConfig } from './lib/supabase';
 
@@ -49,6 +50,7 @@ export default function App() {
               <Route path="/simulator" element={<Simulator products={products} />} />
               <Route path="/live" element={<Live products={products} updateProduct={updateProduct} addTransaction={addTransaction} addSession={addSession} />} />
               <Route path="/finance" element={<Finance transactions={transactions} deleteTransaction={deleteTransaction} addTransaction={addTransaction} />} />
+              <Route path="/pool" element={<PoolDistribution products={products} />} />
             </Routes>
           </div>
         </main>

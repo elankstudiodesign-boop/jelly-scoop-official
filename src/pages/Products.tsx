@@ -157,6 +157,7 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
     Thấp: poolProducts.filter(p => p.priceGroup === 'Thấp').reduce((sum, p) => sum + (p.quantity || 0), 0),
     Trung: poolProducts.filter(p => p.priceGroup === 'Trung').reduce((sum, p) => sum + (p.quantity || 0), 0),
     Cao: poolProducts.filter(p => p.priceGroup === 'Cao').reduce((sum, p) => sum + (p.quantity || 0), 0),
+    'Cao cấp': poolProducts.filter(p => p.priceGroup === 'Cao cấp').reduce((sum, p) => sum + (p.quantity || 0), 0),
   };
 
   return (
@@ -209,6 +210,7 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
                 <option value="Thấp">Thấp</option>
                 <option value="Trung">Trung</option>
                 <option value="Cao">Cao</option>
+                <option value="Cao cấp">Cao cấp</option>
               </select>
             </div>
 
@@ -260,7 +262,7 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm w-fit">
-              {(['Tất cả', 'Thấp', 'Trung', 'Cao'] as const).map((group) => (
+              {(['Tất cả', 'Thấp', 'Trung', 'Cao', 'Cao cấp'] as const).map((group) => (
                 <button
                   key={group}
                   onClick={() => setFilterGroup(group)}
@@ -311,6 +313,10 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
             <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-rose-500"></span>
               <span className="text-xs font-medium text-slate-600">Cao: <span className="text-slate-900">{groupStats.Cao}</span></span>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm whitespace-nowrap">
+              <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+              <span className="text-xs font-medium text-slate-600">Cao cấp: <span className="text-slate-900">{groupStats['Cao cấp']}</span></span>
             </div>
           </div>
         </div>
