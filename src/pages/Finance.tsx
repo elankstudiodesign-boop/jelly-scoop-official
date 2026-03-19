@@ -1,15 +1,49 @@
 import React, { useMemo, useState } from 'react';
 import { Transaction } from '../types';
-import { Wallet, TrendingUp, TrendingDown, Trash2, AlertTriangle, X } from 'lucide-react';
-import { formatCurrency } from '../lib/format';
+import { Wallet, TrendingUp, TrendingDown, Trash2, AlertTriangle, X, Plus } from 'lucide-react';
+import { formatCurrency, parseCurrency } from '../lib/format';
+import { v4 as uuidv4 } from 'uuid';
 
 interface FinanceProps {
   transactions: Transaction[];
   deleteTransaction: (id: string) => void;
+  addTransaction: (transaction: Transaction) => void;
 }
 
-export default function Finance({ transactions, deleteTransaction }: FinanceProps) {
+export default function Finance({ transactions, deleteTransaction, addTransaction }: FinanceProps) {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  
+  // Form state for new transaction
+  const [newTxType, setNewTxType] = useState<'IN' | 'OUT'>('OUT');
+  const [newTxCategory, setNewTxCategory] = useState<Transaction['category']>('PACKAGING');
+  const [newTxAmount, setNewTxAmount] = useState('');
+  const [newTxDescription, setNewTxDescription] = useState('');
+
+  const handleAddTransaction = (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = parseCurrency(newTxAmount);
+    if (amount <= 0 || !newTxDescription) {
+      alert('Vui lòng nhập số tiền lớn hơn 0 và mô tả giao dịch');
+      return;
+    }
+
+    addTransaction({
+      id: uuidv4(),
+      type: newTxType,
+      category: newTxCategory,
+      amount,
+      description: newTxDescription,
+      date: new Date().toISOString()
+    });
+
+    // Reset form and close modal
+    setNewTxType('OUT');
+    setNewTxCategory('PACKAGING');
+    setNewTxAmount('');
+    setNewTxDescription('');
+    setIsAddModalOpen(false);
+  };
 
   const { totalRevenue, totalExpense, netProfit } = useMemo(() => {
     let rev = 0;
@@ -30,8 +64,14 @@ export default function Finance({ transactions, deleteTransaction }: FinanceProp
   const getCategoryLabel = (category: string) => {
     switch (category) {
       case 'ORDER': return 'Đơn hàng';
+      case 'REFUND': return 'Hoàn tiền';
       case 'IMPORT': return 'Nhập kho';
-      case 'FEE': return 'Chi phí';
+      case 'PACKAGING': return 'Đóng gói (Hộp, mộc...)';
+      case 'MARKETING': return 'Marketing / Quảng cáo';
+      case 'SHIPPING': return 'Phí vận chuyển';
+      case 'PLATFORM_FEE': return 'Phí sàn';
+      case 'TOOL': return 'Dụng cụ / Thiết bị';
+      case 'FEE': return 'Chi phí phát sinh';
       default: return 'Khác';
     }
   };
@@ -82,6 +122,13 @@ export default function Finance({ transactions, deleteTransaction }: FinanceProp
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex justify-between items-center">
           <h2 className="text-lg font-bold text-slate-900">Lịch sử giao dịch</h2>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+          >
+            <Plus className="w-4 h-4" />
+            Thêm giao dịch
+          </button>
         </div>
         
         {/* Mobile View */}
@@ -218,6 +265,119 @@ export default function Finance({ transactions, deleteTransaction }: FinanceProp
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Add Transaction Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-slate-900">Thêm giao dịch mới</h3>
+              <button
+                onClick={() => setIsAddModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleAddTransaction} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Loại giao dịch</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewTxType('IN');
+                      setNewTxCategory('ORDER');
+                    }}
+                    className={`py-2 px-4 rounded-lg border font-medium text-sm transition-colors ${
+                      newTxType === 'IN' 
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    Thu (Income)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewTxType('OUT');
+                      setNewTxCategory('PACKAGING');
+                    }}
+                    className={`py-2 px-4 rounded-lg border font-medium text-sm transition-colors ${
+                      newTxType === 'OUT' 
+                        ? 'bg-rose-50 border-rose-200 text-rose-700' 
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    Chi (Expense)
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Danh mục</label>
+                <select
+                  value={newTxCategory}
+                  onChange={(e) => setNewTxCategory(e.target.value as any)}
+                  className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                >
+                  {newTxType === 'IN' ? (
+                    <>
+                      <option value="ORDER">Đơn hàng (Doanh thu bán hàng)</option>
+                      <option value="REFUND">Hoàn tiền (Nhận lại tiền)</option>
+                      <option value="OTHER">Thu nhập khác</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="PACKAGING">Chi phí đóng gói (Hộp, mộc, giấy gói...)</option>
+                      <option value="IMPORT">Nhập kho (Mua hàng hóa)</option>
+                      <option value="SHIPPING">Phí vận chuyển (Giao hàng)</option>
+                      <option value="PLATFORM_FEE">Phí sàn (TikTok, Shopee...)</option>
+                      <option value="MARKETING">Marketing / Quảng cáo</option>
+                      <option value="TOOL">Dụng cụ / Thiết bị</option>
+                      <option value="FEE">Chi phí phát sinh khác</option>
+                      <option value="OTHER">Chi phí khác</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Số tiền (VNĐ)</label>
+                <input
+                  type="text"
+                  value={newTxAmount}
+                  onChange={(e) => setNewTxAmount(formatCurrency(e.target.value))}
+                  placeholder="Ví dụ: 50.000"
+                  className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Mô tả chi tiết</label>
+                <textarea
+                  value={newTxDescription}
+                  onChange={(e) => setNewTxDescription(e.target.value)}
+                  placeholder="Ví dụ: Mua 100 hộp carton"
+                  rows={3}
+                  className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none"
+                  required
+                />
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  className="w-full px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors"
+                >
+                  Lưu giao dịch
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

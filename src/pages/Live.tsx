@@ -105,7 +105,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
       addTransaction({
         id: uuidv4(),
         type: 'OUT',
-        category: 'FEE',
+        category: 'PACKAGING',
         amount: packagingCost,
         description: `Chi phí bao bì đơn hàng ${selectedConfig?.name}`,
         date: now

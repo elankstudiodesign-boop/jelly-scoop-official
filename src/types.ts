@@ -35,7 +35,7 @@ export interface ScoopConfig {
 export interface Transaction {
   id: string;
   type: 'IN' | 'OUT';
-  category: 'ORDER' | 'IMPORT' | 'FEE' | 'OTHER';
+  category: 'ORDER' | 'IMPORT' | 'FEE' | 'PACKAGING' | 'MARKETING' | 'SHIPPING' | 'PLATFORM_FEE' | 'TOOL' | 'REFUND' | 'OTHER';
   amount: number;
   description: string;
   date: string;
