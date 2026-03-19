@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Transaction } from '../types';
 import { Wallet, TrendingUp, TrendingDown, Trash2, AlertTriangle, X, Plus } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '../lib/format';
@@ -11,8 +11,10 @@ interface FinanceProps {
 }
 
 export default function Finance({ transactions, deleteTransaction, addTransaction }: FinanceProps) {
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleteConfirmIds, setDeleteConfirmIds] = useState<string[] | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const selectAllRef = useRef<HTMLInputElement>(null);
   
   // Form state for new transaction
   const [newTxType, setNewTxType] = useState<'IN' | 'OUT'>('OUT');
@@ -60,6 +62,38 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
   }, [transactions]);
 
   const sortedTransactions = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const allIds = sortedTransactions.map(t => t.id);
+  const allSelected = allIds.length > 0 && selectedIds.size === allIds.length;
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => {
+      if (allSelected) return new Set();
+      const next = new Set(prev);
+      allIds.forEach(id => next.add(id));
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    const allowed = new Set(allIds);
+    setSelectedIds(prev => new Set([...prev].filter(id => allowed.has(id))));
+  }, [transactions]);
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someSelected;
+    }
+  }, [someSelected]);
 
   const getCategoryLabel = (category: string) => {
     switch (category) {
@@ -120,15 +154,37 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
 
       {/* Transactions List */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+        <div className="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:justify-between lg:items-center gap-3">
           <h2 className="text-lg font-bold text-slate-900">Lịch sử giao dịch</h2>
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
-          >
-            <Plus className="w-4 h-4" />
-            Thêm giao dịch
-          </button>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-sm text-slate-600 select-none">
+                <input
+                  ref={selectAllRef}
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                Chọn tất cả
+              </label>
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmIds(Array.from(selectedIds))}
+                disabled={selectedIds.size === 0}
+                className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Xóa đã chọn {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+              </button>
+            </div>
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              Thêm giao dịch
+            </button>
+          </div>
         </div>
         
         {/* Mobile View */}
@@ -142,6 +198,12 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
               <div key={t.id} className="p-4 hover:bg-slate-50 transition-colors">
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(t.id)}
+                      onChange={() => toggleSelected(t.id)}
+                      className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    />
                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                       t.type === 'IN' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
                     }`}>
@@ -161,7 +223,7 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
                     {new Date(t.date).toLocaleDateString('vi-VN')} {new Date(t.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                   <button
-                    onClick={() => setDeleteConfirmId(t.id)}
+                    onClick={() => setDeleteConfirmIds([t.id])}
                     className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                     title="Xóa giao dịch"
                   >
@@ -178,6 +240,7 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
               <tr>
+                <th className="px-6 py-4 w-12"></th>
                 <th className="px-6 py-4">Ngày</th>
                 <th className="px-6 py-4">Loại</th>
                 <th className="px-6 py-4">Danh mục</th>
@@ -189,13 +252,21 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
             <tbody className="divide-y divide-slate-100">
               {sortedTransactions.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
                     Chưa có giao dịch nào
                   </td>
                 </tr>
               ) : (
                 sortedTransactions.map((t) => (
                   <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(t.id)}
+                        onChange={() => toggleSelected(t.id)}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {new Date(t.date).toLocaleDateString('vi-VN')} {new Date(t.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                     </td>
@@ -219,7 +290,7 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
                     </td>
                     <td className="px-6 py-4 text-center">
                       <button
-                        onClick={() => setDeleteConfirmId(t.id)}
+                        onClick={() => setDeleteConfirmIds([t.id])}
                         className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                         title="Xóa giao dịch"
                       >
@@ -235,29 +306,40 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
       </div>
 
       {/* Delete Confirmation Modal */}
-      {deleteConfirmId && (
+      {deleteConfirmIds && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6">
               <div className="flex items-center justify-center w-12 h-12 rounded-full bg-rose-100 text-rose-600 mb-4 mx-auto">
                 <AlertTriangle className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900 text-center mb-2">Xóa giao dịch</h3>
+              <h3 className="text-lg font-bold text-slate-900 text-center mb-2">
+                {deleteConfirmIds.length === 1 ? 'Xóa giao dịch' : `Xóa ${deleteConfirmIds.length} giao dịch`}
+              </h3>
               <p className="text-slate-500 text-center mb-6">
-                Bạn có chắc chắn muốn xóa giao dịch này không? Hành động này không thể hoàn tác.
+                {deleteConfirmIds.length === 1
+                  ? 'Bạn có chắc chắn muốn xóa giao dịch này không? Hành động này không thể hoàn tác.'
+                  : 'Bạn có chắc chắn muốn xóa các giao dịch đang chọn không? Hành động này không thể hoàn tác.'
+                }
                 Lưu ý: Việc xóa giao dịch sẽ không tự động hoàn lại số lượng tồn kho.
               </p>
               <div className="flex gap-3">
                 <button
-                  onClick={() => setDeleteConfirmId(null)}
+                  onClick={() => setDeleteConfirmIds(null)}
                   className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors"
                 >
                   Hủy
                 </button>
                 <button
                   onClick={() => {
-                    deleteTransaction(deleteConfirmId);
-                    setDeleteConfirmId(null);
+                    const ids = deleteConfirmIds;
+                    ids.forEach(id => deleteTransaction(id));
+                    setSelectedIds(prev => {
+                      const next = new Set(prev);
+                      ids.forEach(id => next.delete(id));
+                      return next;
+                    });
+                    setDeleteConfirmIds(null);
                   }}
                   className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-medium rounded-lg transition-colors"
                 >

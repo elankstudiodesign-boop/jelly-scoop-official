@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { LiveSession } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -11,6 +11,8 @@ export default function Analytics({ sessions, addSession, deleteSession }: { ses
   const [tiktokFeePercent, setTiktokFeePercent] = useState('4');
   const [packagingCost, setPackagingCost] = useState('5000');
   const [averageScoopCost, setAverageScoopCost] = useState('45000');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const selectAllRef = useRef<HTMLInputElement>(null);
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +36,11 @@ export default function Analytics({ sessions, addSession, deleteSession }: { ses
 
   const handleDelete = (id: string) => {
     deleteSession(id);
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
   };
 
   const chartData = sessions.map(s => {
@@ -50,6 +57,46 @@ export default function Analytics({ sessions, addSession, deleteSession }: { ses
       displayDate: new Date(s.date).toLocaleDateString('vi-VN', { month: 'numeric', day: 'numeric' })
     };
   });
+
+  const allIds = chartData.map(s => s.id);
+  const allSelected = allIds.length > 0 && selectedIds.size === allIds.length;
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => {
+      if (allSelected) return new Set();
+      const next = new Set(prev);
+      allIds.forEach(id => next.add(id));
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    ids.forEach(id => deleteSession(id));
+    setSelectedIds(new Set());
+  };
+
+  useEffect(() => {
+    const allowed = new Set(allIds);
+    setSelectedIds(prev => new Set([...prev].filter(id => allowed.has(id))));
+  }, [sessions]);
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someSelected;
+    }
+  }, [someSelected]);
 
   const totalRevenue = chartData.reduce((sum, s) => sum + s.revenue, 0);
   const totalProfit = chartData.reduce((sum, s) => sum + s.netProfit, 0);
@@ -152,10 +199,36 @@ export default function Analytics({ sessions, addSession, deleteSession }: { ses
       </div>
       
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm text-slate-600 select-none">
+              <input
+                ref={selectAllRef}
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              Chọn tất cả
+            </label>
+            <button
+              type="button"
+              onClick={handleDeleteSelected}
+              disabled={selectedIds.size === 0}
+              className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Xoá đã chọn {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+            </button>
+          </div>
+          <div className="text-sm text-slate-500">
+            {selectedIds.size > 0 ? `Đang chọn ${selectedIds.size}` : ''}
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-600 font-semibold">
               <tr>
+                <th className="p-4 w-12"></th>
                 <th className="p-4">Ngày</th>
                 <th className="p-4 text-right">Scoops</th>
                 <th className="p-4 text-right">Doanh thu</th>
@@ -170,6 +243,14 @@ export default function Analytics({ sessions, addSession, deleteSession }: { ses
                 const totalCost = session.revenue - session.netProfit;
                 return (
                   <tr key={session.id} className="hover:bg-slate-50 transition-colors text-slate-900">
+                    <td className="p-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(session.id)}
+                        onChange={() => toggleSelected(session.id)}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                    </td>
                     <td className="p-4">{new Date(session.date).toLocaleDateString('vi-VN')}</td>
                     <td className="p-4 text-right">{session.scoopsSold}</td>
                     <td className="p-4 text-right font-medium">{formatCurrency(session.revenue)}đ</td>
@@ -190,7 +271,7 @@ export default function Analytics({ sessions, addSession, deleteSession }: { ses
               })}
               {chartData.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-500">
+                  <td colSpan={8} className="p-8 text-center text-slate-500">
                     Chưa có dữ liệu phiên Live
                   </td>
                 </tr>

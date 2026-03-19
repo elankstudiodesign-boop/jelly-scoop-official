@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Product, Transaction } from '../types';
 import { PackagePlus, Search, AlertCircle, Trash2, X, CheckCircle2, Upload, Image as ImageIcon } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '../lib/format';
@@ -21,9 +21,11 @@ export default function Import({ products, addProduct, updateProduct, addTransac
   const [description, setDescription] = useState<string>('');
   const [imageUrl, setImageUrl] = useState<string>('');
   const [showDropdown, setShowDropdown] = useState(false);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleteConfirmIds, setDeleteConfirmIds] = useState<string[] | null>(null);
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const selectAllRef = useRef<HTMLInputElement>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -161,12 +163,53 @@ export default function Import({ products, addProduct, updateProduct, addTransac
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const handleDelete = (id: string) => {
-    deleteProduct(id);
-    setDeleteConfirmId(null);
-    setNotification({ type: 'success', message: 'Đã xoá sản phẩm khỏi kho.' });
+  const handleDeleteMany = (ids: string[]) => {
+    ids.forEach(id => deleteProduct(id));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      ids.forEach(id => next.delete(id));
+      return next;
+    });
+    setDeleteConfirmIds(null);
+    setNotification({
+      type: 'success',
+      message: ids.length === 1 ? 'Đã xoá sản phẩm khỏi kho.' : `Đã xoá ${ids.length} sản phẩm khỏi kho.`
+    });
     setTimeout(() => setNotification(null), 3000);
   };
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const allIds = products.map(p => p.id);
+  const allSelected = allIds.length > 0 && selectedIds.size === allIds.length;
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => {
+      if (allSelected) return new Set();
+      const next = new Set(prev);
+      allIds.forEach(id => next.add(id));
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    const allowed = new Set(allIds);
+    setSelectedIds(prev => new Set([...prev].filter(id => allowed.has(id))));
+  }, [products]);
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someSelected;
+    }
+  }, [someSelected]);
 
   return (
     <div className="space-y-6 relative">
@@ -182,22 +225,27 @@ export default function Import({ products, addProduct, updateProduct, addTransac
         </div>
       )}
 
-      {deleteConfirmId && (
+      {deleteConfirmIds && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-slate-200">
-            <h3 className="text-lg font-bold text-slate-900 mb-2">Xác nhận xoá sản phẩm</h3>
+            <h3 className="text-lg font-bold text-slate-900 mb-2">
+              {deleteConfirmIds.length === 1 ? 'Xác nhận xoá sản phẩm' : `Xác nhận xoá ${deleteConfirmIds.length} sản phẩm`}
+            </h3>
             <p className="text-slate-600 text-sm mb-6">
-              Bạn có chắc chắn muốn xoá sản phẩm này khỏi kho? Hành động này không thể hoàn tác.
+              {deleteConfirmIds.length === 1
+                ? 'Bạn có chắc chắn muốn xoá sản phẩm này khỏi kho? Hành động này không thể hoàn tác.'
+                : 'Bạn có chắc chắn muốn xoá các sản phẩm đang chọn khỏi kho? Hành động này không thể hoàn tác.'
+              }
             </p>
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => setDeleteConfirmId(null)}
+                onClick={() => setDeleteConfirmIds(null)}
                 className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
               >
                 Hủy
               </button>
               <button
-                onClick={() => handleDelete(deleteConfirmId)}
+                onClick={() => handleDeleteMany(deleteConfirmIds)}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
               >
                 Xác nhận xoá
@@ -382,13 +430,34 @@ export default function Import({ products, addProduct, updateProduct, addTransac
 
       {/* Warehouse Inventory List */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mt-8">
-        <div className="p-6 border-b border-slate-100">
+        <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <h2 className="text-lg font-bold text-slate-900">Tồn kho hiện tại</h2>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm text-slate-600 select-none">
+              <input
+                ref={selectAllRef}
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              Chọn tất cả
+            </label>
+            <button
+              type="button"
+              onClick={() => setDeleteConfirmIds(Array.from(selectedIds))}
+              disabled={selectedIds.size === 0}
+              className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Xoá đã chọn {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+            </button>
+          </div>
         </div>
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
               <tr>
+                <th className="px-6 py-4 w-12"></th>
                 <th className="px-6 py-4 w-16">Ảnh</th>
                 <th className="px-6 py-4">Sản phẩm</th>
                 <th className="px-6 py-4 text-right">Giá vốn</th>
@@ -400,15 +469,24 @@ export default function Import({ products, addProduct, updateProduct, addTransac
             <tbody className="divide-y divide-slate-100">
               {products.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
                     Kho hàng trống
                   </td>
                 </tr>
               ) : (
                 products.map(p => {
                   const wq = p.warehouseQuantity || 0;
+                  const checked = selectedIds.has(p.id);
                   return (
                     <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleSelected(p.id)}
+                          className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                      </td>
                       <td className="px-6 py-4">
                         <div className="w-10 h-10 rounded-md overflow-hidden bg-slate-100 border border-slate-200">
                           {p.imageUrl ? (
@@ -435,7 +513,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
                       </td>
                       <td className="px-6 py-4 text-center">
                         <button
-                          onClick={() => setDeleteConfirmId(p.id)}
+                          onClick={() => setDeleteConfirmIds([p.id])}
                           className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Xoá sản phẩm"
                         >
@@ -457,8 +535,15 @@ export default function Import({ products, addProduct, updateProduct, addTransac
           ) : (
             products.map(p => {
               const wq = p.warehouseQuantity || 0;
+              const checked = selectedIds.has(p.id);
               return (
                 <div key={p.id} className="p-4 flex items-start gap-4 hover:bg-slate-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleSelected(p.id)}
+                    className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 flex-shrink-0"
+                  />
                   <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
                     {p.imageUrl ? (
                       <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
@@ -472,7 +557,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
                     <div className="flex justify-between items-start mb-1">
                       <h3 className="font-semibold text-slate-900 truncate pr-2">{p.name}</h3>
                       <button
-                        onClick={() => setDeleteConfirmId(p.id)}
+                        onClick={() => setDeleteConfirmIds([p.id])}
                         className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors -mt-1 -mr-1 flex-shrink-0"
                       >
                         <Trash2 className="w-4 h-4" />

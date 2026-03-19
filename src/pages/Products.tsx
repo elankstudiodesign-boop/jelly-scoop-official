@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Product, PriceGroup } from '../types';
-import { AlertCircle, ArrowDownToLine, Package } from 'lucide-react';
+import { AlertCircle, ArrowDownToLine, Package, Trash2 } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '../lib/format';
 
 interface ProductsProps {
@@ -16,6 +16,9 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
   const [retailPrice, setRetailPrice] = useState('');
   const [quantity, setQuantity] = useState('');
   const [priceGroup, setPriceGroup] = useState<PriceGroup>('Thấp');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const selectAllRef = useRef<HTMLInputElement>(null);
+  const [deleteConfirmIds, setDeleteConfirmIds] = useState<string[] | null>(null);
 
   const selectedProduct = products.find(p => p.id === selectedProductId);
 
@@ -105,6 +108,50 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
   const filteredPoolProducts = filterGroup === 'Tất cả' 
     ? poolProducts 
     : poolProducts.filter(p => p.priceGroup === filterGroup);
+
+  const allIds = filteredPoolProducts.map(p => p.id);
+  const allSelected = allIds.length > 0 && selectedIds.size === allIds.length;
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => {
+      if (allSelected) return new Set();
+      const next = new Set(prev);
+      allIds.forEach(id => next.add(id));
+      return next;
+    });
+  };
+
+  const handleDeleteMany = (ids: string[]) => {
+    if (!confirm(`Bạn có chắc chắn muốn xoá ${ids.length} sản phẩm này không?`)) return;
+    ids.forEach(id => deleteProduct(id));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      ids.forEach(id => next.delete(id));
+      return next;
+    });
+    setDeleteConfirmIds(null);
+  };
+
+  useEffect(() => {
+    const allowed = new Set(allIds);
+    setSelectedIds(prev => new Set([...prev].filter(id => allowed.has(id))));
+  }, [products, filterGroup]);
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someSelected;
+    }
+  }, [someSelected]);
 
   const groupStats = {
     Thấp: poolProducts.filter(p => p.priceGroup === 'Thấp').reduce((sum, p) => sum + (p.quantity || 0), 0),
@@ -211,20 +258,45 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
 
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm w-fit">
-            {(['Tất cả', 'Thấp', 'Trung', 'Cao'] as const).map((group) => (
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm w-fit">
+              {(['Tất cả', 'Thấp', 'Trung', 'Cao'] as const).map((group) => (
+                <button
+                  key={group}
+                  onClick={() => setFilterGroup(group)}
+                  className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                    filterGroup === group
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  {group}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-3 bg-white p-1 px-3 rounded-lg border border-slate-200 shadow-sm">
+              <label className="flex items-center gap-2 text-sm text-slate-600 select-none cursor-pointer">
+                <input
+                  ref={selectAllRef}
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                Chọn tất cả
+              </label>
+              <div className="w-px h-4 bg-slate-200"></div>
               <button
-                key={group}
-                onClick={() => setFilterGroup(group)}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-                  filterGroup === group
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
+                type="button"
+                onClick={() => handleDeleteMany(Array.from(selectedIds))}
+                disabled={selectedIds.size === 0}
+                className="text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
               >
-                {group}
+                <Trash2 className="w-4 h-4" />
+                Xoá {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
               </button>
-            ))}
+            </div>
           </div>
           
           <div className="flex gap-3 overflow-x-auto pb-1 sm:pb-0">
@@ -249,7 +321,15 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
             const isLowInPool = poolQty <= 10;
             
             return (
-              <div key={product.id} className="group relative bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-md transition-all duration-200 flex flex-row sm:flex-col">
+              <div key={product.id} className={`group relative bg-white border rounded-xl overflow-hidden hover:shadow-md transition-all duration-200 flex flex-row sm:flex-col ${selectedIds.has(product.id) ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-slate-200'}`}>
+                <div className="absolute top-3 left-3 z-10 sm:top-4 sm:left-4">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(product.id)}
+                    onChange={() => toggleSelected(product.id)}
+                    className="h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 bg-white/80 backdrop-blur-sm shadow-sm cursor-pointer"
+                  />
+                </div>
                 <div className="w-1/3 sm:w-full aspect-square bg-slate-50 relative p-2 sm:p-3 flex-shrink-0">
                   {product.imageUrl ? (
                     <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover rounded-lg border border-slate-200" referrerPolicy="no-referrer" />
