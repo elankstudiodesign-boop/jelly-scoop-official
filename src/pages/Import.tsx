@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Product, Transaction } from '../types';
-import { PackagePlus, Search, AlertCircle, Trash2, X, CheckCircle2 } from 'lucide-react';
+import { PackagePlus, Search, AlertCircle, Trash2, X, CheckCircle2, Upload, Image as ImageIcon } from 'lucide-react';
+import { formatCurrency, parseCurrency } from '../lib/format';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ImportProps {
@@ -18,9 +19,11 @@ export default function Import({ products, addProduct, updateProduct, addTransac
   const [unitCost, setUnitCost] = useState<string>('');
   const [totalCost, setTotalCost] = useState<string>('');
   const [description, setDescription] = useState<string>('');
+  const [imageUrl, setImageUrl] = useState<string>('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -35,23 +38,55 @@ export default function Import({ products, addProduct, updateProduct, addTransac
     const val = e.target.value;
     setQuantity(val);
     if (val && unitCost) {
-      setTotalCost(Math.round(Number(val) * Number(unitCost)).toString());
+      const parsedUnitCost = parseCurrency(unitCost);
+      setTotalCost(formatCurrency(Math.round(Number(val) * parsedUnitCost)));
     }
   };
 
   const handleUnitCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
-    setUnitCost(val);
-    if (val && quantity) {
-      setTotalCost(Math.round(Number(quantity) * Number(val)).toString());
+    const formatted = formatCurrency(val);
+    setUnitCost(formatted);
+    if (formatted && quantity) {
+      const parsedUnitCost = parseCurrency(formatted);
+      setTotalCost(formatCurrency(Math.round(Number(quantity) * parsedUnitCost)));
     }
   };
 
   const handleTotalCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
-    setTotalCost(val);
-    if (val && quantity && Number(quantity) > 0) {
-      setUnitCost(Math.round(Number(val) / Number(quantity)).toString());
+    const formatted = formatCurrency(val);
+    setTotalCost(formatted);
+    if (formatted && quantity && Number(quantity) > 0) {
+      const parsedTotalCost = parseCurrency(formatted);
+      setUnitCost(formatCurrency(Math.round(parsedTotalCost / Number(quantity))));
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImageUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setImageUrl(reader.result as string);
+          };
+          reader.readAsDataURL(file);
+        }
+      }
     }
   };
 
@@ -60,8 +95,8 @@ export default function Import({ products, addProduct, updateProduct, addTransac
     if (!searchTerm || !quantity || !totalCost || !unitCost) return;
 
     const numQuantity = Number(quantity);
-    const numTotalCost = Number(totalCost);
-    const numUnitCost = Number(unitCost);
+    const numTotalCost = parseCurrency(totalCost);
+    const numUnitCost = parseCurrency(unitCost);
 
     if (numQuantity <= 0 || numTotalCost <= 0 || numUnitCost <= 0) {
       alert('Số lượng, giá vốn và tổng chi phí phải lớn hơn 0');
@@ -78,10 +113,14 @@ export default function Import({ products, addProduct, updateProduct, addTransac
     if (productToUpdate) {
       // Update existing product
       const newWarehouseQuantity = (productToUpdate.warehouseQuantity || 0) + numQuantity;
-      updateProduct(productToUpdate.id, { 
+      const updates: Partial<Product> = {
         warehouseQuantity: newWarehouseQuantity,
         cost: numUnitCost // Update to latest cost
-      });
+      };
+      if (imageUrl) {
+        updates.imageUrl = imageUrl;
+      }
+      updateProduct(productToUpdate.id, updates);
       productName = productToUpdate.name;
     } else {
       // Create new product
@@ -90,7 +129,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
         id: productId,
         name: searchTerm,
         cost: numUnitCost,
-        imageUrl: 'https://picsum.photos/seed/' + encodeURIComponent(searchTerm) + '/200/200',
+        imageUrl: imageUrl || 'https://picsum.photos/seed/' + encodeURIComponent(searchTerm) + '/200/200',
         priceGroup: 'Thấp',
         quantity: 0,
         warehouseQuantity: numQuantity
@@ -115,7 +154,9 @@ export default function Import({ products, addProduct, updateProduct, addTransac
     setTotalCost('');
     setDescription('');
     setSearchTerm('');
+    setImageUrl('');
     setShowDropdown(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
     setNotification({ type: 'success', message: 'Nhập kho thành công!' });
     setTimeout(() => setNotification(null), 3000);
   };
@@ -173,7 +214,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6">
-          <form onSubmit={handleImport} className="space-y-6 max-w-2xl">
+          <form onSubmit={handleImport} onPaste={handlePaste} className="space-y-6 max-w-2xl">
             
             {/* Product Selection / Creation */}
             <div className="space-y-3 relative">
@@ -218,9 +259,10 @@ export default function Import({ products, addProduct, updateProduct, addTransac
                       onClick={() => {
                         setSelectedProductId(p.id);
                         setSearchTerm(p.name);
-                        setUnitCost(p.cost.toString());
+                        setUnitCost(formatCurrency(p.cost));
+                        setImageUrl(p.imageUrl || '');
                         if (quantity) {
-                          setTotalCost(Math.round(Number(quantity) * p.cost).toString());
+                          setTotalCost(formatCurrency(Math.round(Number(quantity) * p.cost)));
                         }
                         setShowDropdown(false);
                       }}
@@ -232,6 +274,45 @@ export default function Import({ products, addProduct, updateProduct, addTransac
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Image Upload/Paste */}
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-slate-700">Hình ảnh sản phẩm (Tùy chọn)</label>
+              <div 
+                className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-lg hover:border-indigo-500 transition-colors bg-slate-50 relative overflow-hidden group"
+              >
+                {imageUrl ? (
+                  <div className="relative w-32 h-32 mx-auto">
+                    <img src={imageUrl} alt="Preview" className="w-full h-full object-cover rounded-lg shadow-sm" />
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setImageUrl('');
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                      }}
+                      className="absolute -top-2 -right-2 bg-red-100 text-red-600 rounded-full p-1 hover:bg-red-200 transition-colors shadow-sm"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-1 text-center">
+                    <ImageIcon className="mx-auto h-12 w-12 text-slate-400" />
+                    <div className="flex text-sm text-slate-600 justify-center">
+                      <label
+                        htmlFor="file-upload"
+                        className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500 px-2 py-1"
+                      >
+                        <span>Tải ảnh lên</span>
+                        <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="image/*" onChange={handleImageUpload} ref={fileInputRef} />
+                      </label>
+                      <p className="pl-1 py-1">hoặc Paste (Ctrl+V) ảnh vào đây</p>
+                    </div>
+                    <p className="text-xs text-slate-500">PNG, JPG, GIF lên đến 5MB</p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Quantity & Cost */}
@@ -252,8 +333,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-slate-700">Giá vốn / 1 SP (VNĐ)</label>
                 <input
-                  type="number"
-                  min="0"
+                  type="text"
                   required
                   value={unitCost}
                   onChange={handleUnitCostChange}
@@ -265,8 +345,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-slate-700">Tổng chi phí (VNĐ)</label>
                 <input
-                  type="number"
-                  min="0"
+                  type="text"
                   required
                   value={totalCost}
                   onChange={handleTotalCostChange}
@@ -306,10 +385,11 @@ export default function Import({ products, addProduct, updateProduct, addTransac
         <div className="p-6 border-b border-slate-100">
           <h2 className="text-lg font-bold text-slate-900">Tồn kho hiện tại</h2>
         </div>
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
               <tr>
+                <th className="px-6 py-4 w-16">Ảnh</th>
                 <th className="px-6 py-4">Sản phẩm</th>
                 <th className="px-6 py-4 text-right">Giá vốn</th>
                 <th className="px-6 py-4 text-right">Tồn kho</th>
@@ -320,7 +400,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
             <tbody className="divide-y divide-slate-100">
               {products.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
                     Kho hàng trống
                   </td>
                 </tr>
@@ -329,8 +409,17 @@ export default function Import({ products, addProduct, updateProduct, addTransac
                   const wq = p.warehouseQuantity || 0;
                   return (
                     <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="w-10 h-10 rounded-md overflow-hidden bg-slate-100 border border-slate-200">
+                          {p.imageUrl ? (
+                            <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <ImageIcon className="w-5 h-5 m-2.5 text-slate-400" />
+                          )}
+                        </div>
+                      </td>
                       <td className="px-6 py-4 font-medium text-slate-900">{p.name}</td>
-                      <td className="px-6 py-4 text-right">{p.cost.toLocaleString()}đ</td>
+                      <td className="px-6 py-4 text-right">{formatCurrency(p.cost)}đ</td>
                       <td className="px-6 py-4 text-right font-medium">{wq}</td>
                       <td className="px-6 py-4 text-right">
                         {wq <= 10 ? (
@@ -359,6 +448,57 @@ export default function Import({ products, addProduct, updateProduct, addTransac
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile View */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {products.length === 0 ? (
+            <div className="p-8 text-center text-slate-500">Kho hàng trống</div>
+          ) : (
+            products.map(p => {
+              const wq = p.warehouseQuantity || 0;
+              return (
+                <div key={p.id} className="p-4 flex items-start gap-4 hover:bg-slate-50 transition-colors">
+                  <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
+                    {p.imageUrl ? (
+                      <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <ImageIcon className="w-6 h-6 text-slate-400" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start mb-1">
+                      <h3 className="font-semibold text-slate-900 truncate pr-2">{p.name}</h3>
+                      <button
+                        onClick={() => setDeleteConfirmId(p.id)}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors -mt-1 -mr-1 flex-shrink-0"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="text-sm text-slate-500 mb-2">Giá vốn: {formatCurrency(p.cost)}đ</div>
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-medium text-slate-900">Tồn kho: {wq}</div>
+                      <div>
+                        {wq <= 10 ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-50 text-red-700 border border-red-100">
+                            <AlertCircle className="w-3 h-3" />
+                            Sắp hết
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+                            Còn hàng
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
     </div>

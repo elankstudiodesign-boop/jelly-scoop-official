@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { LiveSession } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { formatCurrency, parseCurrency } from '../lib/format';
 
 export default function Analytics({ sessions, addSession, deleteSession }: { sessions: LiveSession[], addSession: (s: LiveSession) => void, deleteSession: (id: string) => void }) {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -19,10 +20,10 @@ export default function Analytics({ sessions, addSession, deleteSession }: { ses
       id: uuidv4(),
       date,
       scoopsSold: Number(scoopsSold),
-      revenue: Number(revenue),
+      revenue: parseCurrency(revenue),
       tiktokFeePercent: Number(tiktokFeePercent),
-      packagingCostPerScoop: Number(packagingCost),
-      averageScoopCost: Number(averageScoopCost)
+      packagingCostPerScoop: parseCurrency(packagingCost),
+      averageScoopCost: parseCurrency(averageScoopCost)
     };
     
     addSession(newSession);
@@ -65,15 +66,15 @@ export default function Analytics({ sessions, addSession, deleteSession }: { ses
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center text-center">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Tổng Doanh Thu</p>
-          <p className="text-2xl font-bold text-slate-900">{totalRevenue.toLocaleString()}đ</p>
+          <p className="text-2xl font-bold text-slate-900">{formatCurrency(totalRevenue)}đ</p>
         </div>
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center text-center">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Lợi Nhuận Ròng</p>
-          <p className="text-2xl font-bold text-indigo-600">{totalProfit.toLocaleString()}đ</p>
+          <p className="text-2xl font-bold text-indigo-600">{formatCurrency(totalProfit)}đ</p>
         </div>
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center text-center">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Số Scoop Đã Bán</p>
-          <p className="text-2xl font-bold text-slate-900">{totalScoops.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-slate-900">{formatCurrency(totalScoops)}</p>
         </div>
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center text-center">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Biên Lợi Nhuận TB</p>
@@ -95,7 +96,7 @@ export default function Analytics({ sessions, addSession, deleteSession }: { ses
                     <Tooltip 
                       cursor={{fill: '#f8fafc'}}
                       contentStyle={{borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', fontWeight: 500, color: '#0f172a'}}
-                      formatter={(value: number) => [`${value.toLocaleString()}đ`, '']}
+                      formatter={(value: number) => [`${formatCurrency(value)}đ`, '']}
                     />
                     <Bar yAxisId="left" dataKey="revenue" name="Doanh thu" fill="#94a3b8" radius={[4, 4, 0, 0]} maxBarSize={40} />
                     <Bar yAxisId="left" dataKey="netProfit" name="Lợi nhuận ròng" fill="#4f46e5" radius={[4, 4, 0, 0]} maxBarSize={40} />
@@ -124,7 +125,7 @@ export default function Analytics({ sessions, addSession, deleteSession }: { ses
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Tổng doanh thu (VNĐ)</label>
-                <input type="number" value={revenue} onChange={e => setRevenue(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required placeholder="0" />
+                <input type="text" value={revenue} onChange={e => setRevenue(formatCurrency(e.target.value))} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required placeholder="0" />
               </div>
               
               <div className="pt-4 border-t border-slate-100 space-y-4">
@@ -134,11 +135,11 @@ export default function Analytics({ sessions, addSession, deleteSession }: { ses
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Chi phí bao bì / Scoop (VNĐ)</label>
-                  <input type="number" value={packagingCost} onChange={e => setPackagingCost(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required />
+                  <input type="text" value={packagingCost} onChange={e => setPackagingCost(formatCurrency(e.target.value))} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Giá vốn TB / Scoop (VNĐ)</label>
-                  <input type="number" value={averageScoopCost} onChange={e => setAverageScoopCost(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required />
+                  <input type="text" value={averageScoopCost} onChange={e => setAverageScoopCost(formatCurrency(e.target.value))} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required />
                 </div>
               </div>
 
@@ -171,9 +172,9 @@ export default function Analytics({ sessions, addSession, deleteSession }: { ses
                   <tr key={session.id} className="hover:bg-slate-50 transition-colors text-slate-900">
                     <td className="p-4">{new Date(session.date).toLocaleDateString('vi-VN')}</td>
                     <td className="p-4 text-right">{session.scoopsSold}</td>
-                    <td className="p-4 text-right font-medium">{session.revenue.toLocaleString()}đ</td>
-                    <td className="p-4 text-right text-slate-500">{totalCost.toLocaleString()}đ</td>
-                    <td className="p-4 text-right font-semibold text-indigo-600">{session.netProfit.toLocaleString()}đ</td>
+                    <td className="p-4 text-right font-medium">{formatCurrency(session.revenue)}đ</td>
+                    <td className="p-4 text-right text-slate-500">{formatCurrency(totalCost)}đ</td>
+                    <td className="p-4 text-right font-semibold text-indigo-600">{formatCurrency(session.netProfit)}đ</td>
                     <td className="p-4 text-right">
                       <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${session.margin >= 20 ? 'bg-emerald-100 text-emerald-700' : session.margin > 0 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
                         {session.margin.toFixed(1)}%

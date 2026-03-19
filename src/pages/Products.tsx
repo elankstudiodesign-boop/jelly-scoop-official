@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Product, PriceGroup } from '../types';
 import { AlertCircle, ArrowDownToLine, Package } from 'lucide-react';
+import { formatCurrency, parseCurrency } from '../lib/format';
 
 interface ProductsProps {
   products: Product[];
@@ -26,7 +27,7 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
       const c = product.cost;
       const m = Number(margin);
       if (c > 0) {
-        setRetailPrice(Math.round(c * (1 + m / 100)).toString());
+        setRetailPrice(formatCurrency(Math.round(c * (1 + m / 100))));
       }
       setPriceGroup(product.priceGroup || 'Thấp');
     }
@@ -38,16 +39,17 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
       const c = selectedProduct.cost;
       const m = Number(val);
       if (c > 0) {
-        setRetailPrice(Math.round(c * (1 + m / 100)).toString());
+        setRetailPrice(formatCurrency(Math.round(c * (1 + m / 100))));
       }
     }
   };
 
   const handleRetailPriceChange = (val: string) => {
-    setRetailPrice(val);
+    const formatted = formatCurrency(val);
+    setRetailPrice(formatted);
     if (selectedProduct) {
       const c = selectedProduct.cost;
-      const p = Number(val);
+      const p = parseCurrency(formatted);
       if (c > 0 && p > 0) {
         setMargin(((p - c) / c * 100).toFixed(1));
       }
@@ -73,7 +75,7 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
     const newWarehouseQuantity = (selectedProduct.warehouseQuantity || 0) - numQuantity;
 
     updateProduct(selectedProduct.id, {
-      retailPrice: Number(retailPrice),
+      retailPrice: parseCurrency(retailPrice),
       margin: Number(margin),
       priceGroup,
       quantity: newPoolQuantity,
@@ -120,12 +122,12 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
         <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex gap-6">
           <div>
             <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-1">Tổng SP trong bể</p>
-            <p className="text-xl font-bold text-indigo-900">{totalItems.toLocaleString()}</p>
+            <p className="text-xl font-bold text-indigo-900">{formatCurrency(totalItems)}</p>
           </div>
           <div className="w-px bg-indigo-200"></div>
           <div>
             <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-1">Giá vốn TB / Món</p>
-            <p className="text-xl font-bold text-indigo-900">{Math.round(avgCost).toLocaleString()}đ</p>
+            <p className="text-xl font-bold text-indigo-900">{formatCurrency(Math.round(avgCost))}đ</p>
           </div>
         </div>
       </div>
@@ -183,7 +185,7 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
               <label className="text-sm font-medium text-slate-700">Giá vốn (VNĐ)</label>
               <input 
                 type="text" 
-                value={selectedProduct ? selectedProduct.cost.toLocaleString() : '0'} 
+                value={selectedProduct ? formatCurrency(selectedProduct.cost) : '0'} 
                 className="w-full border border-slate-200 rounded-md px-3 py-2 bg-slate-100 text-sm text-slate-500 cursor-not-allowed" 
                 disabled 
               />
@@ -194,7 +196,7 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">Giá bán lẻ (VNĐ)</label>
-              <input type="number" value={retailPrice} onChange={e => handleRetailPriceChange(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm text-slate-900" required placeholder="0" />
+              <input type="text" value={retailPrice} onChange={e => handleRetailPriceChange(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm text-slate-900" required placeholder="0" />
             </div>
           </div>
 
@@ -241,63 +243,63 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
           {filteredPoolProducts.map(product => {
             const poolQty = product.quantity || 0;
             const isLowInPool = poolQty <= 10;
             
             return (
-              <div key={product.id} className="group relative bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-md transition-all duration-200 flex flex-col">
-                <div className="aspect-square bg-slate-50 relative p-3">
+              <div key={product.id} className="group relative bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-md transition-all duration-200 flex flex-row sm:flex-col">
+                <div className="w-1/3 sm:w-full aspect-square bg-slate-50 relative p-2 sm:p-3 flex-shrink-0">
                   {product.imageUrl ? (
                     <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover rounded-lg border border-slate-200" referrerPolicy="no-referrer" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-400 bg-white rounded-lg border border-dashed border-slate-300">
-                      <Package className="w-8 h-8 opacity-50" />
+                      <Package className="w-6 h-6 sm:w-8 sm:h-8 opacity-50" />
                     </div>
                   )}
-                  <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-md text-xs font-semibold text-slate-700 border border-slate-200 shadow-sm">
+                  <div className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-white/90 backdrop-blur-sm px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-semibold text-slate-700 border border-slate-200 shadow-sm">
                     {product.priceGroup}
                   </div>
                 </div>
-                <div className="p-4 flex-1 flex flex-col bg-white">
-                  <h3 className="font-semibold text-base text-slate-900 truncate mb-3">{product.name}</h3>
+                <div className="w-2/3 sm:w-full p-3 sm:p-4 flex-1 flex flex-col bg-white min-w-0">
+                  <h3 className="font-semibold text-sm sm:text-base text-slate-900 truncate mb-2 sm:mb-3">{product.name}</h3>
                   
                   {isLowInPool && (
-                    <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1.5 rounded-md border border-amber-100">
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      Sắp hết trong bể, cần refill!
+                    <div className="mb-1.5 sm:mb-2 flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-medium text-amber-700 bg-amber-50 px-1.5 sm:px-2 py-1 sm:py-1.5 rounded-md border border-amber-100">
+                      <AlertCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+                      <span className="truncate">Sắp hết trong bể!</span>
                     </div>
                   )}
 
                   {(product.warehouseQuantity || 0) <= 10 && (
-                    <div className="mb-3 flex items-center gap-1.5 text-xs font-medium text-red-700 bg-red-50 px-2 py-1.5 rounded-md border border-red-100">
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      Kho sắp hết, cần nhập thêm!
+                    <div className="mb-2 sm:mb-3 flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-medium text-red-700 bg-red-50 px-1.5 sm:px-2 py-1 sm:py-1.5 rounded-md border border-red-100">
+                      <AlertCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+                      <span className="truncate">Kho sắp hết!</span>
                     </div>
                   )}
 
-                  <div className="mt-auto space-y-1.5 text-sm bg-slate-50 p-3 rounded-lg border border-slate-100">
+                  <div className="mt-auto space-y-1 sm:space-y-1.5 text-xs sm:text-sm bg-slate-50 p-2 sm:p-3 rounded-lg border border-slate-100">
                     <div className="flex justify-between items-center text-slate-600">
                       <span className="font-medium text-indigo-700">Trong bể:</span>
                       <input 
                         type="number" 
                         value={poolQty} 
                         onChange={(e) => handleUpdateQuantity(product.id, Number(e.target.value))}
-                        className="w-20 text-right border border-indigo-200 rounded px-2 py-1 text-xs font-bold text-indigo-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none bg-white"
+                        className="w-14 sm:w-20 text-right border border-indigo-200 rounded px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-bold text-indigo-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none bg-white"
                       />
                     </div>
-                    <div className="flex justify-between text-slate-600 pt-1.5 border-t border-slate-200 mt-1.5">
+                    <div className="flex justify-between text-slate-600 pt-1 sm:pt-1.5 border-t border-slate-200 mt-1 sm:mt-1.5">
                       <span>Trong kho:</span>
                       <span className="font-medium">{product.warehouseQuantity || 0}</span>
                     </div>
-                    <div className="flex justify-between text-slate-600 pt-1.5 border-t border-slate-200 mt-1.5">
+                    <div className="flex justify-between text-slate-600 pt-1 sm:pt-1.5 border-t border-slate-200 mt-1 sm:mt-1.5">
                       <span>Giá vốn:</span>
-                      <span className="font-medium">{product.cost.toLocaleString()}đ</span>
+                      <span className="font-medium">{formatCurrency(product.cost)}đ</span>
                     </div>
-                    <div className="flex justify-between text-slate-600 pt-1.5 border-t border-slate-200 mt-1.5">
+                    <div className="flex justify-between text-slate-600 pt-1 sm:pt-1.5 border-t border-slate-200 mt-1 sm:mt-1.5">
                       <span>Giá bán lẻ:</span>
-                      <span className="font-medium text-emerald-600">{(product.retailPrice || 0).toLocaleString()}đ</span>
+                      <span className="font-medium text-emerald-600">{formatCurrency(product.retailPrice || 0)}đ</span>
                     </div>
                   </div>
                 </div>

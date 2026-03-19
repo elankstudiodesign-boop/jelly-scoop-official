@@ -4,6 +4,7 @@ import { useSupabaseConfigs } from '../hooks/useSupabase';
 import { defaultConfigs } from './Simulator';
 import { v4 as uuidv4 } from 'uuid';
 import { CheckCircle } from 'lucide-react';
+import { formatCurrency } from '../lib/format';
 
 interface OrderItem {
   product: Product;
@@ -158,7 +159,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
                 >
                   {configs.map(config => (
                     <option key={config.id} value={config.id}>
-                      {config.name} - {config.price.toLocaleString()}đ
+                      {config.name} - {formatCurrency(config.price)}đ
                     </option>
                   ))}
                 </select>
@@ -176,7 +177,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
                     <option value="">-- Chọn sản phẩm từ kho --</option>
                     {products.map(product => (
                       <option key={product.id} value={product.id}>
-                        {product.name} ({product.priceGroup}) - Vốn: {product.cost.toLocaleString()}đ
+                        {product.name} ({product.priceGroup}) - Vốn: {formatCurrency(product.cost)}đ
                       </option>
                     ))}
                   </select>
@@ -201,7 +202,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
                           <img src={item.product.imageUrl} alt={item.product.name} className="w-10 h-10 rounded object-cover border border-slate-200" />
                           <div>
                             <p className="font-medium text-slate-900 text-sm">{item.product.name}</p>
-                            <p className="text-xs text-slate-500">Vốn: {item.product.cost.toLocaleString()}đ</p>
+                            <p className="text-xs text-slate-500">Vốn: {formatCurrency(item.product.cost)}đ</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -238,19 +239,19 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
             <div className="space-y-4">
               <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
                 <span className="text-slate-600 font-medium text-sm">Giá bán Scoop</span>
-                <span className="font-bold text-slate-900">{scoopPrice.toLocaleString()}đ</span>
+                <span className="font-bold text-slate-900">{formatCurrency(scoopPrice)}đ</span>
               </div>
               <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
                 <span className="text-slate-600 font-medium text-sm">Tổng giá bán lẻ</span>
-                <span className="font-bold text-slate-900">{totalRetail.toLocaleString()}đ</span>
+                <span className="font-bold text-slate-900">{formatCurrency(totalRetail)}đ</span>
               </div>
               <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
                 <span className="text-slate-600 font-medium text-sm">Tổng giá vốn (COGS)</span>
-                <span className="font-bold text-slate-900">{totalCost.toLocaleString()}đ</span>
+                <span className="font-bold text-slate-900">{formatCurrency(totalCost)}đ</span>
               </div>
               <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
                 <span className="text-slate-600 font-medium text-sm">Chi phí bao bì</span>
-                <span className="font-bold text-slate-900">{packagingCost.toLocaleString()}đ</span>
+                <span className="font-bold text-slate-900">{formatCurrency(packagingCost)}đ</span>
               </div>
               
               <div className="border-t border-slate-200 pt-4 mt-2 space-y-3">
@@ -264,7 +265,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
                   <span className={`font-bold text-lg ${netProfit > 0 ? 'text-indigo-900' : 'text-red-900'}`}>Lợi nhuận</span>
                   <div className="text-right">
                     <span className={`font-black text-2xl ${netProfit > 0 ? 'text-indigo-600' : 'text-red-600'}`}>
-                      {netProfit.toLocaleString()}đ
+                      {formatCurrency(netProfit)}đ
                     </span>
                   </div>
                 </div>

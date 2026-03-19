@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Product, ScoopConfig } from '../types';
 import { useSupabaseConfigs } from '../hooks/useSupabase';
+import { formatCurrency, parseCurrency } from '../lib/format';
 
 export const defaultConfigs: ScoopConfig[] = [
   { id: '1', name: 'Scoop Nhỏ', price: 99000, totalItems: 10, ratioLow: 4, ratioMedium: 3, ratioHigh: 3 },
@@ -65,22 +66,22 @@ export default function Simulator({ products }: { products: Product[] }) {
           <div className="md:px-5 first:px-0 pt-3 md:pt-0 first:pt-0">
             <h3 className="text-base font-semibold text-slate-800 mb-3">Nhóm Thấp</h3>
             <div className="space-y-2 text-sm bg-slate-50 p-3 rounded-lg border border-slate-100">
-              <div className="flex justify-between"><span className="text-slate-500">Giá vốn TB:</span><span className="font-medium text-slate-900">{Math.round(averages.low.cost).toLocaleString()}đ</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Giá bán lẻ TB:</span><span className="font-medium text-slate-900">{Math.round(averages.low.retail).toLocaleString()}đ</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Giá vốn TB:</span><span className="font-medium text-slate-900">{formatCurrency(Math.round(averages.low.cost))}đ</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Giá bán lẻ TB:</span><span className="font-medium text-slate-900">{formatCurrency(Math.round(averages.low.retail))}đ</span></div>
             </div>
           </div>
           <div className="md:px-5 pt-3 md:pt-0">
             <h3 className="text-base font-semibold text-slate-800 mb-3">Nhóm Trung</h3>
             <div className="space-y-2 text-sm bg-slate-50 p-3 rounded-lg border border-slate-100">
-              <div className="flex justify-between"><span className="text-slate-500">Giá vốn TB:</span><span className="font-medium text-slate-900">{Math.round(averages.medium.cost).toLocaleString()}đ</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Giá bán lẻ TB:</span><span className="font-medium text-slate-900">{Math.round(averages.medium.retail).toLocaleString()}đ</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Giá vốn TB:</span><span className="font-medium text-slate-900">{formatCurrency(Math.round(averages.medium.cost))}đ</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Giá bán lẻ TB:</span><span className="font-medium text-slate-900">{formatCurrency(Math.round(averages.medium.retail))}đ</span></div>
             </div>
           </div>
           <div className="md:px-5 pt-3 md:pt-0">
             <h3 className="text-base font-semibold text-slate-800 mb-3">Nhóm Cao</h3>
             <div className="space-y-2 text-sm bg-slate-50 p-3 rounded-lg border border-slate-100">
-              <div className="flex justify-between"><span className="text-slate-500">Giá vốn TB:</span><span className="font-medium text-slate-900">{Math.round(averages.high.cost).toLocaleString()}đ</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Giá bán lẻ TB:</span><span className="font-medium text-slate-900">{Math.round(averages.high.retail).toLocaleString()}đ</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Giá vốn TB:</span><span className="font-medium text-slate-900">{formatCurrency(Math.round(averages.high.cost))}đ</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Giá bán lẻ TB:</span><span className="font-medium text-slate-900">{formatCurrency(Math.round(averages.high.retail))}đ</span></div>
             </div>
           </div>
         </div>
@@ -115,9 +116,9 @@ export default function Simulator({ products }: { products: Product[] }) {
                 <div className="flex items-center justify-center gap-2 bg-white p-2 rounded-lg border border-slate-200">
                   <span className={`text-xs font-semibold uppercase tracking-wider ${isWarning ? 'text-red-600' : 'text-slate-500'}`}>Giá bán:</span>
                   <input 
-                    type="number" 
-                    value={config.price} 
-                    onChange={e => handleUpdateConfig(config.id, 'price', Number(e.target.value))}
+                    type="text" 
+                    value={formatCurrency(config.price)} 
+                    onChange={e => handleUpdateConfig(config.id, 'price', parseCurrency(e.target.value))}
                     className={`text-lg font-bold bg-transparent focus:outline-none border-b ${isWarning ? 'border-red-300 focus:border-red-500 text-red-700' : 'border-slate-300 focus:border-indigo-500 text-slate-800'} w-28 text-center`}
                   />
                   <span className={`text-xs font-medium ${isWarning ? 'text-red-500' : 'text-slate-500'}`}>VNĐ</span>
@@ -138,18 +139,27 @@ export default function Simulator({ products }: { products: Product[] }) {
 
                 <div className="pt-4 border-t border-slate-100">
                   <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-3">Tỉ lệ múc (Thấp : Trung : Cao)</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="space-y-1.5 bg-slate-50 p-2 rounded-md border border-slate-200">
-                      <label className="text-xs font-medium text-slate-500 block text-center">Thấp <span className="text-[10px] text-slate-400">({countLow.toFixed(1)} món)</span></label>
-                      <input type="number" value={config.ratioLow} onChange={e => handleUpdateConfig(config.id, 'ratioLow', Number(e.target.value))} className="w-full border border-slate-300 rounded px-2 py-1.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900 text-center" />
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                    <div className="flex flex-col justify-between bg-slate-50 p-2 sm:p-2.5 rounded-lg border border-slate-200">
+                      <div className="text-center mb-2">
+                        <div className="text-xs sm:text-sm font-semibold text-slate-700">Thấp</div>
+                        <div className="text-[10px] sm:text-[11px] font-medium text-slate-500 mt-0.5">({countLow.toFixed(1)} món)</div>
+                      </div>
+                      <input type="number" value={config.ratioLow} onChange={e => handleUpdateConfig(config.id, 'ratioLow', Number(e.target.value))} className="w-full border border-slate-300 rounded-md px-2 py-1.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm sm:text-base font-bold text-slate-900 text-center" />
                     </div>
-                    <div className="space-y-1.5 bg-slate-50 p-2 rounded-md border border-slate-200">
-                      <label className="text-xs font-medium text-slate-500 block text-center">Trung <span className="text-[10px] text-slate-400">({countMedium.toFixed(1)} món)</span></label>
-                      <input type="number" value={config.ratioMedium} onChange={e => handleUpdateConfig(config.id, 'ratioMedium', Number(e.target.value))} className="w-full border border-slate-300 rounded px-2 py-1.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900 text-center" />
+                    <div className="flex flex-col justify-between bg-slate-50 p-2 sm:p-2.5 rounded-lg border border-slate-200">
+                      <div className="text-center mb-2">
+                        <div className="text-xs sm:text-sm font-semibold text-slate-700">Trung</div>
+                        <div className="text-[10px] sm:text-[11px] font-medium text-slate-500 mt-0.5">({countMedium.toFixed(1)} món)</div>
+                      </div>
+                      <input type="number" value={config.ratioMedium} onChange={e => handleUpdateConfig(config.id, 'ratioMedium', Number(e.target.value))} className="w-full border border-slate-300 rounded-md px-2 py-1.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm sm:text-base font-bold text-slate-900 text-center" />
                     </div>
-                    <div className="space-y-1.5 bg-slate-50 p-2 rounded-md border border-slate-200">
-                      <label className="text-xs font-medium text-slate-500 block text-center">Cao <span className="text-[10px] text-slate-400">({countHigh.toFixed(1)} món)</span></label>
-                      <input type="number" value={config.ratioHigh} onChange={e => handleUpdateConfig(config.id, 'ratioHigh', Number(e.target.value))} className="w-full border border-slate-300 rounded px-2 py-1.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900 text-center" />
+                    <div className="flex flex-col justify-between bg-slate-50 p-2 sm:p-2.5 rounded-lg border border-slate-200">
+                      <div className="text-center mb-2">
+                        <div className="text-xs sm:text-sm font-semibold text-slate-700">Cao</div>
+                        <div className="text-[10px] sm:text-[11px] font-medium text-slate-500 mt-0.5">({countHigh.toFixed(1)} món)</div>
+                      </div>
+                      <input type="number" value={config.ratioHigh} onChange={e => handleUpdateConfig(config.id, 'ratioHigh', Number(e.target.value))} className="w-full border border-slate-300 rounded-md px-2 py-1.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm sm:text-base font-bold text-slate-900 text-center" />
                     </div>
                   </div>
                 </div>
@@ -160,15 +170,15 @@ export default function Simulator({ products }: { products: Product[] }) {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center bg-white p-2.5 rounded-md border border-slate-200 shadow-sm">
                     <span className={`text-xs font-medium ${isWarning ? 'text-red-700' : 'text-slate-600'}`}>Tổng giá vốn:</span>
-                    <span className={`font-semibold text-sm ${isWarning ? 'text-red-900' : 'text-slate-900'}`}>{Math.round(totalCost).toLocaleString()}đ</span>
+                    <span className={`font-semibold text-sm ${isWarning ? 'text-red-900' : 'text-slate-900'}`}>{formatCurrency(Math.round(totalCost))}đ</span>
                   </div>
                   <div className="flex justify-between items-center bg-white p-2.5 rounded-md border border-slate-200 shadow-sm">
                     <span className={`text-xs font-medium ${isWarning ? 'text-red-700' : 'text-slate-600'}`}>Tổng giá bán lẻ:</span>
-                    <span className={`font-semibold text-sm ${isWarning ? 'text-red-600' : 'text-slate-700'}`}>{Math.round(totalRetail).toLocaleString()}đ</span>
+                    <span className={`font-semibold text-sm ${isWarning ? 'text-red-600' : 'text-slate-700'}`}>{formatCurrency(Math.round(totalRetail))}đ</span>
                   </div>
                   <div className="flex justify-between items-center bg-white p-2.5 rounded-md border border-slate-200 shadow-sm">
                     <span className={`text-xs font-medium ${isWarning ? 'text-red-700' : 'text-slate-600'}`}>Chi phí bao bì:</span>
-                    <span className={`font-semibold text-sm ${isWarning ? 'text-red-900' : 'text-slate-900'}`}>{packagingCost.toLocaleString()}đ</span>
+                    <span className={`font-semibold text-sm ${isWarning ? 'text-red-900' : 'text-slate-900'}`}>{formatCurrency(packagingCost)}đ</span>
                   </div>
                 </div>
                 
@@ -176,7 +186,7 @@ export default function Simulator({ products }: { products: Product[] }) {
                   <div className="flex justify-between items-end">
                     <span className={`text-xs font-semibold uppercase tracking-wider ${isWarning ? 'text-red-800' : 'text-slate-600'}`}>Lợi nhuận:</span>
                     <span className={`text-xl font-bold ${profit > 0 ? (isWarning ? 'text-red-600' : 'text-indigo-600') : 'text-red-500'}`}>
-                      {Math.round(profit).toLocaleString()}đ
+                      {formatCurrency(Math.round(profit))}đ
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
