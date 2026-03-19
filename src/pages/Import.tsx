@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Product, Transaction, PriceGroup } from '../types';
 import { PackagePlus, Search, AlertCircle, Trash2, X, CheckCircle2, Upload, Image as ImageIcon } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '../lib/format';
+import { supabase, hasSupabaseConfig } from '../lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ImportProps {
@@ -20,6 +21,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
   const [totalCost, setTotalCost] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [imageUrl, setImageUrl] = useState<string>('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageProcessing, setImageProcessing] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [deleteConfirmIds, setDeleteConfirmIds] = useState<string[] | null>(null);
@@ -27,6 +29,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
   const fileInputRef = useRef<HTMLInputElement>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
   const imageDropzoneRef = useRef<HTMLDivElement>(null);
+  const imageObjectUrlRef = useRef<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const filteredProducts = products.filter(p => 
@@ -45,53 +48,39 @@ export default function Import({ products, addProduct, updateProduct, addTransac
     return 'Cao cấp';
   };
 
-  const fileToCompressedDataUrl = async (file: File) => {
-    const maxDimension = 900;
-    const quality = 0.82;
+  const setImagePreviewFromFile = (file: File) => {
+    if (imageObjectUrlRef.current) URL.revokeObjectURL(imageObjectUrlRef.current);
+    const objectUrl = URL.createObjectURL(file);
+    imageObjectUrlRef.current = objectUrl;
+    setImageUrl(objectUrl);
+  };
 
-    const bitmap = await (async () => {
-      if ('createImageBitmap' in window) {
-        return await createImageBitmap(file);
-      }
-      const objectUrl = URL.createObjectURL(file);
-      try {
-        const img = new Image();
-        img.decoding = 'async';
-        img.src = objectUrl;
-        await new Promise<void>((resolve, reject) => {
-          img.onload = () => resolve();
-          img.onerror = () => reject(new Error('Không thể đọc ảnh'));
-        });
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth || img.width;
-        canvas.height = img.naturalHeight || img.height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error('Không thể xử lý ảnh');
-        ctx.drawImage(img, 0, 0);
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        return { width: canvas.width, height: canvas.height, close: () => {}, __dataUrl: dataUrl } as any;
-      } finally {
-        URL.revokeObjectURL(objectUrl);
-      }
+  const dataUrlToBlob = (dataUrl: string) => {
+    const [meta, b64] = dataUrl.split(',');
+    const mime = meta.match(/data:(.*?);base64/i)?.[1] || 'application/octet-stream';
+    const binary = atob(b64 || '');
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
+  };
+
+  const uploadProductImage = async (productId: string, file: Blob, contentType: string) => {
+    const bucket = 'product-images';
+    const ext = (() => {
+      const t = (contentType || '').toLowerCase();
+      if (t.includes('png')) return 'png';
+      if (t.includes('webp')) return 'webp';
+      if (t.includes('gif')) return 'gif';
+      if (t.includes('jpeg') || t.includes('jpg')) return 'jpg';
+      return 'bin';
     })();
+    const random = Math.random().toString(16).slice(2);
+    const path = `${productId}/${Date.now()}-${random}.${ext}`;
 
-    if ((bitmap as any).__dataUrl) return (bitmap as any).__dataUrl as string;
-
-    const w = (bitmap as ImageBitmap).width;
-    const h = (bitmap as ImageBitmap).height;
-    const scale = Math.min(1, maxDimension / Math.max(w, h));
-    const outW = Math.max(1, Math.round(w * scale));
-    const outH = Math.max(1, Math.round(h * scale));
-
-    const canvas = document.createElement('canvas');
-    canvas.width = outW;
-    canvas.height = outH;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Không thể xử lý ảnh');
-    ctx.drawImage(bitmap as ImageBitmap, 0, 0, outW, outH);
-    (bitmap as ImageBitmap).close?.();
-
-    return canvas.toDataURL('image/jpeg', quality);
+    const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true, contentType });
+    if (error) throw error;
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    return data.publicUrl;
   };
 
   const handleClipboardPaste = async (clipboardData: DataTransfer | null | undefined) => {
@@ -102,22 +91,17 @@ export default function Import({ products, addProduct, updateProduct, addTransac
       if (items[i].type.includes('image')) {
         const file = items[i].getAsFile();
         if (!file) continue;
-        try {
-          setImageProcessing(true);
-          const dataUrl = await fileToCompressedDataUrl(file);
-          setImageUrl(dataUrl);
-        } catch {
-          setNotification({ type: 'error', message: 'Không thể dán ảnh. Vui lòng thử lại.' });
-          setTimeout(() => setNotification(null), 3000);
-        } finally {
-          setImageProcessing(false);
-        }
+        setImageFile(file);
+        setImagePreviewFromFile(file);
         return true;
       }
     }
 
     const text = clipboardData.getData('text/plain')?.trim();
     if (text && (/^https?:\/\//i.test(text) || /^data:image\//i.test(text))) {
+      if (imageObjectUrlRef.current) URL.revokeObjectURL(imageObjectUrlRef.current);
+      imageObjectUrlRef.current = null;
+      setImageFile(null);
       setImageUrl(text);
       return true;
     }
@@ -157,18 +141,8 @@ export default function Import({ products, addProduct, updateProduct, addTransac
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setImageProcessing(true);
-    fileToCompressedDataUrl(file)
-      .then(dataUrl => {
-        setImageUrl(dataUrl);
-      })
-      .catch(() => {
-        setNotification({ type: 'error', message: 'Không thể tải ảnh. Vui lòng thử lại.' });
-        setTimeout(() => setNotification(null), 3000);
-      })
-      .finally(() => {
-        setImageProcessing(false);
-      });
+    setImageFile(file);
+    setImagePreviewFromFile(file);
   };
 
   const handlePaste = async (e: React.ClipboardEvent) => {
@@ -176,7 +150,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
     if (handled) e.preventDefault();
   };
 
-  const handleImport = (e: React.FormEvent) => {
+  const handleImport = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchTerm || !quantity || !totalCost || !unitCost) return;
 
@@ -197,6 +171,48 @@ export default function Import({ products, addProduct, updateProduct, addTransac
       productToUpdate = products.find(p => p.name.toLowerCase() === searchTerm.toLowerCase());
     }
 
+    const productIdForImage = productToUpdate ? productToUpdate.id : uuidv4();
+    let finalImageUrl = '';
+    const currentImageUrl = imageUrl || '';
+    const hasRemoteUrl = /^https?:\/\//i.test(currentImageUrl);
+    const hasDataUrl = /^data:image\//i.test(currentImageUrl);
+
+    if (imageFile) {
+      if (!hasSupabaseConfig) {
+        setNotification({ type: 'error', message: 'Chưa kết nối Supabase nên không thể lưu ảnh để đồng bộ.' });
+        setTimeout(() => setNotification(null), 3000);
+        return;
+      }
+      try {
+        setImageProcessing(true);
+        finalImageUrl = await uploadProductImage(productIdForImage, imageFile, imageFile.type || 'application/octet-stream');
+      } catch {
+        setNotification({ type: 'error', message: 'Tải ảnh lên Supabase thất bại. Vui lòng thử lại.' });
+        setTimeout(() => setNotification(null), 3000);
+        return;
+      } finally {
+        setImageProcessing(false);
+      }
+    } else if (hasDataUrl) {
+      if (!hasSupabaseConfig) {
+        finalImageUrl = currentImageUrl;
+      } else {
+        try {
+          setImageProcessing(true);
+          const blob = dataUrlToBlob(currentImageUrl);
+          finalImageUrl = await uploadProductImage(productIdForImage, blob, blob.type || 'application/octet-stream');
+        } catch {
+          setNotification({ type: 'error', message: 'Tải ảnh lên Supabase thất bại. Vui lòng thử lại.' });
+          setTimeout(() => setNotification(null), 3000);
+          return;
+        } finally {
+          setImageProcessing(false);
+        }
+      }
+    } else if (hasRemoteUrl) {
+      finalImageUrl = currentImageUrl;
+    }
+
     if (productToUpdate) {
       // Update existing product
       const newWarehouseQuantity = (productToUpdate.warehouseQuantity || 0) + numQuantity;
@@ -205,19 +221,18 @@ export default function Import({ products, addProduct, updateProduct, addTransac
         cost: numUnitCost,
         priceGroup: derivedPriceGroup
       };
-      if (imageUrl) {
-        updates.imageUrl = imageUrl;
+      if (finalImageUrl) {
+        updates.imageUrl = finalImageUrl;
       }
       updateProduct(productToUpdate.id, updates);
       productName = productToUpdate.name;
     } else {
       // Create new product
-      const productId = uuidv4();
       const newProduct: Product = {
-        id: productId,
+        id: productIdForImage,
         name: searchTerm,
         cost: numUnitCost,
-        imageUrl: imageUrl || 'https://picsum.photos/seed/' + encodeURIComponent(searchTerm) + '/200/200',
+        imageUrl: finalImageUrl || 'https://picsum.photos/seed/' + encodeURIComponent(searchTerm) + '/200/200',
         priceGroup: derivedPriceGroup,
         quantity: 0,
         warehouseQuantity: numQuantity
@@ -243,8 +258,11 @@ export default function Import({ products, addProduct, updateProduct, addTransac
     setDescription('');
     setSearchTerm('');
     setImageUrl('');
+    setImageFile(null);
     setShowDropdown(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
+    if (imageObjectUrlRef.current) URL.revokeObjectURL(imageObjectUrlRef.current);
+    imageObjectUrlRef.current = null;
     setNotification({ type: 'success', message: 'Nhập kho thành công!' });
     setTimeout(() => setNotification(null), 3000);
   };
@@ -304,6 +322,12 @@ export default function Import({ products, addProduct, updateProduct, addTransac
     };
     window.addEventListener('paste', onWindowPaste);
     return () => window.removeEventListener('paste', onWindowPaste);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (imageObjectUrlRef.current) URL.revokeObjectURL(imageObjectUrlRef.current);
+    };
   }, []);
 
   return (
@@ -403,6 +427,9 @@ export default function Import({ products, addProduct, updateProduct, addTransac
                         setSelectedProductId(p.id);
                         setSearchTerm(p.name);
                         setUnitCost(formatCurrency(p.cost));
+                        if (imageObjectUrlRef.current) URL.revokeObjectURL(imageObjectUrlRef.current);
+                        imageObjectUrlRef.current = null;
+                        setImageFile(null);
                         setImageUrl(p.imageUrl || '');
                         if (quantity) {
                           setTotalCost(formatCurrency(Math.round(Number(quantity) * p.cost)));
@@ -456,7 +483,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
                       </label>
                       <p className="pl-1 py-1">hoặc Paste (Ctrl+V) ảnh vào đây</p>
                     </div>
-                    <p className="text-xs text-slate-500">PNG, JPG, GIF lên đến 5MB</p>
+                    <p className="text-xs text-slate-500">Dán (Ctrl+V) ảnh hoặc tải ảnh bất kỳ lên</p>
                     {imageProcessing && (
                       <p className="text-xs text-indigo-600 font-medium mt-2">Đang xử lý ảnh...</p>
                     )}
