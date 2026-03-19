@@ -1,15 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Product, PriceGroup } from '../types';
-import { AlertCircle, ArrowDownToLine, Package, Trash2 } from 'lucide-react';
+import { AlertCircle, ArrowDownToLine, Package, RotateCcw } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '../lib/format';
 
 interface ProductsProps {
   products: Product[];
   addProduct: (p: Product) => void;
   updateProduct: (id: string, updates: Partial<Product>) => void;
+  deleteProduct: (id: string) => void;
 }
 
-export default function Products({ products, updateProduct }: ProductsProps) {
+export default function Products({ products, updateProduct, deleteProduct }: ProductsProps) {
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [margin, setMargin] = useState('50'); // Default 50%
   const [retailPrice, setRetailPrice] = useState('');
@@ -17,7 +18,7 @@ export default function Products({ products, updateProduct }: ProductsProps) {
   const [priceGroup, setPriceGroup] = useState<PriceGroup>('Thấp');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const selectAllRef = useRef<HTMLInputElement>(null);
-  const [deleteConfirmIds, setDeleteConfirmIds] = useState<string[] | null>(null);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const selectedProduct = products.find(p => p.id === selectedProductId);
 
@@ -92,22 +93,7 @@ export default function Products({ products, updateProduct }: ProductsProps) {
   };
 
   const handleUpdateQuantity = (id: string, newQuantity: number) => {
-    const product = products.find(p => p.id === id);
-    if (!product) return;
-    
-    const currentPoolQty = product.quantity || 0;
-    const currentWarehouseQty = product.warehouseQuantity || 0;
-    const diff = newQuantity - currentPoolQty;
-    
-    if (diff > currentWarehouseQty) {
-      alert('Không đủ hàng trong kho để thêm vào bể!');
-      return;
-    }
-    
-    updateProduct(id, { 
-      quantity: newQuantity,
-      warehouseQuantity: currentWarehouseQty - diff
-    });
+    updateProduct(id, { quantity: newQuantity });
   };
 
   const totalItems = products.reduce((sum, p) => sum + (p.quantity || 0), 0);
@@ -115,7 +101,7 @@ export default function Products({ products, updateProduct }: ProductsProps) {
   const avgCost = totalItems > 0 ? totalCost / totalItems : 0;
 
   // Only show products that are in the pool or have been configured for the pool
-  const poolProducts = products.filter(p => (p.quantity || 0) > 0 || p.retailPrice);
+  const poolProducts = products.filter(p => (p.quantity || 0) > 0 || p.retailPrice !== undefined);
 
   const [filterGroup, setFilterGroup] = useState<'Tất cả' | PriceGroup>('Tất cả');
 
@@ -123,9 +109,10 @@ export default function Products({ products, updateProduct }: ProductsProps) {
     ? poolProducts 
     : poolProducts.filter(p => p.priceGroup === filterGroup);
 
-  const allIds = filteredPoolProducts.map(p => p.id);
-  const allSelected = allIds.length > 0 && selectedIds.size === allIds.length;
-  const someSelected = selectedIds.size > 0 && !allSelected;
+  const visibleIds = filteredPoolProducts.map(p => p.id);
+  const selectedVisibleCount = visibleIds.filter(id => selectedIds.has(id)).length;
+  const allSelected = visibleIds.length > 0 && selectedVisibleCount === visibleIds.length;
+  const someSelected = selectedVisibleCount > 0 && !allSelected;
 
   const toggleSelected = (id: string) => {
     setSelectedIds(prev => {
@@ -138,39 +125,64 @@ export default function Products({ products, updateProduct }: ProductsProps) {
 
   const toggleSelectAll = () => {
     setSelectedIds(prev => {
-      if (allSelected) return new Set();
       const next = new Set(prev);
-      allIds.forEach(id => next.add(id));
+      if (allSelected) {
+        visibleIds.forEach(id => next.delete(id));
+      } else {
+        visibleIds.forEach(id => next.add(id));
+      }
       return next;
     });
   };
 
-  const handleRemoveFromPool = (ids: string[]) => {
-    if (!confirm(`Bạn có chắc chắn muốn xoá ${ids.length} sản phẩm này khỏi bể và hoàn lại kho không?`)) return;
-    
-    ids.forEach(id => {
-      const product = products.find(p => p.id === id);
-      if (product) {
-        const poolQty = product.quantity || 0;
-        const warehouseQty = product.warehouseQuantity || 0;
-        
-        updateProduct(id, {
-          quantity: 0,
-          warehouseQuantity: warehouseQty + poolQty,
-          retailPrice: 0, // Clear retail price to remove from pool view
-          margin: 0
-        });
-      }
+  const handleReturnToWarehouse = (ids: string[]) => {
+    const selectedProducts = ids
+      .map(id => products.find(p => p.id === id))
+      .filter((p): p is Product => Boolean(p));
+
+    const actionable = selectedProducts
+      .map(p => {
+        const poolQty = Math.max(0, p.quantity || 0);
+        if (poolQty <= 0) return null;
+        const warehouseQty = Math.max(0, p.warehouseQuantity || 0);
+        return { id: p.id, nextWarehouseQuantity: warehouseQty + poolQty, retailPrice: p.retailPrice ?? 0 };
+      })
+      .filter((x): x is { id: string; nextWarehouseQuantity: number; retailPrice: number } => Boolean(x));
+
+    if (actionable.length === 0) {
+      setNotification({ type: 'error', message: 'Không có sản phẩm nào có số lượng trong bể để hoàn kho.' });
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+
+    actionable.forEach(({ id, nextWarehouseQuantity, retailPrice }) => {
+      updateProduct(id, { quantity: 0, warehouseQuantity: nextWarehouseQuantity, retailPrice });
     });
-    
-    setSelectedIds(new Set());
-    setDeleteConfirmIds(null);
-    alert(`Đã hoàn ${ids.length} sản phẩm về kho thành công!`);
+
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      actionable.forEach(({ id }) => next.delete(id));
+      return next;
+    });
+
+    setNotification({
+      type: 'success',
+      message: actionable.length === 1 ? 'Đã hoàn kho thành công!' : `Đã hoàn kho ${actionable.length} sản phẩm!`
+    });
+    setTimeout(() => setNotification(null), 3000);
   };
 
   useEffect(() => {
-    const allowed = new Set(allIds);
-    setSelectedIds(prev => new Set([...prev].filter(id => allowed.has(id))));
+    const allowed = new Set(visibleIds);
+    setSelectedIds(prev => {
+      let changed = false;
+      const next = new Set<string>();
+      prev.forEach(id => {
+        if (allowed.has(id)) next.add(id);
+        else changed = true;
+      });
+      return changed ? next : prev;
+    });
   }, [products, filterGroup]);
 
   useEffect(() => {
@@ -183,11 +195,20 @@ export default function Products({ products, updateProduct }: ProductsProps) {
     Thấp: poolProducts.filter(p => p.priceGroup === 'Thấp').reduce((sum, p) => sum + (p.quantity || 0), 0),
     Trung: poolProducts.filter(p => p.priceGroup === 'Trung').reduce((sum, p) => sum + (p.quantity || 0), 0),
     Cao: poolProducts.filter(p => p.priceGroup === 'Cao').reduce((sum, p) => sum + (p.quantity || 0), 0),
-    'Cao cấp': poolProducts.filter(p => p.priceGroup === 'Cao cấp').reduce((sum, p) => sum + (p.quantity || 0), 0),
   };
 
   return (
     <div className="space-y-6">
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg border ${
+          notification.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
+        }`}>
+          <span className="font-medium text-sm">{notification.message}</span>
+          <button onClick={() => setNotification(null)} className="ml-2 text-slate-400 hover:text-slate-600">
+            ×
+          </button>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Bể</h1>
@@ -236,7 +257,6 @@ export default function Products({ products, updateProduct }: ProductsProps) {
                 <option value="Thấp">Thấp</option>
                 <option value="Trung">Trung</option>
                 <option value="Cao">Cao</option>
-                <option value="Cao cấp">Cao cấp</option>
               </select>
             </div>
 
@@ -286,45 +306,20 @@ export default function Products({ products, updateProduct }: ProductsProps) {
 
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm w-fit">
-              {(['Tất cả', 'Thấp', 'Trung', 'Cao', 'Cao cấp'] as const).map((group) => (
-                <button
-                  key={group}
-                  onClick={() => setFilterGroup(group)}
-                  className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-                    filterGroup === group
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                  }`}
-                >
-                  {group}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-3 bg-white p-1 px-3 rounded-lg border border-slate-200 shadow-sm">
-              <label className="flex items-center gap-2 text-sm text-slate-600 select-none cursor-pointer">
-                <input
-                  ref={selectAllRef}
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={toggleSelectAll}
-                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                Chọn tất cả
-              </label>
-              <div className="w-px h-4 bg-slate-200"></div>
+          <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm w-fit">
+            {(['Tất cả', 'Thấp', 'Trung', 'Cao'] as const).map((group) => (
               <button
-                type="button"
-                onClick={() => handleRemoveFromPool(Array.from(selectedIds))}
-                disabled={selectedIds.size === 0}
-                className="text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                key={group}
+                onClick={() => setFilterGroup(group)}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                  filterGroup === group
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
               >
-                <Trash2 className="w-4 h-4" />
-                Hoàn kho {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+                {group}
               </button>
-            </div>
+            ))}
           </div>
           
           <div className="flex gap-3 overflow-x-auto pb-1 sm:pb-0">
@@ -340,12 +335,32 @@ export default function Products({ products, updateProduct }: ProductsProps) {
               <span className="w-2 h-2 rounded-full bg-rose-500"></span>
               <span className="text-xs font-medium text-slate-600">Cao: <span className="text-slate-900">{groupStats.Cao}</span></span>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm whitespace-nowrap">
-              <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-              <span className="text-xs font-medium text-slate-600">Cao cấp: <span className="text-slate-900">{groupStats['Cao cấp']}</span></span>
-            </div>
           </div>
         </div>
+
+        {filteredPoolProducts.length > 0 && (
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm px-4 py-3 flex items-center justify-between gap-3">
+            <label className="flex items-center gap-2 text-sm text-slate-600 select-none">
+              <input
+                ref={selectAllRef}
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              Chọn tất cả
+            </label>
+            <button
+              type="button"
+              onClick={() => handleReturnToWarehouse(visibleIds.filter(id => selectedIds.has(id)))}
+              disabled={selectedVisibleCount === 0}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Hoàn kho {selectedVisibleCount > 0 ? `(${selectedVisibleCount})` : ''}
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
           {filteredPoolProducts.map(product => {
@@ -353,15 +368,7 @@ export default function Products({ products, updateProduct }: ProductsProps) {
             const isLowInPool = poolQty <= 10;
             
             return (
-              <div key={product.id} className={`group relative bg-white border rounded-xl overflow-hidden hover:shadow-md transition-all duration-200 flex flex-row sm:flex-col ${selectedIds.has(product.id) ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-slate-200'}`}>
-                <div className="absolute top-3 left-3 z-10 sm:top-4 sm:left-4">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(product.id)}
-                    onChange={() => toggleSelected(product.id)}
-                    className="h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 bg-white/80 backdrop-blur-sm shadow-sm cursor-pointer"
-                  />
-                </div>
+              <div key={product.id} className="group relative bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-md transition-all duration-200 flex flex-row sm:flex-col">
                 <div className="w-1/3 sm:w-full aspect-square bg-slate-50 relative p-2 sm:p-3 flex-shrink-0">
                   {product.imageUrl ? (
                     <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover rounded-lg border border-slate-200" referrerPolicy="no-referrer" />
@@ -370,20 +377,16 @@ export default function Products({ products, updateProduct }: ProductsProps) {
                       <Package className="w-6 h-6 sm:w-8 sm:h-8 opacity-50" />
                     </div>
                   )}
-                  <div className="absolute top-3 right-3 sm:top-4 sm:right-4 flex flex-col items-end gap-2">
-                    <div className="bg-white/90 backdrop-blur-sm px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-semibold text-slate-700 border border-slate-200 shadow-sm">
-                      {product.priceGroup}
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveFromPool([product.id]);
-                      }}
-                      className="p-1.5 bg-white/90 backdrop-blur-sm text-red-500 hover:text-red-700 rounded-md border border-slate-200 shadow-sm transition-colors"
-                      title="Hoàn lại kho"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                  <div className="absolute top-3 left-3 sm:top-4 sm:left-4 bg-white/90 backdrop-blur-sm px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md border border-slate-200 shadow-sm">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(product.id)}
+                      onChange={() => toggleSelected(product.id)}
+                      className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-white/90 backdrop-blur-sm px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-semibold text-slate-700 border border-slate-200 shadow-sm">
+                    {product.priceGroup}
                   </div>
                 </div>
                 <div className="w-2/3 sm:w-full p-3 sm:p-4 flex-1 flex flex-col bg-white min-w-0">

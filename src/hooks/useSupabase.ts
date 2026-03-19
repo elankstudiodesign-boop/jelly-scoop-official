@@ -26,21 +26,21 @@ export function useSupabaseProducts() {
   };
 
   const addProduct = async (product: Product) => {
-    setProducts([...products, product]);
+    setProducts(prev => [...prev, product]);
     if (!hasSupabaseConfig) return;
     const { error } = await supabase.from('products').insert([mapProductToDB(product)]);
     if (error) console.error('Error adding product:', error);
   };
 
   const updateProduct = async (id: string, updates: Partial<Product>) => {
-    setProducts(products.map(p => p.id === id ? { ...p, ...updates } : p));
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
     if (!hasSupabaseConfig) return;
     const { error } = await supabase.from('products').update(mapProductToDB(updates)).eq('id', id);
     if (error) console.error('Error updating product:', error);
   };
 
   const deleteProduct = async (id: string) => {
-    setProducts(products.filter(p => p.id !== id));
+    setProducts(prev => prev.filter(p => p.id !== id));
     if (!hasSupabaseConfig) return;
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) console.error('Error deleting product:', error);
@@ -72,15 +72,14 @@ export function useSupabaseSessions() {
   };
 
   const addSession = async (session: LiveSession) => {
-    const updated = [...sessions, session].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    setSessions(updated);
+    setSessions(prev => [...prev, session].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
     if (!hasSupabaseConfig) return;
     const { error } = await supabase.from('sessions').insert([mapSessionToDB(session)]);
     if (error) console.error('Error adding session:', error);
   };
 
   const deleteSession = async (id: string) => {
-    setSessions(sessions.filter(s => s.id !== id));
+    setSessions(prev => prev.filter(s => s.id !== id));
     if (!hasSupabaseConfig) return;
     const { error } = await supabase.from('sessions').delete().eq('id', id);
     if (error) console.error('Error deleting session:', error);
@@ -117,7 +116,7 @@ export function useSupabaseConfigs(defaultConfigs: ScoopConfig[]) {
   };
 
   const updateConfig = async (id: string, updates: Partial<ScoopConfig>) => {
-    setConfigs(configs.map(c => c.id === id ? { ...c, ...updates } : c));
+    setConfigs(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
     if (!hasSupabaseConfig) return;
     const { error } = await supabase.from('scoop_configs').update(mapConfigToDB(updates)).eq('id', id);
     if (error) console.error('Error updating config:', error);
@@ -215,15 +214,14 @@ export function useSupabaseTransactions() {
   };
 
   const addTransaction = async (transaction: Transaction) => {
-    const updated = [transaction, ...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    setTransactions(updated);
+    setTransactions(prev => [transaction, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     if (!hasSupabaseConfig) return;
     const { error } = await supabase.from('transactions').insert([mapTransactionToDB(transaction)]);
     if (error) console.error('Error adding transaction:', error);
   };
 
   const deleteTransaction = async (id: string) => {
-    setTransactions(transactions.filter(t => t.id !== id));
+    setTransactions(prev => prev.filter(t => t.id !== id));
     if (!hasSupabaseConfig) return;
     const { error } = await supabase.from('transactions').delete().eq('id', id);
     if (error) console.error('Error deleting transaction:', error);
