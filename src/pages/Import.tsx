@@ -20,7 +20,6 @@ export default function Import({ products, addProduct, updateProduct, addTransac
   const [totalCost, setTotalCost] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [imageUrl, setImageUrl] = useState<string>('');
-  const [priceGroup, setPriceGroup] = useState<PriceGroup>('Thấp');
   const [showDropdown, setShowDropdown] = useState(false);
   const [deleteConfirmIds, setDeleteConfirmIds] = useState<string[] | null>(null);
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
@@ -36,6 +35,13 @@ export default function Import({ products, addProduct, updateProduct, addTransac
   const isNewProduct = searchTerm.trim().length > 0 && !exactMatch;
 
   const selectedProduct = products.find(p => p.id === selectedProductId);
+
+  const priceGroupFromUnitCost = (cost: number): PriceGroup => {
+    if (cost < 5000) return 'Thấp';
+    if (cost < 13000) return 'Trung';
+    if (cost <= 20000) return 'Cao';
+    return 'Cao cấp';
+  };
 
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -100,6 +106,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
     const numQuantity = Number(quantity);
     const numTotalCost = parseCurrency(totalCost);
     const numUnitCost = parseCurrency(unitCost);
+    const derivedPriceGroup = priceGroupFromUnitCost(numUnitCost);
 
     if (numQuantity <= 0 || numTotalCost <= 0 || numUnitCost <= 0) {
       alert('Số lượng, giá vốn và tổng chi phí phải lớn hơn 0');
@@ -118,8 +125,8 @@ export default function Import({ products, addProduct, updateProduct, addTransac
       const newWarehouseQuantity = (productToUpdate.warehouseQuantity || 0) + numQuantity;
       const updates: Partial<Product> = {
         warehouseQuantity: newWarehouseQuantity,
-        cost: numUnitCost, // Update to latest cost
-        priceGroup
+        cost: numUnitCost,
+        priceGroup: derivedPriceGroup
       };
       if (imageUrl) {
         updates.imageUrl = imageUrl;
@@ -134,7 +141,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
         name: searchTerm,
         cost: numUnitCost,
         imageUrl: imageUrl || 'https://picsum.photos/seed/' + encodeURIComponent(searchTerm) + '/200/200',
-        priceGroup,
+        priceGroup: derivedPriceGroup,
         quantity: 0,
         warehouseQuantity: numQuantity
       };
@@ -159,7 +166,6 @@ export default function Import({ products, addProduct, updateProduct, addTransac
     setDescription('');
     setSearchTerm('');
     setImageUrl('');
-    setPriceGroup('Thấp');
     setShowDropdown(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
     setNotification({ type: 'success', message: 'Nhập kho thành công!' });
@@ -312,7 +318,6 @@ export default function Import({ products, addProduct, updateProduct, addTransac
                         setSearchTerm(p.name);
                         setUnitCost(formatCurrency(p.cost));
                         setImageUrl(p.imageUrl || '');
-                        setPriceGroup(p.priceGroup || 'Thấp');
                         if (quantity) {
                           setTotalCost(formatCurrency(Math.round(Number(quantity) * p.cost)));
                         }
@@ -368,32 +373,6 @@ export default function Import({ products, addProduct, updateProduct, addTransac
             </div>
 
             {/* Quantity & Cost */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <label className="block text-sm font-medium text-slate-700">Nhóm giá (Scoop)</label>
-                <select 
-                  value={priceGroup} 
-                  onChange={e => setPriceGroup(e.target.value as PriceGroup)}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                >
-                  <option value="Thấp">Thấp</option>
-                  <option value="Trung">Trung</option>
-                  <option value="Cao">Cao</option>
-                  <option value="Cao cấp">Cao cấp</option>
-                </select>
-              </div>
-              <div className="space-y-3">
-                <label className="block text-sm font-medium text-slate-700">Mô tả (Tùy chọn)</label>
-                <input
-                  type="text"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Ghi chú thêm về lô hàng này..."
-                />
-              </div>
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-slate-700">Số lượng nhập</label>
@@ -433,7 +412,18 @@ export default function Import({ products, addProduct, updateProduct, addTransac
               </div>
             </div>
 
-            {/* Description - Removed as it was moved up */}
+            {/* Description */}
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-slate-700">Mô tả (Tùy chọn)</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Ghi chú thêm về lô hàng này..."
+                rows={3}
+              />
+            </div>
+
             <div className="pt-4 border-t border-slate-100">
               <button
                 type="submit"
@@ -519,7 +509,12 @@ export default function Import({ products, addProduct, updateProduct, addTransac
                       <td className="px-6 py-4 text-right">{formatCurrency(p.cost)}đ</td>
                       <td className="px-6 py-4 text-right font-medium">{wq}</td>
                       <td className="px-6 py-4 text-right">
-                        {wq <= 10 ? (
+                        {wq === 0 ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                            <AlertCircle className="w-3 h-3" />
+                            Hết hàng
+                          </span>
+                        ) : wq <= 10 ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-100">
                             <AlertCircle className="w-3 h-3" />
                             Sắp hết
@@ -586,7 +581,12 @@ export default function Import({ products, addProduct, updateProduct, addTransac
                     <div className="flex items-center justify-between">
                       <div className="text-sm font-medium text-slate-900">Tồn kho: {wq}</div>
                       <div>
-                        {wq <= 10 ? (
+                        {wq === 0 ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                            <AlertCircle className="w-3 h-3" />
+                            Hết hàng
+                          </span>
+                        ) : wq <= 10 ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-50 text-red-700 border border-red-100">
                             <AlertCircle className="w-3 h-3" />
                             Sắp hết

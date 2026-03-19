@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Analytics from './pages/Analytics';
 import Products from './pages/Products';
+import PoolDistribution from './pages/PoolDistribution';
 import Simulator from './pages/Simulator';
 import Live from './pages/Live';
 import Import from './pages/Import';
@@ -45,6 +46,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Analytics sessions={sessions} addSession={addSession} deleteSession={deleteSession} />} />
               <Route path="/products" element={<Products products={products} addProduct={addProduct} updateProduct={updateProduct} deleteProduct={deleteProduct} />} />
+              <Route path="/pool-distribution" element={<PoolDistribution products={products} />} />
               <Route path="/import" element={<Import products={products} addProduct={addProduct} updateProduct={updateProduct} addTransaction={addTransaction} deleteProduct={deleteProduct} />} />
               <Route path="/simulator" element={<Simulator products={products} />} />
               <Route path="/live" element={<Live products={products} updateProduct={updateProduct} addTransaction={addTransaction} addSession={addSession} />} />

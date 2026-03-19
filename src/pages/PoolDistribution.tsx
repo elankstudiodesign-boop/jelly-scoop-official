@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Product, PriceGroup } from '../types';
 import { formatCurrency } from '../lib/format';
-import { Info, AlertCircle, TrendingUp, Package, Droplets } from 'lucide-react';
+import { Info, TrendingUp, Package, Droplets } from 'lucide-react';
 
 interface CategoryConfig {
   group: PriceGroup;
@@ -26,7 +26,7 @@ export default function PoolDistribution({ products }: { products: Product[] }) 
       'Thấp': [],
       'Trung': [],
       'Cao': [],
-      'Cao cấp': []
+      'Cao cấp': [],
     };
     products.forEach(p => {
       if (groups[p.priceGroup]) {

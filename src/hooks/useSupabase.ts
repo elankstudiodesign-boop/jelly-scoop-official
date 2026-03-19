@@ -94,6 +94,14 @@ export function useSupabaseConfigs(defaultConfigs: ScoopConfig[]) {
 
   useEffect(() => {
     if (!hasSupabaseConfig) {
+      if (defaultConfigs.length === 1) {
+        const wantedId = defaultConfigs[0]?.id;
+        const wantedNameLower = (defaultConfigs[0]?.name || '').toLowerCase();
+        setConfigs(prev => {
+          const preferred = prev.find(c => c.id === wantedId) || prev.find(c => c.name.toLowerCase() === wantedNameLower) || prev.find(c => c.name.toLowerCase().includes('lớn')) || prev[0];
+          return preferred ? [preferred] : defaultConfigs;
+        });
+      }
       setLoading(false);
       return;
     }
@@ -105,7 +113,24 @@ export function useSupabaseConfigs(defaultConfigs: ScoopConfig[]) {
     if (error) {
       console.error('Error fetching configs:', error);
     } else if (data && data.length > 0) {
-      setConfigs(data.map(mapConfigFromDB));
+      const mapped = data.map(mapConfigFromDB);
+      if (defaultConfigs.length === 1) {
+        const wantedId = defaultConfigs[0]?.id;
+        const wantedNameLower = (defaultConfigs[0]?.name || '').toLowerCase();
+        const preferred = mapped.find(c => c.id === wantedId) || mapped.find(c => c.name.toLowerCase() === wantedNameLower) || mapped.find(c => c.name.toLowerCase().includes('lớn')) || mapped[0];
+        const keep = preferred ? [preferred] : [];
+        setConfigs(keep.length > 0 ? keep : defaultConfigs);
+        const keepId = preferred?.id;
+        if (keepId) {
+          for (const cfg of mapped) {
+            if (cfg.id !== keepId) {
+              await supabase.from('scoop_configs').delete().eq('id', cfg.id);
+            }
+          }
+        }
+      } else {
+        setConfigs(mapped);
+      }
     } else {
       // Insert defaults if empty
       for (const config of defaultConfigs) {

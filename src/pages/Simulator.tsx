@@ -4,8 +4,6 @@ import { useSupabaseConfigs } from '../hooks/useSupabase';
 import { formatCurrency, parseCurrency } from '../lib/format';
 
 export const defaultConfigs: ScoopConfig[] = [
-  { id: '1', name: 'Scoop Nhỏ', price: 99000, totalItems: 10, ratioLow: 4, ratioMedium: 3, ratioHigh: 3 },
-  { id: '2', name: 'Scoop Vừa', price: 199000, totalItems: 22, ratioLow: 8, ratioMedium: 7, ratioHigh: 7 },
   { id: '3', name: 'Scoop Lớn', price: 299000, totalItems: 35, ratioLow: 12, ratioMedium: 11, ratioHigh: 12 },
 ];
 
@@ -13,7 +11,7 @@ export default function Simulator({ products }: { products: Product[] }) {
   const { configs, updateConfig, loading } = useSupabaseConfigs(defaultConfigs);
 
   const averages = useMemo(() => {
-    const getAvg = (group: 'Thấp' | 'Trung' | 'Cao') => {
+    const getAvg = (group: 'Thấp' | 'Trung' | 'Cao' | 'Cao cấp') => {
       const items = products.filter(p => p.priceGroup === group);
       if (!items.length) return { cost: 0, retail: 0 };
       const totalCost = items.reduce((sum, p) => sum + p.cost, 0);
@@ -23,10 +21,17 @@ export default function Simulator({ products }: { products: Product[] }) {
         retail: totalRetail / items.length
       };
     };
+    const highItems = products.filter(p => p.priceGroup === 'Cao' || p.priceGroup === 'Cao cấp');
+    const highAvg = (() => {
+      if (!highItems.length) return { cost: 0, retail: 0 };
+      const totalCost = highItems.reduce((sum, p) => sum + p.cost, 0);
+      const totalRetail = highItems.reduce((sum, p) => sum + (p.retailPrice || p.cost), 0);
+      return { cost: totalCost / highItems.length, retail: totalRetail / highItems.length };
+    })();
     return {
       low: getAvg('Thấp'),
       medium: getAvg('Trung'),
-      high: getAvg('Cao')
+      high: highAvg
     };
   }, [products]);
 
@@ -54,7 +59,7 @@ export default function Simulator({ products }: { products: Product[] }) {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Mô phỏng Scoop</h1>
-        <p className="text-slate-500 mt-1 text-sm">Tính toán giá vốn, tổng giá bán lẻ và lợi nhuận cho 3 size Scoop.</p>
+        <p className="text-slate-500 mt-1 text-sm">Tính toán giá vốn, tổng giá bán lẻ và lợi nhuận cho Scoop.</p>
       </div>
 
       {/* Thông tin trung bình từ kho */}
@@ -87,8 +92,7 @@ export default function Simulator({ products }: { products: Product[] }) {
         </div>
       </div>
 
-      {/* 3 Size Scoop */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {configs.map(config => {
           const totalRatio = config.ratioLow + config.ratioMedium + config.ratioHigh;
           const countLow = totalRatio > 0 ? (config.ratioLow / totalRatio) * config.totalItems : 0;

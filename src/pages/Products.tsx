@@ -195,6 +195,7 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
     Thấp: poolProducts.filter(p => p.priceGroup === 'Thấp').reduce((sum, p) => sum + (p.quantity || 0), 0),
     Trung: poolProducts.filter(p => p.priceGroup === 'Trung').reduce((sum, p) => sum + (p.quantity || 0), 0),
     Cao: poolProducts.filter(p => p.priceGroup === 'Cao').reduce((sum, p) => sum + (p.quantity || 0), 0),
+    'Cao cấp': poolProducts.filter(p => p.priceGroup === 'Cao cấp').reduce((sum, p) => sum + (p.quantity || 0), 0),
   };
 
   return (
@@ -257,6 +258,7 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
                 <option value="Thấp">Thấp</option>
                 <option value="Trung">Trung</option>
                 <option value="Cao">Cao</option>
+                <option value="Cao cấp">Cao cấp</option>
               </select>
             </div>
 
@@ -307,7 +309,7 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm w-fit">
-            {(['Tất cả', 'Thấp', 'Trung', 'Cao'] as const).map((group) => (
+            {(['Tất cả', 'Thấp', 'Trung', 'Cao', 'Cao cấp'] as const).map((group) => (
               <button
                 key={group}
                 onClick={() => setFilterGroup(group)}
@@ -334,6 +336,10 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
             <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-rose-500"></span>
               <span className="text-xs font-medium text-slate-600">Cao: <span className="text-slate-900">{groupStats.Cao}</span></span>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm whitespace-nowrap">
+              <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+              <span className="text-xs font-medium text-slate-600">Cao cấp: <span className="text-slate-900">{groupStats['Cao cấp']}</span></span>
             </div>
           </div>
         </div>
@@ -399,12 +405,17 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
                     </div>
                   )}
 
-                  {(product.warehouseQuantity || 0) <= 10 && (
+                  {(product.warehouseQuantity || 0) === 0 ? (
+                    <div className="mb-2 sm:mb-3 flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-medium text-slate-700 bg-slate-100 px-1.5 sm:px-2 py-1 sm:py-1.5 rounded-md border border-slate-200">
+                      <AlertCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+                      <span className="truncate">Hết hàng!</span>
+                    </div>
+                  ) : (product.warehouseQuantity || 0) <= 10 ? (
                     <div className="mb-2 sm:mb-3 flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-medium text-red-700 bg-red-50 px-1.5 sm:px-2 py-1 sm:py-1.5 rounded-md border border-red-100">
                       <AlertCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
                       <span className="truncate">Kho sắp hết!</span>
                     </div>
-                  )}
+                  ) : null}
 
                   <div className="mt-auto space-y-1 sm:space-y-1.5 text-xs sm:text-sm bg-slate-50 p-2 sm:p-3 rounded-lg border border-slate-100">
                     <div className="flex justify-between items-center text-slate-600">
