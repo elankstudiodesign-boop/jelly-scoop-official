@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Product, Transaction, PriceGroup } from '../types';
-import { PackagePlus, Search, AlertCircle, Trash2, X, CheckCircle2, Upload, Image as ImageIcon } from 'lucide-react';
+import { PackagePlus, Search, AlertCircle, Trash2, X, CheckCircle2, Upload, Image as ImageIcon, Edit2 } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '../lib/format';
 import { supabase, hasSupabaseConfig } from '../lib/supabase';
+import { uploadProductImage, dataUrlToBlob } from '../lib/imageUpload';
+import EditProductModal from '../components/EditProductModal';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ImportProps {
@@ -27,6 +29,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
   const [showDropdown, setShowDropdown] = useState(false);
   const [deleteConfirmIds, setDeleteConfirmIds] = useState<string[] | null>(null);
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
   const imageDropzoneRef = useRef<HTMLDivElement>(null);
@@ -54,34 +57,6 @@ export default function Import({ products, addProduct, updateProduct, addTransac
     const objectUrl = URL.createObjectURL(file);
     imageObjectUrlRef.current = objectUrl;
     setImageUrl(objectUrl);
-  };
-
-  const dataUrlToBlob = (dataUrl: string) => {
-    const [meta, b64] = dataUrl.split(',');
-    const mime = meta.match(/data:(.*?);base64/i)?.[1] || 'application/octet-stream';
-    const binary = atob(b64 || '');
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    return new Blob([bytes], { type: mime });
-  };
-
-  const uploadProductImage = async (productId: string, file: Blob, contentType: string) => {
-    const bucket = 'product-images';
-    const ext = (() => {
-      const t = (contentType || '').toLowerCase();
-      if (t.includes('png')) return 'png';
-      if (t.includes('webp')) return 'webp';
-      if (t.includes('gif')) return 'gif';
-      if (t.includes('jpeg') || t.includes('jpg')) return 'jpg';
-      return 'bin';
-    })();
-    const random = Math.random().toString(16).slice(2);
-    const path = `${productId}/${Date.now()}-${random}.${ext}`;
-
-    const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true, contentType });
-    if (error) throw error;
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    return data.publicUrl;
   };
 
   const handleClipboardPaste = async (clipboardData: DataTransfer | null | undefined) => {

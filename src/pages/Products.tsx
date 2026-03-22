@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Product, PriceGroup } from '../types';
-import { AlertCircle, ArrowDownToLine, Package, RotateCcw } from 'lucide-react';
+import { AlertCircle, ArrowDownToLine, Package, RotateCcw, Edit2 } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '../lib/format';
+import EditProductModal from '../components/EditProductModal';
 
 interface ProductsProps {
   products: Product[];
@@ -19,6 +20,7 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const selectAllRef = useRef<HTMLInputElement>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   const selectedProduct = products.find(p => p.id === selectedProductId);
 
@@ -396,7 +398,16 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
                   </div>
                 </div>
                 <div className="w-2/3 sm:w-full p-3 sm:p-4 flex-1 flex flex-col bg-white min-w-0">
-                  <h3 className="font-semibold text-sm sm:text-base text-slate-900 mb-2 sm:mb-3 break-words">{product.name}</h3>
+                  <div className="flex justify-between items-start mb-2 sm:mb-3 gap-2">
+                    <h3 className="font-semibold text-sm sm:text-base text-slate-900 break-words flex-1">{product.name}</h3>
+                    <button 
+                      onClick={() => setEditingProduct(product)}
+                      className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors flex-shrink-0"
+                      title="Chỉnh sửa sản phẩm"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  </div>
                   {product.note && (
                     <div className="mb-2 sm:mb-3 text-[10px] sm:text-xs text-slate-500 whitespace-pre-wrap bg-slate-50 p-1.5 sm:p-2 rounded-md border border-slate-100">
                       {product.note}
@@ -451,6 +462,17 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
           })}
         </div>
       </div>
+      {editingProduct && (
+        <EditProductModal
+          product={editingProduct}
+          onClose={() => setEditingProduct(null)}
+          onSave={(id, updates) => {
+            updateProduct(id, updates);
+            setNotification({ type: 'success', message: 'Đã cập nhật sản phẩm thành công!' });
+            setTimeout(() => setNotification(null), 3000);
+          }}
+        />
+      )}
     </div>
   );
 }
