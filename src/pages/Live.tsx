@@ -9,6 +9,7 @@ import { formatCurrency, parseCurrency } from '../lib/format';
 interface OrderItem {
   product: Product;
   quantity: number;
+  retailPrice?: number;
 }
 
 interface LiveProps {
@@ -25,7 +26,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
   const [selectedConfigId, setSelectedConfigId] = useState<string>(defaultConfigs[0]?.id || '');
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string>('');
-  const [retailPrice, setRetailPrice] = useState<string>('');
+  const [itemRetailPrice, setItemRetailPrice] = useState<string>('');
   const [retailPackagingCost, setRetailPackagingCost] = useState<string>('');
 
   useEffect(() => {
@@ -33,6 +34,17 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
       setSelectedConfigId(configs[0].id);
     }
   }, [configs, selectedConfigId]);
+
+  useEffect(() => {
+    if (selectedProductId && orderType === 'RETAIL') {
+      const product = products.find(p => p.id === selectedProductId);
+      if (product) {
+        setItemRetailPrice(formatCurrency(product.retailPrice || product.cost));
+      }
+    } else {
+      setItemRetailPrice('');
+    }
+  }, [selectedProductId, orderType, products]);
 
   if (loading) {
     return <div className="p-8 text-center text-slate-500">Đang tải cấu hình...</div>;
@@ -42,12 +54,12 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
   const scoopPrice = selectedConfig?.price || 0;
   const packagingCost = 10000;
 
-  const currentRevenue = orderType === 'SCOOP' ? scoopPrice : parseCurrency(retailPrice);
-  const currentPackagingCost = orderType === 'SCOOP' ? packagingCost : parseCurrency(retailPackagingCost);
-
   const totalCost = orderItems.reduce((sum, item) => sum + (item.product.cost * item.quantity), 0);
-  const totalRetail = orderItems.reduce((sum, item) => sum + ((item.product.retailPrice || item.product.cost) * item.quantity), 0);
+  const totalRetail = orderItems.reduce((sum, item) => sum + ((item.retailPrice ?? item.product.retailPrice ?? item.product.cost) * item.quantity), 0);
   const totalItemsCount = orderItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  const currentRevenue = orderType === 'SCOOP' ? scoopPrice : totalRetail;
+  const currentPackagingCost = orderType === 'SCOOP' ? packagingCost : parseCurrency(retailPackagingCost);
 
   const netProfit = currentRevenue - totalCost - currentPackagingCost;
   const profitMargin = currentRevenue > 0 ? (netProfit / currentRevenue) * 100 : 0;
@@ -58,6 +70,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
     if (!product) return;
 
     const availableQty = orderType === 'RETAIL' ? (product.warehouseQuantity || 0) : (product.quantity || 0);
+    const parsedRetailPrice = orderType === 'RETAIL' && itemRetailPrice ? parseCurrency(itemRetailPrice) : undefined;
 
     setOrderItems(prev => {
       const existing = prev.find(item => item.product.id === selectedProductId);
@@ -68,7 +81,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
         }
         return prev.map(item => 
           item.product.id === selectedProductId 
-            ? { ...item, quantity: item.quantity + 1 } 
+            ? { ...item, quantity: item.quantity + 1, retailPrice: parsedRetailPrice ?? item.retailPrice } 
             : item
         );
       }
@@ -76,9 +89,10 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
         alert(`Sản phẩm đã hết trong ${orderType === 'RETAIL' ? 'kho' : 'bể'}`);
         return prev;
       }
-      return [...prev, { product, quantity: 1 }];
+      return [...prev, { product, quantity: 1, retailPrice: parsedRetailPrice }];
     });
     setSelectedProductId('');
+    setItemRetailPrice('');
   };
 
   const handleUpdateQuantity = (productId: string, delta: number) => {
@@ -247,16 +261,6 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
                 /* Retail Order Inputs */
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-700">Giá bán (đ)</label>
-                    <input
-                      type="text"
-                      value={retailPrice}
-                      onChange={e => setRetailPrice(formatCurrency(parseCurrency(e.target.value)))}
-                      placeholder="VD: 50,000"
-                      className="w-full border border-slate-300 rounded-lg px-4 py-2.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
-                    />
-                  </div>
-                  <div className="space-y-2">
                     <label className="text-sm font-semibold text-slate-700">Chi phí bao bì (đ)</label>
                     <input
                       type="text"
@@ -291,6 +295,17 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   </div>
+                  {orderType === 'RETAIL' && (
+                    <div className="w-full sm:w-40 flex-shrink-0">
+                      <input
+                        type="text"
+                        value={itemRetailPrice}
+                        onChange={e => setItemRetailPrice(formatCurrency(parseCurrency(e.target.value)))}
+                        placeholder="Giá bán (đ)"
+                        className="w-full border border-slate-300 rounded-lg px-4 py-2.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
+                      />
+                    </div>
+                  )}
                   <button 
                     onClick={handleAddProduct}
                     disabled={!selectedProductId}
@@ -312,7 +327,17 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
                           <img src={item.product.imageUrl} alt={item.product.name} className="w-10 h-10 rounded object-cover border border-slate-200" />
                           <div>
                             <p className="font-medium text-slate-900 text-sm">{item.product.name}</p>
-                            <p className="text-xs text-slate-500">Vốn: {formatCurrency(item.product.cost)}đ</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <p className="text-xs text-slate-500">Vốn: {formatCurrency(item.product.cost)}đ</p>
+                              {orderType === 'RETAIL' && (
+                                <>
+                                  <span className="text-slate-300">•</span>
+                                  <p className="text-xs font-medium text-emerald-600">
+                                    Bán: {formatCurrency(item.retailPrice ?? item.product.retailPrice ?? item.product.cost)}đ
+                                  </p>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
