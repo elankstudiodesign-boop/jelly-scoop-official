@@ -112,7 +112,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
 
   const handleClearOrder = () => {
     setOrderItems([]);
-    setRetailPrice('');
+    setItemRetailPrice('');
     setRetailPackagingCost('');
   };
 

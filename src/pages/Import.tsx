@@ -3,7 +3,7 @@ import { Product, Transaction, PriceGroup } from '../types';
 import { PackagePlus, Search, AlertCircle, Trash2, X, CheckCircle2, Upload, Image as ImageIcon, Edit2 } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '../lib/format';
 import { supabase, hasSupabaseConfig } from '../lib/supabase';
-import { uploadProductImage, dataUrlToBlob } from '../lib/imageUpload';
+import { uploadProductImage, dataUrlToBlob, processImage } from '../lib/imageUpload';
 import EditProductModal from '../components/EditProductModal';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -53,7 +53,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
     return 'Cao cấp';
   };
 
-  const setImagePreviewFromFile = (file: File) => {
+  const setImagePreviewFromFile = (file: File | Blob) => {
     if (imageObjectUrlRef.current) URL.revokeObjectURL(imageObjectUrlRef.current);
     const objectUrl = URL.createObjectURL(file);
     imageObjectUrlRef.current = objectUrl;
@@ -65,12 +65,22 @@ export default function Import({ products, addProduct, updateProduct, addTransac
 
     const items = clipboardData.items;
     for (let i = 0; i < items.length; i++) {
-      if (items[i].type.includes('image')) {
+      const isHeic = items[i].type === 'image/heic' || items[i].type === 'image/heif';
+      if (items[i].type.includes('image') || isHeic) {
         const file = items[i].getAsFile();
         if (!file) continue;
-        setImageFile(file);
-        setImagePreviewFromFile(file);
-        return true;
+        
+        setImageProcessing(true);
+        try {
+          const processed = await processImage(file);
+          setImageFile(processed as File);
+          setImagePreviewFromFile(processed);
+          return true;
+        } catch (err) {
+          console.error('Paste processing error:', err);
+        } finally {
+          setImageProcessing(false);
+        }
       }
     }
 
@@ -115,11 +125,20 @@ export default function Import({ products, addProduct, updateProduct, addTransac
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setImageFile(file);
-    setImagePreviewFromFile(file);
+    
+    setImageProcessing(true);
+    try {
+      const processed = await processImage(file);
+      setImageFile(processed as File);
+      setImagePreviewFromFile(processed);
+    } catch (err) {
+      console.error('Image processing error:', err);
+    } finally {
+      setImageProcessing(false);
+    }
   };
 
   const handlePaste = async (e: React.ClipboardEvent) => {
@@ -438,7 +457,12 @@ export default function Import({ products, addProduct, updateProduct, addTransac
                 onPaste={handlePaste}
                 className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-lg hover:border-indigo-500 transition-colors bg-slate-50 relative overflow-hidden group focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                {imageUrl ? (
+                {imageProcessing ? (
+                  <div className="flex flex-col items-center justify-center p-4">
+                    <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-2"></div>
+                    <p className="text-sm font-medium text-slate-600">Đang xử lý ảnh...</p>
+                  </div>
+                ) : imageUrl ? (
                   <div className="relative w-32 h-32 mx-auto">
                     <img src={imageUrl} alt="Preview" className="w-full h-full object-cover rounded-lg shadow-sm" />
                     <button 
@@ -465,10 +489,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
                       </label>
                       <p className="pl-1 py-1">hoặc Paste (Ctrl+V) ảnh vào đây</p>
                     </div>
-                    <p className="text-xs text-slate-500">Dán (Ctrl+V) ảnh hoặc tải ảnh bất kỳ lên</p>
-                    {imageProcessing && (
-                      <p className="text-xs text-indigo-600 font-medium mt-2">Đang xử lý ảnh...</p>
-                    )}
+                    <p className="text-xs text-slate-500">Dán (Ctrl+V) ảnh hoặc tải ảnh bất kỳ lên (Hỗ trợ HEIC)</p>
                   </div>
                 )}
               </div>

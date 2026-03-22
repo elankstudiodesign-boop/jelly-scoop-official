@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Product, PriceGroup } from '../types';
 import { X, Upload, Image as ImageIcon } from 'lucide-react';
-import { uploadProductImage, dataUrlToBlob } from '../lib/imageUpload';
+import { uploadProductImage, dataUrlToBlob, processImage } from '../lib/imageUpload';
 import { hasSupabaseConfig } from '../lib/supabase';
 
 interface EditProductModalProps {
@@ -27,40 +27,64 @@ export default function EditProductModal({ product, onClose, onSave }: EditProdu
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageObjectUrlRef = useRef<string | null>(null);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
+    // Support HEIC by checking extension if type is missing or generic
+    const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif');
+    
+    if (!file.type.startsWith('image/') && !isHeic) {
       setError('Vui lòng chọn file hình ảnh hợp lệ.');
       return;
     }
 
-    if (imageObjectUrlRef.current) {
-      URL.revokeObjectURL(imageObjectUrlRef.current);
-    }
+    setImageProcessing(true);
+    try {
+      const processed = await processImage(file);
+      
+      if (imageObjectUrlRef.current) {
+        URL.revokeObjectURL(imageObjectUrlRef.current);
+      }
 
-    setImageFile(file);
-    const objectUrl = URL.createObjectURL(file);
-    imageObjectUrlRef.current = objectUrl;
-    setImageUrl(objectUrl);
+      setImageFile(processed as File);
+      const objectUrl = URL.createObjectURL(processed);
+      imageObjectUrlRef.current = objectUrl;
+      setImageUrl(objectUrl);
+    } catch (err) {
+      console.error('Image processing error:', err);
+      setError('Lỗi khi xử lý hình ảnh. Vui lòng thử lại.');
+    } finally {
+      setImageProcessing(false);
+    }
   };
 
   const handleClipboardPaste = async (clipboardData: DataTransfer | null | undefined) => {
     if (!clipboardData) return false;
 
     for (const item of clipboardData.items) {
-      if (item.type.startsWith('image/')) {
+      const isHeic = item.type === 'image/heic' || item.type === 'image/heif';
+      if (item.type.startsWith('image/') || isHeic) {
         const file = item.getAsFile();
         if (file) {
-          if (imageObjectUrlRef.current) {
-            URL.revokeObjectURL(imageObjectUrlRef.current);
+          setImageProcessing(true);
+          try {
+            const processed = await processImage(file);
+            
+            if (imageObjectUrlRef.current) {
+              URL.revokeObjectURL(imageObjectUrlRef.current);
+            }
+            setImageFile(processed as File);
+            const objectUrl = URL.createObjectURL(processed);
+            imageObjectUrlRef.current = objectUrl;
+            setImageUrl(objectUrl);
+            return true;
+          } catch (err) {
+            console.error('Paste processing error:', err);
+            setError('Lỗi khi xử lý hình ảnh dán. Vui lòng thử lại.');
+          } finally {
+            setImageProcessing(false);
           }
-          setImageFile(file);
-          const objectUrl = URL.createObjectURL(file);
-          imageObjectUrlRef.current = objectUrl;
-          setImageUrl(objectUrl);
-          return true;
         }
       }
     }
@@ -218,7 +242,12 @@ export default function EditProductModal({ product, onClose, onSave }: EditProdu
                   onChange={handleImageChange}
                 />
                 
-                {imageUrl ? (
+                {imageProcessing ? (
+                  <div className="flex flex-col items-center text-slate-500">
+                    <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+                    <p className="font-medium text-slate-700">Đang xử lý ảnh...</p>
+                  </div>
+                ) : imageUrl ? (
                   <div className="relative w-full h-full">
                     <img src={imageUrl} alt="Preview" className="w-full h-full object-contain rounded-lg" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
@@ -231,7 +260,7 @@ export default function EditProductModal({ product, onClose, onSave }: EditProdu
                   <div className="flex flex-col items-center text-slate-500">
                     <ImageIcon className="w-12 h-12 mb-3 text-slate-400" />
                     <p className="font-medium text-slate-700">Click hoặc dán ảnh (Ctrl+V)</p>
-                    <p className="text-sm mt-1">Hỗ trợ PNG, JPG, WEBP</p>
+                    <p className="text-sm mt-1">Hỗ trợ PNG, JPG, WEBP, HEIC</p>
                   </div>
                 )}
               </div>
