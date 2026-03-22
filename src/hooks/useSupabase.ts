@@ -93,6 +93,11 @@ export function useSupabaseProducts() {
     const { error } = await supabase.from('products').insert([mapProductToDB(product)]);
     if (error) {
       console.error('Error adding product:', error);
+      if (error.message?.includes('note')) {
+        const p2 = mapProductToDB(product);
+        delete p2.note;
+        await supabase.from('products').insert([p2]);
+      }
       fetchProducts();
     }
   };
@@ -103,6 +108,11 @@ export function useSupabaseProducts() {
     const { error } = await supabase.from('products').update(mapProductToDB(updates)).eq('id', id);
     if (error) {
       console.error('Error updating product:', error);
+      if (error.message?.includes('note')) {
+        const u2 = mapProductToDB(updates);
+        delete u2.note;
+        await supabase.from('products').update(u2).eq('id', id);
+      }
       fetchProducts();
     }
   };

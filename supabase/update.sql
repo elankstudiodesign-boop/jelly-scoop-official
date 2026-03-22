@@ -5,6 +5,7 @@
 ALTER TABLE products ADD COLUMN IF NOT EXISTS warehouse_quantity NUMERIC DEFAULT 0;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS retail_price NUMERIC;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS margin NUMERIC;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS note TEXT;
 
 -- 2. Tạo bảng transactions (nếu chưa có)
 CREATE TABLE IF NOT EXISTS transactions (

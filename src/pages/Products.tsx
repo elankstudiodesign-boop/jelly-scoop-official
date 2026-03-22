@@ -200,6 +200,13 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
     'Cao cấp': poolProducts.filter(p => p.priceGroup === 'Cao cấp').reduce((sum, p) => sum + (p.quantity || 0), 0),
   };
 
+  const groupProductCount = {
+    Thấp: poolProducts.filter(p => p.priceGroup === 'Thấp').length,
+    Trung: poolProducts.filter(p => p.priceGroup === 'Trung').length,
+    Cao: poolProducts.filter(p => p.priceGroup === 'Cao').length,
+    'Cao cấp': poolProducts.filter(p => p.priceGroup === 'Cao cấp').length,
+  };
+
   return (
     <div className="space-y-6">
       {notification && (
@@ -329,19 +336,19 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
           <div className="flex gap-3 overflow-x-auto pb-1 sm:pb-0">
             <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span className="text-xs font-medium text-slate-600">Thấp: <span className="text-slate-900">{groupStats.Thấp}</span></span>
+              <span className="text-xs font-medium text-slate-600">Thấp: <span className="text-slate-900">{groupProductCount.Thấp} SP</span></span>
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-              <span className="text-xs font-medium text-slate-600">Trung: <span className="text-slate-900">{groupStats.Trung}</span></span>
+              <span className="text-xs font-medium text-slate-600">Trung: <span className="text-slate-900">{groupProductCount.Trung} SP</span></span>
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-              <span className="text-xs font-medium text-slate-600">Cao: <span className="text-slate-900">{groupStats.Cao}</span></span>
+              <span className="text-xs font-medium text-slate-600">Cao: <span className="text-slate-900">{groupProductCount.Cao} SP</span></span>
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
-              <span className="text-xs font-medium text-slate-600">Cao cấp: <span className="text-slate-900">{groupStats['Cao cấp']}</span></span>
+              <span className="text-xs font-medium text-slate-600">Cao cấp: <span className="text-slate-900">{groupProductCount['Cao cấp']} SP</span></span>
             </div>
           </div>
         </div>
@@ -373,7 +380,7 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
           {filteredPoolProducts.map(product => {
             const poolQty = product.quantity || 0;
-            const isLowInPool = poolQty <= 10;
+            const isLowInPool = poolQty < 4;
             
             return (
               <div key={product.id} className="group relative bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-md transition-all duration-200 flex flex-row sm:flex-col">
@@ -426,7 +433,7 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
                       <AlertCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
                       <span className="truncate">Hết hàng!</span>
                     </div>
-                  ) : (product.warehouseQuantity || 0) <= 10 ? (
+                  ) : (product.warehouseQuantity || 0) < 4 ? (
                     <div className="mb-2 sm:mb-3 flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-medium text-red-700 bg-red-50 px-1.5 sm:px-2 py-1 sm:py-1.5 rounded-md border border-red-100">
                       <AlertCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
                       <span className="truncate">Kho sắp hết!</span>

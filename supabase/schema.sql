@@ -9,6 +9,7 @@ CREATE TABLE products (
   price_group TEXT NOT NULL,
   quantity NUMERIC DEFAULT 0,
   warehouse_quantity NUMERIC DEFAULT 0,
+  note TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 

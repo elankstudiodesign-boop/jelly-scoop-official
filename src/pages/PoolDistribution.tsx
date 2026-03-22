@@ -47,7 +47,7 @@ export default function PoolDistribution({ products }: { products: Product[] }) 
       
       // Lấy danh sách sản phẩm thực tế trong nhóm này
       const actualProducts = groupedProducts[config.group];
-      const productCount = actualProducts.length || config.productCount;
+      const productCount = actualProducts.length;
       
       // Số hạt dự kiến cho mỗi sản phẩm trong danh mục này
       const beadsPerProductRaw = productCount > 0 ? totalBeadsForCategory / productCount : 0;
@@ -169,7 +169,7 @@ export default function PoolDistribution({ products }: { products: Product[] }) 
                     <div className="flex justify-between items-start">
                       <span className="text-[10px] md:text-xs font-bold text-slate-500 uppercase truncate mr-1">{config.group}</span>
                       <span className="text-[8px] md:text-[10px] font-bold bg-white px-1 md:px-2 py-0.5 rounded-full border border-slate-200 text-slate-600 shrink-0">
-                        {config.productCount} SP
+                        {catResult?.products.length || 0} SP
                       </span>
                     </div>
                     <div className="space-y-1">
