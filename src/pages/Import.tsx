@@ -35,6 +35,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
   const imageDropzoneRef = useRef<HTMLDivElement>(null);
   const imageObjectUrlRef = useRef<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -554,31 +555,53 @@ export default function Import({ products, addProduct, updateProduct, addTransac
         <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <h2 className="text-lg font-bold text-slate-900">Tồn kho hiện tại</h2>
           <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-sm text-slate-600 select-none">
-              <input
-                ref={selectAllRef}
-                type="checkbox"
-                checked={allSelected}
-                onChange={toggleSelectAll}
-                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-              />
-              Chọn tất cả
-            </label>
-            <button
-              type="button"
-              onClick={() => setDeleteConfirmIds(Array.from(selectedIds))}
-              disabled={selectedIds.size === 0}
-              className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Xoá đã chọn {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
-            </button>
+            {isSelectionMode ? (
+              <>
+                <label className="flex items-center gap-2 text-sm text-slate-600 select-none">
+                  <input
+                    ref={selectAllRef}
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  Chọn tất cả
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmIds(Array.from(selectedIds))}
+                  disabled={selectedIds.size === 0}
+                  className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Xoá đã chọn {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSelectionMode(false);
+                    setSelectedIds(new Set());
+                  }}
+                  className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-slate-200 text-slate-700 hover:bg-slate-50"
+                >
+                  Hủy chọn
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsSelectionMode(true)}
+                className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-slate-200 text-slate-700 hover:bg-slate-50"
+              >
+                Chọn
+              </button>
+            )}
           </div>
         </div>
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
               <tr>
-                <th className="px-6 py-4 w-12"></th>
+                {isSelectionMode && <th className="px-6 py-4 w-12"></th>}
                 <th className="px-6 py-4 w-16">Ảnh</th>
                 <th className="px-6 py-4">Sản phẩm</th>
                 <th className="px-6 py-4 text-right">Giá vốn</th>
@@ -590,7 +613,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
             <tbody className="divide-y divide-slate-100">
               {products.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={isSelectionMode ? 7 : 6} className="px-6 py-8 text-center text-slate-500">
                     Kho hàng trống
                   </td>
                 </tr>
@@ -600,14 +623,16 @@ export default function Import({ products, addProduct, updateProduct, addTransac
                   const checked = selectedIds.has(p.id);
                   return (
                     <tr key={p.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleSelected(p.id)}
-                          className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                      </td>
+                      {isSelectionMode && (
+                        <td className="px-6 py-4">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleSelected(p.id)}
+                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                        </td>
+                      )}
                       <td className="px-6 py-4">
                         <div className="w-10 h-10 rounded-md overflow-hidden bg-slate-100 border border-slate-200">
                           {p.imageUrl ? (
@@ -667,12 +692,14 @@ export default function Import({ products, addProduct, updateProduct, addTransac
               const checked = selectedIds.has(p.id);
               return (
                 <div key={p.id} className="p-4 flex items-start gap-4 hover:bg-slate-50 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleSelected(p.id)}
-                    className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 flex-shrink-0"
-                  />
+                  {isSelectionMode && (
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleSelected(p.id)}
+                      className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 flex-shrink-0"
+                    />
+                  )}
                   <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
                     {p.imageUrl ? (
                       <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />

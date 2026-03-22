@@ -18,6 +18,7 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
   const [quantity, setQuantity] = useState('');
   const [priceGroup, setPriceGroup] = useState<PriceGroup>('Thấp');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const selectAllRef = useRef<HTMLInputElement>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -355,25 +356,47 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
 
         {filteredPoolProducts.length > 0 && (
           <div className="bg-white border border-slate-200 rounded-xl shadow-sm px-4 py-3 flex items-center justify-between gap-3">
-            <label className="flex items-center gap-2 text-sm text-slate-600 select-none">
-              <input
-                ref={selectAllRef}
-                type="checkbox"
-                checked={allSelected}
-                onChange={toggleSelectAll}
-                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-              />
-              Chọn tất cả
-            </label>
-            <button
-              type="button"
-              onClick={() => handleReturnToWarehouse(visibleIds.filter(id => selectedIds.has(id)))}
-              disabled={selectedVisibleCount === 0}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <RotateCcw className="w-4 h-4" />
-              Hoàn kho {selectedVisibleCount > 0 ? `(${selectedVisibleCount})` : ''}
-            </button>
+            {isSelectionMode ? (
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 text-sm text-slate-600 select-none">
+                  <input
+                    ref={selectAllRef}
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  Chọn tất cả
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleReturnToWarehouse(visibleIds.filter(id => selectedIds.has(id)))}
+                  disabled={selectedVisibleCount === 0}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Hoàn kho {selectedVisibleCount > 0 ? `(${selectedVisibleCount})` : ''}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSelectionMode(false);
+                    setSelectedIds(new Set());
+                  }}
+                  className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-slate-200 text-slate-700 hover:bg-slate-50"
+                >
+                  Hủy chọn
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsSelectionMode(true)}
+                className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-slate-200 text-slate-700 hover:bg-slate-50"
+              >
+                Chọn
+              </button>
+            )}
           </div>
         )}
 
@@ -392,14 +415,16 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
                       <Package className="w-6 h-6 sm:w-8 sm:h-8 opacity-50" />
                     </div>
                   )}
-                  <div className="absolute top-3 left-3 sm:top-4 sm:left-4 bg-white/90 backdrop-blur-sm px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md border border-slate-200 shadow-sm">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(product.id)}
-                      onChange={() => toggleSelected(product.id)}
-                      className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                  </div>
+                  {isSelectionMode && (
+                    <div className="absolute top-3 left-3 sm:top-4 sm:left-4 bg-white/90 backdrop-blur-sm px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md border border-slate-200 shadow-sm">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(product.id)}
+                        onChange={() => toggleSelected(product.id)}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                    </div>
+                  )}
                   <div className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-white/90 backdrop-blur-sm px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-semibold text-slate-700 border border-slate-200 shadow-sm">
                     {product.priceGroup}
                   </div>
