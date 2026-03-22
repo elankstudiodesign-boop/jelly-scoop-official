@@ -396,7 +396,12 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
                   </div>
                 </div>
                 <div className="w-2/3 sm:w-full p-3 sm:p-4 flex-1 flex flex-col bg-white min-w-0">
-                  <h3 className="font-semibold text-sm sm:text-base text-slate-900 truncate mb-2 sm:mb-3">{product.name}</h3>
+                  <h3 className="font-semibold text-sm sm:text-base text-slate-900 mb-2 sm:mb-3 break-words">{product.name}</h3>
+                  {product.note && (
+                    <div className="mb-2 sm:mb-3 text-[10px] sm:text-xs text-slate-500 whitespace-pre-wrap bg-slate-50 p-1.5 sm:p-2 rounded-md border border-slate-100">
+                      {product.note}
+                    </div>
+                  )}
                   
                   {isLowInPool && (
                     <div className="mb-1.5 sm:mb-2 flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-medium text-amber-700 bg-amber-50 px-1.5 sm:px-2 py-1 sm:py-1.5 rounded-md border border-amber-100">

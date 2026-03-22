@@ -4,7 +4,7 @@ import { useSupabaseConfigs } from '../hooks/useSupabase';
 import { defaultConfigs } from './Simulator';
 import { v4 as uuidv4 } from 'uuid';
 import { CheckCircle, ChevronDown } from 'lucide-react';
-import { formatCurrency } from '../lib/format';
+import { formatCurrency, parseCurrency } from '../lib/format';
 
 interface OrderItem {
   product: Product;
@@ -21,9 +21,12 @@ interface LiveProps {
 export default function Live({ products, updateProduct, addTransaction, addSession }: LiveProps) {
   const { configs, loading } = useSupabaseConfigs(defaultConfigs);
   
+  const [orderType, setOrderType] = useState<'SCOOP' | 'RETAIL'>('SCOOP');
   const [selectedConfigId, setSelectedConfigId] = useState<string>(defaultConfigs[0]?.id || '');
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [retailPrice, setRetailPrice] = useState<string>('');
+  const [retailPackagingCost, setRetailPackagingCost] = useState<string>('');
 
   useEffect(() => {
     if (configs.length > 0 && !selectedConfigId) {
@@ -39,26 +42,39 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
   const scoopPrice = selectedConfig?.price || 0;
   const packagingCost = 10000;
 
+  const currentRevenue = orderType === 'SCOOP' ? scoopPrice : parseCurrency(retailPrice);
+  const currentPackagingCost = orderType === 'SCOOP' ? packagingCost : parseCurrency(retailPackagingCost);
+
   const totalCost = orderItems.reduce((sum, item) => sum + (item.product.cost * item.quantity), 0);
   const totalRetail = orderItems.reduce((sum, item) => sum + ((item.product.retailPrice || item.product.cost) * item.quantity), 0);
   const totalItemsCount = orderItems.reduce((sum, item) => sum + item.quantity, 0);
 
-  const netProfit = scoopPrice - totalCost - packagingCost;
-  const profitMargin = scoopPrice > 0 ? (netProfit / scoopPrice) * 100 : 0;
+  const netProfit = currentRevenue - totalCost - currentPackagingCost;
+  const profitMargin = currentRevenue > 0 ? (netProfit / currentRevenue) * 100 : 0;
 
   const handleAddProduct = () => {
     if (!selectedProductId) return;
     const product = products.find(p => p.id === selectedProductId);
     if (!product) return;
 
+    const availableQty = orderType === 'RETAIL' ? (product.warehouseQuantity || 0) : (product.quantity || 0);
+
     setOrderItems(prev => {
       const existing = prev.find(item => item.product.id === selectedProductId);
       if (existing) {
+        if (existing.quantity >= availableQty) {
+          alert(`Chỉ còn ${availableQty} sản phẩm trong ${orderType === 'RETAIL' ? 'kho' : 'bể'}`);
+          return prev;
+        }
         return prev.map(item => 
           item.product.id === selectedProductId 
             ? { ...item, quantity: item.quantity + 1 } 
             : item
         );
+      }
+      if (availableQty <= 0) {
+        alert(`Sản phẩm đã hết trong ${orderType === 'RETAIL' ? 'kho' : 'bể'}`);
+        return prev;
       }
       return [...prev, { product, quantity: 1 }];
     });
@@ -68,7 +84,12 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
   const handleUpdateQuantity = (productId: string, delta: number) => {
     setOrderItems(prev => prev.map(item => {
       if (item.product.id === productId) {
-        const newQuantity = Math.max(0, item.quantity + delta);
+        const availableQty = orderType === 'RETAIL' ? (item.product.warehouseQuantity || 0) : (item.product.quantity || 0);
+        let newQuantity = Math.max(0, item.quantity + delta);
+        if (newQuantity > availableQty) {
+          alert(`Chỉ còn ${availableQty} sản phẩm trong ${orderType === 'RETAIL' ? 'kho' : 'bể'}`);
+          newQuantity = availableQty;
+        }
         return { ...item, quantity: newQuantity };
       }
       return item;
@@ -77,6 +98,8 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
 
   const handleClearOrder = () => {
     setOrderItems([]);
+    setRetailPrice('');
+    setRetailPackagingCost('');
   };
 
   const handleCompleteOrder = () => {
@@ -86,42 +109,71 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
 
     // 1. Deduct inventory
     orderItems.forEach(item => {
-      const currentQty = item.product.quantity || 0;
-      updateProduct(item.product.id, { quantity: Math.max(0, currentQty - item.quantity) });
+      if (orderType === 'RETAIL') {
+        const currentWarehouseQty = item.product.warehouseQuantity || 0;
+        updateProduct(item.product.id, { warehouseQuantity: Math.max(0, currentWarehouseQty - item.quantity) });
+      } else {
+        const currentQty = item.product.quantity || 0;
+        updateProduct(item.product.id, { quantity: Math.max(0, currentQty - item.quantity) });
+      }
     });
 
-    // 2. Add Income Transaction (Revenue)
-    addTransaction({
-      id: uuidv4(),
-      type: 'IN',
-      category: 'ORDER',
-      amount: scoopPrice,
-      description: `Đơn hàng ${selectedConfig?.name} (${totalItemsCount} món)`,
-      date: now
-    });
-
-    // 3. Add Expense Transaction (Packaging)
-    if (packagingCost > 0) {
+    if (orderType === 'SCOOP') {
+      // 2. Add Income Transaction (Revenue)
       addTransaction({
         id: uuidv4(),
-        type: 'OUT',
-        category: 'PACKAGING',
-        amount: packagingCost,
-        description: `Chi phí bao bì đơn hàng ${selectedConfig?.name}`,
+        type: 'IN',
+        category: 'ORDER',
+        amount: scoopPrice,
+        description: `Đơn hàng ${selectedConfig?.name} (${totalItemsCount} món)`,
         date: now
       });
-    }
 
-    // 4. Record Session (Analytics)
-    addSession({
-      id: uuidv4(),
-      date: now,
-      scoopsSold: 1,
-      revenue: scoopPrice,
-      tiktokFeePercent: 0,
-      packagingCostPerScoop: packagingCost,
-      averageScoopCost: totalCost
-    });
+      // 3. Add Expense Transaction (Packaging)
+      if (packagingCost > 0) {
+        addTransaction({
+          id: uuidv4(),
+          type: 'OUT',
+          category: 'PACKAGING',
+          amount: packagingCost,
+          description: `Chi phí bao bì đơn hàng ${selectedConfig?.name}`,
+          date: now
+        });
+      }
+
+      // 4. Record Session (Analytics)
+      addSession({
+        id: uuidv4(),
+        date: now,
+        scoopsSold: 1,
+        revenue: scoopPrice,
+        tiktokFeePercent: 0,
+        packagingCostPerScoop: packagingCost,
+        averageScoopCost: totalCost
+      });
+    } else {
+      // 2. Add Income Transaction (Revenue)
+      addTransaction({
+        id: uuidv4(),
+        type: 'IN',
+        category: 'ORDER',
+        amount: currentRevenue,
+        description: `Đơn hàng lẻ (${totalItemsCount} món)`,
+        date: now
+      });
+
+      // 3. Add Expense Transaction (Packaging)
+      if (currentPackagingCost > 0) {
+        addTransaction({
+          id: uuidv4(),
+          type: 'OUT',
+          category: 'PACKAGING',
+          amount: currentPackagingCost,
+          description: `Chi phí bao bì đơn hàng lẻ`,
+          date: now
+        });
+      }
+    }
 
     alert('Hoàn tất đơn hàng thành công!');
     handleClearOrder();
@@ -148,25 +200,72 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
               </button>
             </div>
             
+            <div className="flex bg-slate-100 p-1 rounded-lg mb-6">
+              <button
+                onClick={() => {
+                  setOrderType('SCOOP');
+                  handleClearOrder();
+                }}
+                className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${orderType === 'SCOOP' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                Đơn Scoop
+              </button>
+              <button
+                onClick={() => {
+                  setOrderType('RETAIL');
+                  handleClearOrder();
+                }}
+                className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${orderType === 'RETAIL' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                Đơn Lẻ
+              </button>
+            </div>
+
             <div className="space-y-5">
-              {/* Select Scoop Size */}
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Chọn Size Scoop</label>
-                <div className="relative">
-                  <select 
-                    value={selectedConfigId}
-                    onChange={e => setSelectedConfigId(e.target.value)}
-                    className="w-full appearance-none border border-slate-300 rounded-lg px-4 pr-10 py-2.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
-                  >
-                    {configs.map(config => (
-                      <option key={config.id} value={config.id}>
-                        {config.name} - {formatCurrency(config.price)}đ
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              {orderType === 'SCOOP' ? (
+                /* Select Scoop Size */
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Chọn Size Scoop</label>
+                  <div className="relative">
+                    <select 
+                      value={selectedConfigId}
+                      onChange={e => setSelectedConfigId(e.target.value)}
+                      className="w-full appearance-none border border-slate-300 rounded-lg px-4 pr-10 py-2.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
+                    >
+                      {configs.map(config => (
+                        <option key={config.id} value={config.id}>
+                          {config.name} - {formatCurrency(config.price)}đ
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                /* Retail Order Inputs */
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-slate-700">Giá bán (đ)</label>
+                    <input
+                      type="text"
+                      value={retailPrice}
+                      onChange={e => setRetailPrice(formatCurrency(parseCurrency(e.target.value)))}
+                      placeholder="VD: 50,000"
+                      className="w-full border border-slate-300 rounded-lg px-4 py-2.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-slate-700">Chi phí bao bì (đ)</label>
+                    <input
+                      type="text"
+                      value={retailPackagingCost}
+                      onChange={e => setRetailPackagingCost(formatCurrency(parseCurrency(e.target.value)))}
+                      placeholder="VD: 5,000 (Tùy chọn)"
+                      className="w-full border border-slate-300 rounded-lg px-4 py-2.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Add Product */}
               <div className="space-y-2">
@@ -179,11 +278,14 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
                       className="w-full appearance-none border border-slate-300 rounded-lg px-4 pr-10 py-2.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
                     >
                       <option value="">-- Chọn sản phẩm từ kho --</option>
-                      {products.map(product => (
-                        <option key={product.id} value={product.id}>
-                          {product.name} ({product.priceGroup}) - Vốn: {formatCurrency(product.cost)}đ
-                        </option>
-                      ))}
+                      {products.map(product => {
+                        const availableQty = orderType === 'RETAIL' ? (product.warehouseQuantity || 0) : (product.quantity || 0);
+                        return (
+                          <option key={product.id} value={product.id} disabled={availableQty <= 0}>
+                            {product.name} ({product.priceGroup}) - Vốn: {formatCurrency(product.cost)}đ - Sẵn có: {availableQty}
+                          </option>
+                        );
+                      })}
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   </div>
@@ -244,8 +346,8 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
             
             <div className="space-y-4">
               <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                <span className="text-slate-600 font-medium text-sm">Giá bán Scoop</span>
-                <span className="font-bold text-slate-900">{formatCurrency(scoopPrice)}đ</span>
+                <span className="text-slate-600 font-medium text-sm">Giá bán {orderType === 'SCOOP' ? 'Scoop' : 'Lẻ'}</span>
+                <span className="font-bold text-slate-900">{formatCurrency(currentRevenue)}đ</span>
               </div>
               <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
                 <span className="text-slate-600 font-medium text-sm">Tổng giá bán lẻ</span>
@@ -257,7 +359,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
               </div>
               <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
                 <span className="text-slate-600 font-medium text-sm">Chi phí bao bì</span>
-                <span className="font-bold text-slate-900">{formatCurrency(packagingCost)}đ</span>
+                <span className="font-bold text-slate-900">{formatCurrency(currentPackagingCost)}đ</span>
               </div>
               
               <div className="border-t border-slate-200 pt-4 mt-2 space-y-3">
@@ -294,7 +396,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
               <div className="pt-4 border-t border-slate-200 mt-6">
                 <button
                   onClick={handleCompleteOrder}
-                  disabled={orderItems.length === 0}
+                  disabled={orderItems.length === 0 || (orderType === 'RETAIL' && currentRevenue <= 0)}
                   className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-3.5 rounded-xl font-bold hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                 >
                   <CheckCircle className="w-5 h-5" />
@@ -308,3 +410,4 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
     </div>
   );
 }
+

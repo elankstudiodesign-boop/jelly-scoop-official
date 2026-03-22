@@ -20,6 +20,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
   const [unitCost, setUnitCost] = useState<string>('');
   const [totalCost, setTotalCost] = useState<string>('');
   const [description, setDescription] = useState<string>('');
+  const [note, setNote] = useState<string>('');
   const [imageUrl, setImageUrl] = useState<string>('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageProcessing, setImageProcessing] = useState(false);
@@ -219,7 +220,8 @@ export default function Import({ products, addProduct, updateProduct, addTransac
       const updates: Partial<Product> = {
         warehouseQuantity: newWarehouseQuantity,
         cost: numUnitCost,
-        priceGroup: derivedPriceGroup
+        priceGroup: derivedPriceGroup,
+        note: note
       };
       if (finalImageUrl) {
         updates.imageUrl = finalImageUrl;
@@ -235,7 +237,8 @@ export default function Import({ products, addProduct, updateProduct, addTransac
         imageUrl: finalImageUrl || 'https://picsum.photos/seed/' + encodeURIComponent(searchTerm) + '/200/200',
         priceGroup: derivedPriceGroup,
         quantity: 0,
-        warehouseQuantity: numQuantity
+        warehouseQuantity: numQuantity,
+        note: note
       };
       addProduct(newProduct);
     }
@@ -256,6 +259,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
     setUnitCost('');
     setTotalCost('');
     setDescription('');
+    setNote('');
     setSearchTerm('');
     setImageUrl('');
     setImageFile(null);
@@ -427,6 +431,7 @@ export default function Import({ products, addProduct, updateProduct, addTransac
                         setSelectedProductId(p.id);
                         setSearchTerm(p.name);
                         setUnitCost(formatCurrency(p.cost));
+                        setNote(p.note || '');
                         if (imageObjectUrlRef.current) URL.revokeObjectURL(imageObjectUrlRef.current);
                         imageObjectUrlRef.current = null;
                         setImageFile(null);
@@ -532,15 +537,26 @@ export default function Import({ products, addProduct, updateProduct, addTransac
               </div>
             </div>
 
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-slate-700">Ghi chú sản phẩm (Tùy chọn)</label>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Ghi chú về sản phẩm này (hiển thị ở phần tồn kho)..."
+                rows={2}
+              />
+            </div>
+
             {/* Description */}
             <div className="space-y-3">
-              <label className="block text-sm font-medium text-slate-700">Mô tả (Tùy chọn)</label>
+              <label className="block text-sm font-medium text-slate-700">Mô tả giao dịch (Tùy chọn)</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Ghi chú thêm về lô hàng này..."
-                rows={3}
+                placeholder="Ghi chú thêm về lô hàng này (lưu vào lịch sử giao dịch)..."
+                rows={2}
               />
             </div>
 
@@ -625,7 +641,10 @@ export default function Import({ products, addProduct, updateProduct, addTransac
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 font-medium text-slate-900">{p.name}</td>
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-slate-900">{p.name}</div>
+                        {p.note && <div className="text-xs text-slate-500 mt-1 whitespace-pre-wrap">{p.note}</div>}
+                      </td>
                       <td className="px-6 py-4 text-right">{formatCurrency(p.cost)}đ</td>
                       <td className="px-6 py-4 text-right font-medium">{wq}</td>
                       <td className="px-6 py-4 text-right">
@@ -689,7 +708,10 @@ export default function Import({ products, addProduct, updateProduct, addTransac
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start mb-1">
-                      <h3 className="font-semibold text-slate-900 truncate pr-2">{p.name}</h3>
+                      <div>
+                        <h3 className="font-semibold text-slate-900 pr-2 break-words">{p.name}</h3>
+                        {p.note && <div className="text-xs text-slate-500 mt-1 whitespace-pre-wrap">{p.note}</div>}
+                      </div>
                       <button
                         onClick={() => setDeleteConfirmIds([p.id])}
                         className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors -mt-1 -mr-1 flex-shrink-0"

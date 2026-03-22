@@ -10,6 +10,7 @@ export interface Product {
   priceGroup: PriceGroup;
   quantity?: number;
   warehouseQuantity?: number;
+  note?: string;
 }
 
 export interface LiveSession {

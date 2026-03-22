@@ -307,6 +307,7 @@ function mapProductToDB(p: Partial<Product>) {
   if (p.imageUrl !== undefined) { res.image_url = p.imageUrl; delete res.imageUrl; }
   if (p.priceGroup !== undefined) { res.price_group = p.priceGroup; delete res.priceGroup; }
   if (p.warehouseQuantity !== undefined) { res.warehouse_quantity = p.warehouseQuantity; delete res.warehouseQuantity; }
+  if (p.note !== undefined) { res.note = p.note; }
   return res;
 }
 
@@ -320,7 +321,8 @@ function mapProductFromDB(p: any): Product {
     imageUrl: p.image_url,
     priceGroup: p.price_group,
     quantity: Number(p.quantity),
-    warehouseQuantity: Number(p.warehouse_quantity || 0)
+    warehouseQuantity: Number(p.warehouse_quantity || 0),
+    note: p.note
   };
 }
 
