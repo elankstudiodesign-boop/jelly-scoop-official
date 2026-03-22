@@ -16,6 +16,8 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
   const [deleteConfirmIds, setDeleteConfirmIds] = useState<string[] | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [activeTab, setActiveTab] = useState<'ALL' | 'IN' | 'OUT'>('ALL');
   const selectAllRef = useRef<HTMLInputElement>(null);
   
   // Form state for new transaction
@@ -84,7 +86,9 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
     return { total, items };
   }, [transactions]);
 
-  const sortedTransactions = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const sortedTransactions = [...transactions]
+    .filter(t => activeTab === 'ALL' || t.type === activeTab)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const allIds = sortedTransactions.map(t => t.id);
   const allSelected = allIds.length > 0 && selectedIds.size === allIds.length;
   const someSelected = selectedIds.size > 0 && !allSelected;
@@ -208,28 +212,70 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
       {/* Transactions List */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:justify-between lg:items-center gap-3">
-          <h2 className="text-lg font-bold text-slate-900">Lịch sử giao dịch</h2>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 text-sm text-slate-600 select-none">
-                <input
-                  ref={selectAllRef}
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={toggleSelectAll}
-                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                Chọn tất cả
-              </label>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <h2 className="text-lg font-bold text-slate-900">Lịch sử giao dịch</h2>
+            <div className="flex bg-slate-100 p-1 rounded-lg">
               <button
-                type="button"
-                onClick={() => setDeleteConfirmIds(Array.from(selectedIds))}
-                disabled={selectedIds.size === 0}
-                className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => setActiveTab('ALL')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'ALL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
-                Xóa đã chọn {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+                Tất cả
+              </button>
+              <button
+                onClick={() => setActiveTab('IN')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'IN' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Thu
+              </button>
+              <button
+                onClick={() => setActiveTab('OUT')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'OUT' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Chi
               </button>
             </div>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            {isSelectionMode ? (
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 text-sm text-slate-600 select-none">
+                  <input
+                    ref={selectAllRef}
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  Chọn tất cả
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmIds(Array.from(selectedIds))}
+                  disabled={selectedIds.size === 0}
+                  className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Xóa đã chọn {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSelectionMode(false);
+                    setSelectedIds(new Set());
+                  }}
+                  className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-slate-200 text-slate-700 hover:bg-slate-50"
+                >
+                  Hủy chọn
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsSelectionMode(true)}
+                className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-slate-200 text-slate-700 hover:bg-slate-50"
+              >
+                Chọn
+              </button>
+            )}
             <button
               onClick={() => setIsAddModalOpen(true)}
               className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
@@ -251,12 +297,14 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
               <div key={t.id} className="p-4 hover:bg-slate-50 transition-colors">
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(t.id)}
-                      onChange={() => toggleSelected(t.id)}
-                      className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                    />
+                    {isSelectionMode && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(t.id)}
+                        onChange={() => toggleSelected(t.id)}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                    )}
                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                       t.type === 'IN' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
                     }`}>
@@ -293,7 +341,7 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
               <tr>
-                <th className="px-6 py-4 w-12"></th>
+                {isSelectionMode && <th className="px-6 py-4 w-12"></th>}
                 <th className="px-6 py-4">Ngày</th>
                 <th className="px-6 py-4">Loại</th>
                 <th className="px-6 py-4">Danh mục</th>
@@ -305,21 +353,23 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
             <tbody className="divide-y divide-slate-100">
               {sortedTransactions.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={isSelectionMode ? 7 : 6} className="px-6 py-8 text-center text-slate-500">
                     Chưa có giao dịch nào
                   </td>
                 </tr>
               ) : (
                 sortedTransactions.map((t) => (
                   <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(t.id)}
-                        onChange={() => toggleSelected(t.id)}
-                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                    </td>
+                    {isSelectionMode && (
+                      <td className="px-6 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(t.id)}
+                          onChange={() => toggleSelected(t.id)}
+                          className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                      </td>
+                    )}
                     <td className="px-6 py-4 whitespace-nowrap">
                       {new Date(t.date).toLocaleDateString('vi-VN')} {new Date(t.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                     </td>
