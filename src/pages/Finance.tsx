@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Transaction } from '../types';
+import { Transaction, Product } from '../types';
 import { Wallet, TrendingUp, TrendingDown, Trash2, AlertTriangle, X, Plus, ChevronDown } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '../lib/format';
 import { v4 as uuidv4 } from 'uuid';
@@ -8,9 +8,11 @@ interface FinanceProps {
   transactions: Transaction[];
   deleteTransaction: (id: string) => void;
   addTransaction: (transaction: Transaction) => void;
+  products: Product[];
+  updateProduct: (id: string, updates: Partial<Product>) => void;
 }
 
-export default function Finance({ transactions, deleteTransaction, addTransaction }: FinanceProps) {
+export default function Finance({ transactions, deleteTransaction, addTransaction, products, updateProduct }: FinanceProps) {
   const [deleteConfirmIds, setDeleteConfirmIds] = useState<string[] | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -372,7 +374,10 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
                   ? 'Bạn có chắc chắn muốn xóa giao dịch này không? Hành động này không thể hoàn tác.'
                   : 'Bạn có chắc chắn muốn xóa các giao dịch đang chọn không? Hành động này không thể hoàn tác.'
                 }
-                Lưu ý: Việc xóa giao dịch sẽ không tự động hoàn lại số lượng tồn kho.
+                <br />
+                <span className="text-emerald-600 font-medium mt-2 block">
+                  Số lượng sản phẩm trong kho sẽ được tự động hoàn lại.
+                </span>
               </p>
               <div className="flex gap-3">
                 <button
@@ -384,7 +389,32 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
                 <button
                   onClick={() => {
                     const ids = deleteConfirmIds;
-                    ids.forEach(id => deleteTransaction(id));
+                    
+                    // Restore inventory for each transaction
+                    const productUpdates: Record<string, number> = {};
+                    
+                    ids.forEach(id => {
+                      const tx = transactions.find(t => t.id === id);
+                      if (tx && tx.items && tx.items.length > 0) {
+                        tx.items.forEach(item => {
+                          // If it's an IN transaction (e.g., ORDER), we sold items, so deleting it means we add them back.
+                          // If it's an OUT transaction (e.g., IMPORT), we bought items, so deleting it means we remove them.
+                          const quantityChange = tx.type === 'IN' ? item.quantity : -item.quantity;
+                          productUpdates[item.productId] = (productUpdates[item.productId] || 0) + quantityChange;
+                        });
+                      }
+                      deleteTransaction(id);
+                    });
+
+                    // Apply updates
+                    Object.entries(productUpdates).forEach(([productId, change]) => {
+                      const product = products.find(p => p.id === productId);
+                      if (product) {
+                        const newQuantity = Math.max(0, (product.warehouseQuantity || 0) + change);
+                        updateProduct(product.id, { warehouseQuantity: newQuantity });
+                      }
+                    });
+
                     setSelectedIds(prev => {
                       const next = new Set(prev);
                       ids.forEach(id => next.delete(id));

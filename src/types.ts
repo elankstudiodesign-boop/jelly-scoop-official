@@ -40,4 +40,5 @@ export interface Transaction {
   amount: number;
   description: string;
   date: string;
+  items?: { productId: string; quantity: number }[];
 }

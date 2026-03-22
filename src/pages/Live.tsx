@@ -126,7 +126,8 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
         category: 'ORDER',
         amount: scoopPrice,
         description: `Đơn hàng ${selectedConfig?.name} (${totalItemsCount} món)`,
-        date: now
+        date: now,
+        items: orderItems.map(item => ({ productId: item.product.id, quantity: item.quantity }))
       });
 
       // 3. Add Expense Transaction (Packaging)
@@ -159,7 +160,8 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
         category: 'ORDER',
         amount: currentRevenue,
         description: `Đơn hàng lẻ (${totalItemsCount} món)`,
-        date: now
+        date: now,
+        items: orderItems.map(item => ({ productId: item.product.id, quantity: item.quantity }))
       });
 
       // 3. Add Expense Transaction (Packaging)

@@ -250,7 +250,8 @@ export default function Import({ products, addProduct, updateProduct, addTransac
       category: 'IMPORT',
       amount: numTotalCost,
       description: description || `Nhập kho: ${numQuantity} x ${productName}`,
-      date: new Date().toISOString()
+      date: new Date().toISOString(),
+      items: [{ productId: productToUpdate ? productToUpdate.id : productIdForImage, quantity: numQuantity }]
     });
 
     // Reset form

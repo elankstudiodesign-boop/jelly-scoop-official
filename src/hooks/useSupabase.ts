@@ -440,16 +440,43 @@ export function useSupabaseTransactions() {
 }
 
 function mapTransactionToDB(t: Partial<Transaction>) {
-  return { ...t };
+  const res: any = { ...t };
+  if (t.items && t.items.length > 0) {
+    res.description = `${t.description || ''}|||__ITEMS__|||${JSON.stringify(t.items)}`;
+  }
+  delete res.items;
+  return res;
 }
 
 function mapTransactionFromDB(t: any): Transaction {
+  let description = t.description || '';
+  let items: { productId: string; quantity: number }[] | undefined = undefined;
+
+  if (description.includes('|||__ITEMS__|||')) {
+    const parts = description.split('|||__ITEMS__|||');
+    description = parts[0];
+    try {
+      items = JSON.parse(parts[1]);
+    } catch (e) {
+      // ignore
+    }
+  } else if (description.includes('|||')) {
+    const parts = description.split('|||');
+    description = parts[0];
+    try {
+      items = JSON.parse(parts[1]);
+    } catch (e) {
+      // ignore
+    }
+  }
+
   return {
     id: t.id,
     type: t.type,
     category: t.category,
     amount: Number(t.amount),
-    description: t.description,
-    date: t.date
+    description,
+    date: t.date,
+    items
   };
 }
