@@ -13,6 +13,12 @@ export interface Product {
   note?: string;
 }
 
+export interface OrderItem {
+  product: Product;
+  quantity: number;
+  retailPrice?: number;
+}
+
 export interface LiveSession {
   id: string;
   date: string;

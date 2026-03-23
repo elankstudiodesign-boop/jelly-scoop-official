@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Product, ScoopConfig, Transaction, LiveSession } from '../types';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Product, ScoopConfig, Transaction, LiveSession, OrderItem } from '../types';
 import { useSupabaseConfigs } from '../hooks/useSupabase';
+import { useDraftOrderSync, DraftOrderState } from '../hooks/useDraftOrderSync';
 import { defaultConfigs } from './Simulator';
 import { v4 as uuidv4 } from 'uuid';
 import { CheckCircle, ChevronDown, Barcode } from 'lucide-react';
@@ -8,12 +9,6 @@ import { formatCurrency, parseCurrency, generateBarcodeNumber } from '../lib/for
 
 import OrderList from '../components/OrderList';
 import BarcodeScanner from '../components/BarcodeScanner';
-
-interface OrderItem {
-  product: Product;
-  quantity: number;
-  retailPrice?: number;
-}
 
 interface LiveProps {
   products: Product[];
@@ -40,6 +35,56 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
   const [customerAddress, setCustomerAddress] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
+  const handleStateChange = useCallback((newState: Partial<DraftOrderState>) => {
+    if (newState.orderType !== undefined) setOrderType(newState.orderType);
+    if (newState.selectedConfigId !== undefined) setSelectedConfigId(newState.selectedConfigId);
+    if (newState.orderItems !== undefined) setOrderItems(newState.orderItems);
+    if (newState.retailPackagingCost !== undefined) setRetailPackagingCost(newState.retailPackagingCost);
+    if (newState.customerName !== undefined) setCustomerName(newState.customerName);
+    if (newState.customerPhone !== undefined) setCustomerPhone(newState.customerPhone);
+    if (newState.customerAddress !== undefined) setCustomerAddress(newState.customerAddress);
+  }, []);
+
+  const handleOrderCompleted = useCallback(() => {
+    setOrderItems([]);
+    setCustomerName('');
+    setCustomerPhone('');
+    setCustomerAddress('');
+    setRetailPackagingCost('');
+    setSelectedProductId('');
+    setItemRetailPrice('');
+    setScanResult(null);
+    setIsScanning(false);
+  }, []);
+
+  const { broadcastStateUpdate, broadcastOrderCompleted, isLocalUpdateRef } = useDraftOrderSync(
+    handleStateChange,
+    handleOrderCompleted
+  );
+
+  useEffect(() => {
+    if (!isLocalUpdateRef.current) {
+      broadcastStateUpdate({
+        orderType,
+        selectedConfigId,
+        orderItems,
+        retailPackagingCost,
+        customerName,
+        customerPhone,
+        customerAddress,
+      });
+    }
+  }, [
+    orderType,
+    selectedConfigId,
+    orderItems,
+    retailPackagingCost,
+    customerName,
+    customerPhone,
+    customerAddress,
+    broadcastStateUpdate,
+  ]);
 
   useEffect(() => {
     if (configs.length > 0 && !selectedConfigId) {
@@ -151,12 +196,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
   };
 
   const handleClearOrder = () => {
-    setOrderItems([]);
-    setItemRetailPrice('');
-    setRetailPackagingCost('');
-    setCustomerName('');
-    setCustomerPhone('');
-    setCustomerAddress('');
+    handleOrderCompleted();
   };
 
   const handleCompleteOrder = () => {
@@ -241,6 +281,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
     }
 
     alert('Hoàn tất đơn hàng thành công!');
+    broadcastOrderCompleted();
     handleClearOrder();
   };
 
