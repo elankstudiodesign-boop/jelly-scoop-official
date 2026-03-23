@@ -39,7 +39,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [isScanning, setIsScanning] = useState(false);
-  const lastScannedRef = useRef<{ text: string; time: number } | null>(null);
+  const [scanResult, setScanResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
   useEffect(() => {
     if (configs.length > 0 && !selectedConfigId) {
@@ -120,17 +120,6 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
   };
 
   const handleScan = (decodedText: string) => {
-    const now = Date.now();
-    if (
-      lastScannedRef.current &&
-      lastScannedRef.current.text === decodedText &&
-      now - lastScannedRef.current.time < 2000 // Prevent scanning the same barcode within 2 seconds
-    ) {
-      return;
-    }
-
-    lastScannedRef.current = { text: decodedText, time: now };
-
     const product = products.find(p => generateBarcodeNumber(p.id) === decodedText);
     if (product) {
       // Set the retail price if it's retail order
@@ -140,10 +129,9 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
         setItemRetailPrice(formatCurrency(scannedPrice));
       }
       addProductToOrder(product, scannedPrice);
-      // We don't close the scanner automatically so the user can keep scanning
+      setScanResult({ type: 'success', message: `Đã thêm: ${product.name}` });
     } else {
-      // Only alert if it's a new scan to prevent spam
-      alert('Không tìm thấy sản phẩm với mã vạch này!');
+      setScanResult({ type: 'error', message: 'Không tìm thấy sản phẩm với mã vạch này!' });
     }
   };
 
@@ -563,7 +551,12 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
       {isScanning && (
         <BarcodeScanner
           onScan={handleScan}
-          onClose={() => setIsScanning(false)}
+          onClose={() => {
+            setIsScanning(false);
+            setScanResult(null);
+          }}
+          scanResult={scanResult}
+          onClearResult={() => setScanResult(null)}
         />
       )}
     </div>

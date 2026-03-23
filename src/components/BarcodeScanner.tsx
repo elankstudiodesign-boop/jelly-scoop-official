@@ -1,16 +1,23 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface BarcodeScannerProps {
   onScan: (decodedText: string) => void;
   onClose: () => void;
+  scanResult: { type: 'success' | 'error'; message: string } | null;
+  onClearResult: () => void;
 }
 
-export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
+export default function BarcodeScanner({ onScan, onClose, scanResult, onClearResult }: BarcodeScannerProps) {
   const [error, setError] = useState<string>('');
   const [isStarting, setIsStarting] = useState(true);
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const isProcessingRef = useRef(false);
+
+  useEffect(() => {
+    isProcessingRef.current = !!scanResult;
+  }, [scanResult]);
 
   useEffect(() => {
     const html5QrCode = new Html5Qrcode("reader");
@@ -25,7 +32,10 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
         aspectRatio: 1.0
       },
       (decodedText) => {
-        onScan(decodedText);
+        if (!isProcessingRef.current) {
+          isProcessingRef.current = true;
+          onScan(decodedText);
+        }
       },
       (errorMessage) => {
         // Ignore normal scanning errors (e.g., no barcode found in the current frame)
@@ -71,6 +81,34 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
             </div>
           )}
           
+          {scanResult && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/95 backdrop-blur-sm p-6 text-center rounded-b-2xl">
+              {scanResult.type === 'success' ? (
+                <CheckCircle2 className="w-16 h-16 text-emerald-500 mb-4" />
+              ) : (
+                <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
+              )}
+              <h4 className={`text-xl font-bold mb-2 ${scanResult.type === 'success' ? 'text-emerald-600' : 'text-red-600'}`}>
+                {scanResult.type === 'success' ? 'Thành công!' : 'Lỗi!'}
+              </h4>
+              <p className="text-slate-700 mb-8 font-medium">{scanResult.message}</p>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={onClose}
+                  className="flex-1 py-3 px-4 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors"
+                >
+                  Đóng
+                </button>
+                <button
+                  onClick={onClearResult}
+                  className="flex-1 py-3 px-4 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+                >
+                  Quét tiếp
+                </button>
+              </div>
+            </div>
+          )}
+
           {error ? (
             <div className="text-center p-4">
               <p className="text-red-500 mb-4">{error}</p>
