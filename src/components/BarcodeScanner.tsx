@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner, Html5QrcodeScanType } from 'html5-qrcode';
-import { X } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
+import { X, Loader2 } from 'lucide-react';
 
 interface BarcodeScannerProps {
   onScan: (decodedText: string) => void;
@@ -8,37 +8,45 @@ interface BarcodeScannerProps {
 }
 
 export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const [error, setError] = useState<string>('');
+  const [isStarting, setIsStarting] = useState(true);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
 
   useEffect(() => {
-    scannerRef.current = new Html5QrcodeScanner(
-      "reader",
-      { 
-        fps: 10, 
+    const html5QrCode = new Html5Qrcode("reader");
+    scannerRef.current = html5QrCode;
+
+    // Automatically start scanning using the rear camera
+    html5QrCode.start(
+      { facingMode: "environment" },
+      {
+        fps: 10,
         qrbox: { width: 250, height: 150 },
-        supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-        rememberLastUsedCamera: true,
         aspectRatio: 1.0
       },
-      false
-    );
-
-    scannerRef.current.render(
       (decodedText) => {
         onScan(decodedText);
       },
       (errorMessage) => {
-        // Ignore normal scanning errors (e.g., no barcode found)
-        if (!errorMessage.includes('NotFound')) {
-          console.log(errorMessage);
-        }
+        // Ignore normal scanning errors (e.g., no barcode found in the current frame)
       }
-    );
+    ).then(() => {
+      setIsStarting(false);
+    }).catch((err) => {
+      console.error("Error starting camera", err);
+      setError("Không thể khởi động camera. Vui lòng cấp quyền truy cập camera.");
+      setIsStarting(false);
+    });
 
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.clear().catch(console.error);
+        try {
+          scannerRef.current.stop().then(() => {
+            scannerRef.current?.clear();
+          }).catch(console.error);
+        } catch (e) {
+          console.error("Error stopping scanner", e);
+        }
       }
     };
   }, [onScan]);
@@ -55,11 +63,32 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-4">
-          <div id="reader" className="w-full overflow-hidden rounded-lg"></div>
-          <p className="text-center text-sm text-slate-500 mt-4">
-            Đưa mã vạch sản phẩm vào khung hình để quét
-          </p>
+        <div className="p-4 relative min-h-[300px] flex flex-col items-center justify-center">
+          {isStarting && !error && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-10 rounded-b-2xl">
+              <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mb-3" />
+              <p className="text-sm text-slate-500">Đang bật camera sau...</p>
+            </div>
+          )}
+          
+          {error ? (
+            <div className="text-center p-4">
+              <p className="text-red-500 mb-4">{error}</p>
+              <button 
+                onClick={onClose} 
+                className="px-6 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition-colors"
+              >
+                Đóng
+              </button>
+            </div>
+          ) : (
+            <div className="w-full">
+              <div id="reader" className="w-full overflow-hidden rounded-lg"></div>
+              <p className="text-center text-sm text-slate-500 mt-4">
+                Đưa mã vạch sản phẩm vào khung hình để quét
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
