@@ -1,11 +1,87 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Product, Transaction, PriceGroup } from '../types';
-import { PackagePlus, Search, AlertCircle, Trash2, X, CheckCircle2, Upload, Image as ImageIcon, Edit2 } from 'lucide-react';
+import { PackagePlus, Search, AlertCircle, Trash2, X, CheckCircle2, Upload, Image as ImageIcon, Edit2, Barcode } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '../lib/format';
 import { supabase, hasSupabaseConfig } from '../lib/supabase';
 import { uploadProductImage, dataUrlToBlob, processImage } from '../lib/imageUpload';
 import EditProductModal from '../components/EditProductModal';
 import { v4 as uuidv4 } from 'uuid';
+import JsBarcode from 'jsbarcode';
+
+const generateBarcodeNumber = (id: string) => {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = ((hash << 5) - hash) + id.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString().padStart(14, '0');
+};
+
+const downloadBarcode = (product: Product) => {
+  const barcodeValue = generateBarcodeNumber(product.id);
+  const canvas = document.createElement('canvas');
+  // 35x22mm at 300 DPI
+  canvas.width = 414;
+  canvas.height = 260;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  // Background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Product Name
+  ctx.fillStyle = '#000000';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  
+  let fontSize = 36;
+  ctx.font = `${fontSize}px "Inter", Arial, sans-serif`;
+  let textWidth = ctx.measureText(product.name).width;
+  while (textWidth > canvas.width - 40 && fontSize > 16) {
+    fontSize -= 2;
+    ctx.font = `${fontSize}px "Inter", Arial, sans-serif`;
+    textWidth = ctx.measureText(product.name).width;
+  }
+  
+  ctx.fillText(product.name, canvas.width / 2, 20);
+
+  // Generate Barcode
+  const barcodeCanvas = document.createElement('canvas');
+  JsBarcode(barcodeCanvas, barcodeValue, {
+    format: "CODE128",
+    width: 3,
+    height: 110,
+    displayValue: true,
+    fontSize: 36,
+    textMargin: 8,
+    margin: 0
+  });
+
+  // Draw Barcode
+  const bcWidth = barcodeCanvas.width;
+  const bcHeight = barcodeCanvas.height;
+  
+  let scale = 1;
+  if (bcWidth > canvas.width - 40) {
+    scale = (canvas.width - 40) / bcWidth;
+  }
+  
+  const drawWidth = bcWidth * scale;
+  const drawHeight = bcHeight * scale;
+  
+  const x = (canvas.width - drawWidth) / 2;
+  const y = 20 + fontSize + 20;
+  
+  ctx.drawImage(barcodeCanvas, x, y, drawWidth, drawHeight);
+
+  // Download
+  const url = canvas.toDataURL('image/png');
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `barcode-${product.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.png`;
+  a.click();
+};
 
 interface ImportProps {
   products: Product[];
@@ -687,13 +763,22 @@ export default function Import({ products, addProduct, updateProduct, addTransac
                         )}
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <button
-                          onClick={() => setDeleteConfirmIds([p.id])}
-                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Xoá sản phẩm"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => downloadBarcode(p)}
+                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            title="Tải mã vạch"
+                          >
+                            <Barcode className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirmIds([p.id])}
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Xoá sản phẩm"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -736,12 +821,21 @@ export default function Import({ products, addProduct, updateProduct, addTransac
                         <h3 className="font-semibold text-slate-900 pr-2 break-words">{p.name}</h3>
                         {p.note && <div className="text-xs text-slate-500 mt-1 whitespace-pre-wrap">{p.note}</div>}
                       </div>
-                      <button
-                        onClick={() => setDeleteConfirmIds([p.id])}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors -mt-1 -mr-1 flex-shrink-0"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => downloadBarcode(p)}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors flex-shrink-0"
+                          title="Tải mã vạch"
+                        >
+                          <Barcode className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirmIds([p.id])}
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors -mt-1 -mr-1 flex-shrink-0"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                     <div className="text-sm text-slate-500 mb-2">Giá vốn: {formatCurrency(p.cost)}đ</div>
                     <div className="flex items-center justify-between">
