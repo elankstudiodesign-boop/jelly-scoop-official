@@ -103,33 +103,6 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
     }
   }, [selectedProductId, orderType, products]);
 
-  if (loading) {
-    return <div className="p-8 text-center text-slate-500">Đang tải cấu hình...</div>;
-  }
-
-  const selectedConfig = configs.find(c => c.id === selectedConfigId);
-  const scoopPrice = selectedConfig?.price || 0;
-  const packagingCost = 10000;
-
-  const totalCost = orderItems.reduce((sum, item) => sum + (item.product.cost * item.quantity), 0);
-  const totalRetail = orderItems.reduce((sum, item) => sum + ((item.retailPrice ?? item.product.retailPrice ?? item.product.cost) * item.quantity), 0);
-  const totalItemsCount = orderItems.reduce((sum, item) => sum + item.quantity, 0);
-
-  const currentRevenue = orderType === 'SCOOP' ? scoopPrice : totalRetail;
-  const currentPackagingCost = orderType === 'SCOOP' ? packagingCost : parseCurrency(retailPackagingCost);
-
-  const netProfit = currentRevenue - totalCost - currentPackagingCost;
-  const profitMargin = currentRevenue > 0 ? (netProfit / currentRevenue) * 100 : 0;
-
-  const handleAddProduct = () => {
-    if (!selectedProductId) return;
-    const product = products.find(p => p.id === selectedProductId);
-    if (!product) return;
-    
-    const customPrice = itemRetailPrice ? parseCurrency(itemRetailPrice) : undefined;
-    addProductToOrder(product, customPrice);
-  };
-
   const addProductToOrder = useCallback((product: Product, customRetailPrice?: number) => {
     const availableQty = orderType === 'RETAIL' ? (product.warehouseQuantity || 0) : (product.quantity || 0);
     
@@ -180,6 +153,27 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
       setScanResult({ type: 'error', message: 'Không tìm thấy sản phẩm với mã vạch này!' });
     }
   }, [products, orderType, addProductToOrder]);
+
+  // Derived state
+  const selectedConfig = configs.find(c => c.id === selectedConfigId);
+  const scoopPrice = selectedConfig?.price || 0;
+  const totalItemsCount = orderItems.reduce((sum, item) => sum + item.quantity, 0);
+  const totalCost = orderItems.reduce((sum, item) => sum + (item.product.cost * item.quantity), 0);
+  const totalRetail = orderItems.reduce((sum, item) => sum + ((item.retailPrice ?? item.product.retailPrice ?? item.product.cost) * item.quantity), 0);
+  
+  const currentRevenue = orderType === 'SCOOP' ? scoopPrice : totalRetail;
+  const packagingCost = orderType === 'SCOOP' ? 10000 : 0;
+  const currentPackagingCost = orderType === 'SCOOP' ? packagingCost : parseCurrency(retailPackagingCost);
+  
+  const netProfit = currentRevenue - totalCost - currentPackagingCost;
+  const profitMargin = currentRevenue > 0 ? (netProfit / currentRevenue) * 100 : 0;
+
+  const handleAddProduct = useCallback(() => {
+    const product = products.find(p => p.id === selectedProductId);
+    if (product) {
+      addProductToOrder(product, orderType === 'RETAIL' ? parseCurrency(itemRetailPrice) : undefined);
+    }
+  }, [products, selectedProductId, addProductToOrder, orderType, itemRetailPrice]);
 
   const handleUpdateQuantity = (productId: string, delta: number) => {
     setOrderItems(prev => prev.map(item => {
@@ -285,6 +279,10 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
     broadcastOrderCompleted();
     handleClearOrder();
   };
+
+  if (loading) {
+    return <div className="p-8 text-center text-slate-500">Đang tải cấu hình...</div>;
+  }
 
   return (
     <div className="space-y-6">

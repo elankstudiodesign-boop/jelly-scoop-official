@@ -15,6 +15,11 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isProcessingRef = useRef(false);
   const isMountedRef = useRef(true);
+  const onScanRef = useRef(onScan);
+
+  useEffect(() => {
+    onScanRef.current = onScan;
+  }, [onScan]);
 
   useEffect(() => {
     isProcessingRef.current = !!scanResult;
@@ -27,28 +32,29 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
 
     const startScanner = async () => {
       // Small delay to allow modal transition to complete
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 400));
       if (!isMountedRef.current) return;
 
       try {
         await html5QrCode.start(
           { facingMode: "environment" },
           {
-            fps: 20,
+            fps: 15, // Slightly lower FPS for better stability on mobile
             qrbox: (viewfinderWidth, viewfinderHeight) => {
               const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-              const qrboxSize = Math.floor(minEdge * 0.7);
+              const qrboxSize = Math.floor(minEdge * 0.75);
               return {
                 width: qrboxSize,
-                height: qrboxSize * 0.6 // Rectangular for barcodes
+                height: qrboxSize * 0.55 // Optimized for barcodes
               };
             },
-            aspectRatio: 1.0
+            aspectRatio: 1.0,
+            disableFlip: true // Barcodes don't need flipping
           },
           (decodedText) => {
             if (!isProcessingRef.current && isMountedRef.current) {
               isProcessingRef.current = true;
-              onScan(decodedText);
+              onScanRef.current(decodedText);
             }
           },
           () => {} // Ignore errors
@@ -70,20 +76,18 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
     return () => {
       isMountedRef.current = false;
       if (scannerRef.current) {
-        const stopScanner = async () => {
-          try {
-            if (scannerRef.current?.isScanning) {
-              await scannerRef.current.stop();
-            }
-            scannerRef.current?.clear();
-          } catch (e) {
-            console.error("Error stopping scanner", e);
-          }
-        };
-        stopScanner();
+        const currentScanner = scannerRef.current;
+        // Immediate stop attempt
+        if (currentScanner.isScanning) {
+          currentScanner.stop().then(() => {
+            currentScanner.clear();
+          }).catch(e => {
+            console.warn("Scanner stop error (expected if already stopped):", e);
+          });
+        }
       }
     };
-  }, [onScan]);
+  }, []); // Empty dependency array means it only runs once on mount
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 backdrop-blur-md">
