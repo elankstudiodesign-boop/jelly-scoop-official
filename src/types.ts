@@ -40,5 +40,8 @@ export interface Transaction {
   amount: number;
   description: string;
   date: string;
-  items?: { productId: string; quantity: number }[];
+  items?: { productId: string; quantity: number; retailPrice?: number }[];
+  customerName?: string;
+  customerPhone?: string;
+  customerAddress?: string;
 }

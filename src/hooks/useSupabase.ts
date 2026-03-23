@@ -455,12 +455,17 @@ function mapTransactionToDB(t: Partial<Transaction>) {
     res.description = `${t.description || ''}|||__ITEMS__|||${JSON.stringify(t.items)}`;
   }
   delete res.items;
+  
+  if (t.customerName !== undefined) { res.customer_name = t.customerName; delete res.customerName; }
+  if (t.customerPhone !== undefined) { res.customer_phone = t.customerPhone; delete res.customerPhone; }
+  if (t.customerAddress !== undefined) { res.customer_address = t.customerAddress; delete res.customerAddress; }
+  
   return res;
 }
 
 function mapTransactionFromDB(t: any): Transaction {
   let description = t.description || '';
-  let items: { productId: string; quantity: number }[] | undefined = undefined;
+  let items: { productId: string; quantity: number, retailPrice?: number }[] | undefined = undefined;
 
   if (description.includes('|||__ITEMS__|||')) {
     const parts = description.split('|||__ITEMS__|||');
@@ -487,6 +492,9 @@ function mapTransactionFromDB(t: any): Transaction {
     amount: Number(t.amount),
     description,
     date: t.date,
-    items
+    items,
+    customerName: t.customer_name,
+    customerPhone: t.customer_phone,
+    customerAddress: t.customer_address
   };
 }

@@ -6,6 +6,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { CheckCircle, ChevronDown } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '../lib/format';
 
+import OrderList from '../components/OrderList';
+
 interface OrderItem {
   product: Product;
   quantity: number;
@@ -17,17 +19,24 @@ interface LiveProps {
   updateProduct: (id: string, updates: Partial<Product>) => void;
   addTransaction: (transaction: Transaction) => void;
   addSession: (session: LiveSession) => void;
+  transactions: Transaction[];
+  deleteTransaction: (id: string) => void;
 }
 
-export default function Live({ products, updateProduct, addTransaction, addSession }: LiveProps) {
+export default function Live({ products, updateProduct, addTransaction, addSession, transactions, deleteTransaction }: LiveProps) {
   const { configs, loading } = useSupabaseConfigs(defaultConfigs);
   
+  const [activeTab, setActiveTab] = useState<'CREATE' | 'LIST'>('CREATE');
   const [orderType, setOrderType] = useState<'SCOOP' | 'RETAIL'>('SCOOP');
   const [selectedConfigId, setSelectedConfigId] = useState<string>(defaultConfigs[0]?.id || '');
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [itemRetailPrice, setItemRetailPrice] = useState<string>('');
   const [retailPackagingCost, setRetailPackagingCost] = useState<string>('');
+  
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerAddress, setCustomerAddress] = useState('');
 
   useEffect(() => {
     if (configs.length > 0 && !selectedConfigId) {
@@ -114,6 +123,9 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
     setOrderItems([]);
     setItemRetailPrice('');
     setRetailPackagingCost('');
+    setCustomerName('');
+    setCustomerPhone('');
+    setCustomerAddress('');
   };
 
   const handleCompleteOrder = () => {
@@ -141,7 +153,10 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
         amount: scoopPrice,
         description: `Đơn hàng ${selectedConfig?.name} (${totalItemsCount} món)`,
         date: now,
-        items: orderItems.map(item => ({ productId: item.product.id, quantity: item.quantity }))
+        items: orderItems.map(item => ({ productId: item.product.id, quantity: item.quantity, retailPrice: item.retailPrice })),
+        customerName: customerName.trim() || undefined,
+        customerPhone: customerPhone.trim() || undefined,
+        customerAddress: customerAddress.trim() || undefined
       });
 
       // 3. Add Expense Transaction (Packaging)
@@ -175,7 +190,10 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
         amount: currentRevenue,
         description: `Đơn hàng lẻ (${totalItemsCount} món)`,
         date: now,
-        items: orderItems.map(item => ({ productId: item.product.id, quantity: item.quantity }))
+        items: orderItems.map(item => ({ productId: item.product.id, quantity: item.quantity, retailPrice: item.retailPrice })),
+        customerName: customerName.trim() || undefined,
+        customerPhone: customerPhone.trim() || undefined,
+        customerAddress: customerAddress.trim() || undefined
       });
 
       // 3. Add Expense Transaction (Packaging)
@@ -199,11 +217,27 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Đơn hàng</h1>
-        <p className="text-slate-500 mt-1 text-sm">Tạo đơn hàng, chọn sản phẩm và tính toán lợi nhuận thực tế.</p>
+        <p className="text-slate-500 mt-1 text-sm">Quản lý và tạo đơn hàng mới.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Order Creation */}
+      <div className="flex border-b border-slate-200 mb-6">
+        <button
+          onClick={() => setActiveTab('CREATE')}
+          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${activeTab === 'CREATE' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          Tạo đơn hàng
+        </button>
+        <button
+          onClick={() => setActiveTab('LIST')}
+          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${activeTab === 'LIST' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          Danh sách đơn hàng
+        </button>
+      </div>
+
+      {activeTab === 'CREATE' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column: Order Creation */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
             <div className="flex justify-between items-center mb-6">
@@ -315,6 +349,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
                   </button>
                 </div>
               </div>
+            </div>
 
               {/* Order Items List */}
               {orderItems.length > 0 && (
@@ -362,9 +397,45 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
                   </div>
                 </div>
               )}
+
+              {/* Customer Info */}
+              <div className="mt-6 pt-6 border-t border-slate-100">
+                <h3 className="text-sm font-semibold text-slate-700 mb-4">Thông tin khách hàng (Tùy chọn)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Tên khách hàng</label>
+                    <input
+                      type="text"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="Nhập tên..."
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Số điện thoại</label>
+                    <input
+                      type="text"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      placeholder="Nhập SĐT..."
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Địa chỉ</label>
+                    <input
+                      type="text"
+                      value={customerAddress}
+                      onChange={(e) => setCustomerAddress(e.target.value)}
+                      placeholder="Nhập địa chỉ..."
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
         {/* Right Column: Financial Summary */}
         <div className="lg:col-span-1 space-y-6">
@@ -434,6 +505,9 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
           </div>
         </div>
       </div>
+      ) : (
+        <OrderList transactions={transactions} products={products} deleteTransaction={deleteTransaction} />
+      )}
     </div>
   );
 }

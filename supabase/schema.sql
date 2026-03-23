@@ -45,6 +45,9 @@ CREATE TABLE transactions (
   amount NUMERIC NOT NULL,
   description TEXT,
   date TEXT NOT NULL,
+  customer_name TEXT,
+  customer_phone TEXT,
+  customer_address TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 

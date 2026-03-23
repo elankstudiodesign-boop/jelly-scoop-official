@@ -49,7 +49,7 @@ export default function App() {
               <Route path="/pool-distribution" element={<PoolDistribution products={products} />} />
               <Route path="/import" element={<Import products={products} addProduct={addProduct} updateProduct={updateProduct} addTransaction={addTransaction} deleteProduct={deleteProduct} />} />
               <Route path="/simulator" element={<Simulator products={products} />} />
-              <Route path="/live" element={<Live products={products} updateProduct={updateProduct} addTransaction={addTransaction} addSession={addSession} />} />
+              <Route path="/live" element={<Live products={products} updateProduct={updateProduct} addTransaction={addTransaction} addSession={addSession} transactions={transactions} deleteTransaction={deleteTransaction} />} />
               <Route path="/finance" element={<Finance transactions={transactions} deleteTransaction={deleteTransaction} addTransaction={addTransaction} products={products} updateProduct={updateProduct} />} />
             </Routes>
           </div>
