@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Transaction, Product } from '../types';
 import { formatCurrency } from '../lib/format';
-import { Printer, Trash2, Eye, X, Download } from 'lucide-react';
-import JsBarcode from 'jsbarcode';
+import { Printer, Trash2, Eye, X } from 'lucide-react';
 
 interface OrderListProps {
   transactions: Transaction[];
@@ -23,60 +22,6 @@ export default function OrderList({ transactions, products, deleteTransaction }:
         setSelectedOrder(null);
       }
     }
-  };
-
-  const handleDownloadBarcode = (productName: string, productId: string) => {
-    // Generate a 14-digit number from the productId
-    const hex = productId.replace(/-/g, '').substring(0, 11);
-    const barcodeValue = parseInt(hex, 16).toString().padStart(14, '0').substring(0, 14);
-
-    const tempCanvas = document.createElement('canvas');
-    JsBarcode(tempCanvas, barcodeValue, {
-      format: "CODE128",
-      displayValue: true,
-      fontSize: 28,
-      margin: 10,
-      textMargin: 8,
-      height: 100,
-      width: 3,
-      font: "sans-serif"
-    });
-
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const barcodeWidth = tempCanvas.width;
-    const barcodeHeight = tempCanvas.height;
-    const padding = 20;
-    const titleHeight = 50;
-    
-    // Ensure canvas is wide enough for the title
-    ctx.font = '32px sans-serif';
-    const textMetrics = ctx.measureText(productName);
-    const textWidth = textMetrics.width;
-    
-    canvas.width = Math.max(barcodeWidth + padding * 2, textWidth + padding * 2);
-    canvas.height = barcodeHeight + titleHeight + padding * 2;
-
-    // Re-set font after resizing canvas
-    ctx.font = '32px sans-serif';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.fillStyle = '#000000';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.fillText(productName, canvas.width / 2, padding);
-
-    // Center the barcode if the canvas is wider due to long text
-    const barcodeX = (canvas.width - barcodeWidth) / 2;
-    ctx.drawImage(tempCanvas, barcodeX, padding + titleHeight);
-
-    const link = document.createElement('a');
-    link.download = `barcode-${productName.replace(/\s+/g, '-')}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
   };
 
   const handlePrint = (order: Transaction) => {
@@ -307,9 +252,9 @@ export default function OrderList({ transactions, products, deleteTransaction }:
           <div class="payment-info">
             <h3>PHƯƠNG THỨC THANH TOÁN</h3>
             <p>Chuyển khoản ngân hàng</p>
-            <p>TECHCOMBANK</p>
-            <p class="bold">NGUYEN DUC MINH</p>
-            <p>0123 4567 8901</p>
+            <p>MB bank</p>
+            <p class="bold">LY THI KIM NHAN</p>
+            <p>11391679168</p>
             
             <div style="margin-top: 25px; display: flex; align-items: center; gap: 15px;">
               <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://zalo.me/0886849783" alt="Zalo QR" style="width: 70px; height: 70px;" />
@@ -471,7 +416,6 @@ export default function OrderList({ transactions, products, deleteTransaction }:
                       <th className="p-3 text-center">Số lượng</th>
                       <th className="p-3 text-right">Đơn giá</th>
                       <th className="p-3 text-right">Thành tiền</th>
-                      <th className="p-3 text-center">Mã vạch</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -493,17 +437,6 @@ export default function OrderList({ transactions, products, deleteTransaction }:
                           <td className="p-3 text-center">{item.quantity}</td>
                           <td className="p-3 text-right">{formatCurrency(price)}đ</td>
                           <td className="p-3 text-right font-medium">{formatCurrency(price * item.quantity)}đ</td>
-                          <td className="p-3 text-center">
-                            {product && (
-                              <button
-                                onClick={() => handleDownloadBarcode(product.name, product.id)}
-                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors inline-flex"
-                                title="Tải mã vạch"
-                              >
-                                <Download className="w-4 h-4" />
-                              </button>
-                            )}
-                          </td>
                         </tr>
                       );
                     })}
@@ -512,7 +445,6 @@ export default function OrderList({ transactions, products, deleteTransaction }:
                     <tr>
                       <td colSpan={3} className="p-3 text-right font-medium text-slate-600">Tổng cộng:</td>
                       <td className="p-3 text-right font-bold text-indigo-600">{formatCurrency(selectedOrder.amount)}đ</td>
-                      <td></td>
                     </tr>
                   </tfoot>
                 </table>

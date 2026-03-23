@@ -126,18 +126,17 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
     const product = products.find(p => p.id === selectedProductId);
     if (!product) return;
     
-    addProductToOrder(product);
+    const customPrice = itemRetailPrice ? parseCurrency(itemRetailPrice) : undefined;
+    addProductToOrder(product, customPrice);
   };
 
-  const addProductToOrder = (product: Product, scannedRetailPrice?: number) => {
+  const addProductToOrder = useCallback((product: Product, customRetailPrice?: number) => {
     const availableQty = orderType === 'RETAIL' ? (product.warehouseQuantity || 0) : (product.quantity || 0);
     
     let parsedRetailPrice: number | undefined;
     if (orderType === 'RETAIL') {
-      if (scannedRetailPrice !== undefined) {
-        parsedRetailPrice = scannedRetailPrice;
-      } else if (itemRetailPrice) {
-        parsedRetailPrice = parseCurrency(itemRetailPrice);
+      if (customRetailPrice !== undefined) {
+        parsedRetailPrice = customRetailPrice;
       }
     }
 
@@ -162,15 +161,17 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
     });
     setSelectedProductId('');
     setItemRetailPrice('');
-  };
+  }, [orderType]);
 
-  const handleScan = (decodedText: string) => {
+  const handleScan = useCallback((decodedText: string) => {
     const product = products.find(p => generateBarcodeNumber(p.id) === decodedText);
     if (product) {
       // Set the retail price if it's retail order
       let scannedPrice: number | undefined;
       if (orderType === 'RETAIL') {
         scannedPrice = product.retailPrice || product.cost;
+        // We update the UI price field but this won't trigger scanner re-init 
+        // because addProductToOrder no longer depends on itemRetailPrice
         setItemRetailPrice(formatCurrency(scannedPrice));
       }
       addProductToOrder(product, scannedPrice);
@@ -178,7 +179,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
     } else {
       setScanResult({ type: 'error', message: 'Không tìm thấy sản phẩm với mã vạch này!' });
     }
-  };
+  }, [products, orderType, addProductToOrder]);
 
   const handleUpdateQuantity = (productId: string, delta: number) => {
     setOrderItems(prev => prev.map(item => {
