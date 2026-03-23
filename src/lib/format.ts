@@ -9,3 +9,12 @@ export const parseCurrency = (value: string): number => {
   if (!value) return 0;
   return parseInt(value.replace(/\D/g, ''), 10) || 0;
 };
+
+export const generateBarcodeNumber = (id: string) => {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = ((hash << 5) - hash) + id.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString().padStart(14, '0');
+};

@@ -1,21 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Product, Transaction, PriceGroup } from '../types';
 import { PackagePlus, Search, AlertCircle, Trash2, X, CheckCircle2, Upload, Image as ImageIcon, Edit2, Barcode } from 'lucide-react';
-import { formatCurrency, parseCurrency } from '../lib/format';
+import { formatCurrency, parseCurrency, generateBarcodeNumber } from '../lib/format';
 import { supabase, hasSupabaseConfig } from '../lib/supabase';
 import { uploadProductImage, dataUrlToBlob, processImage } from '../lib/imageUpload';
 import EditProductModal from '../components/EditProductModal';
 import { v4 as uuidv4 } from 'uuid';
 import JsBarcode from 'jsbarcode';
-
-const generateBarcodeNumber = (id: string) => {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = ((hash << 5) - hash) + id.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash).toString().padStart(14, '0');
-};
 
 const downloadBarcode = (product: Product) => {
   const barcodeValue = generateBarcodeNumber(product.id);

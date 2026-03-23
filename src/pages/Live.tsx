@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Product, ScoopConfig, Transaction, LiveSession } from '../types';
 import { useSupabaseConfigs } from '../hooks/useSupabase';
 import { defaultConfigs } from './Simulator';
 import { v4 as uuidv4 } from 'uuid';
-import { CheckCircle, ChevronDown } from 'lucide-react';
-import { formatCurrency, parseCurrency } from '../lib/format';
+import { CheckCircle, ChevronDown, Barcode } from 'lucide-react';
+import { formatCurrency, parseCurrency, generateBarcodeNumber } from '../lib/format';
 
 import OrderList from '../components/OrderList';
+import BarcodeScanner from '../components/BarcodeScanner';
 
 interface OrderItem {
   product: Product;
@@ -37,6 +38,8 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
+  const lastScannedRef = useRef<{ text: string; time: number } | null>(null);
 
   useEffect(() => {
     if (configs.length > 0 && !selectedConfigId) {
@@ -77,19 +80,31 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
     if (!selectedProductId) return;
     const product = products.find(p => p.id === selectedProductId);
     if (!product) return;
+    
+    addProductToOrder(product);
+  };
 
+  const addProductToOrder = (product: Product, scannedRetailPrice?: number) => {
     const availableQty = orderType === 'RETAIL' ? (product.warehouseQuantity || 0) : (product.quantity || 0);
-    const parsedRetailPrice = orderType === 'RETAIL' && itemRetailPrice ? parseCurrency(itemRetailPrice) : undefined;
+    
+    let parsedRetailPrice: number | undefined;
+    if (orderType === 'RETAIL') {
+      if (scannedRetailPrice !== undefined) {
+        parsedRetailPrice = scannedRetailPrice;
+      } else if (itemRetailPrice) {
+        parsedRetailPrice = parseCurrency(itemRetailPrice);
+      }
+    }
 
     setOrderItems(prev => {
-      const existing = prev.find(item => item.product.id === selectedProductId);
+      const existing = prev.find(item => item.product.id === product.id);
       if (existing) {
         if (existing.quantity >= availableQty) {
           alert(`Chỉ còn ${availableQty} sản phẩm trong ${orderType === 'RETAIL' ? 'kho' : 'bể'}`);
           return prev;
         }
         return prev.map(item => 
-          item.product.id === selectedProductId 
+          item.product.id === product.id 
             ? { ...item, quantity: item.quantity + 1, retailPrice: parsedRetailPrice ?? item.retailPrice } 
             : item
         );
@@ -102,6 +117,34 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
     });
     setSelectedProductId('');
     setItemRetailPrice('');
+  };
+
+  const handleScan = (decodedText: string) => {
+    const now = Date.now();
+    if (
+      lastScannedRef.current &&
+      lastScannedRef.current.text === decodedText &&
+      now - lastScannedRef.current.time < 2000 // Prevent scanning the same barcode within 2 seconds
+    ) {
+      return;
+    }
+
+    lastScannedRef.current = { text: decodedText, time: now };
+
+    const product = products.find(p => generateBarcodeNumber(p.id) === decodedText);
+    if (product) {
+      // Set the retail price if it's retail order
+      let scannedPrice: number | undefined;
+      if (orderType === 'RETAIL') {
+        scannedPrice = product.retailPrice || product.cost;
+        setItemRetailPrice(formatCurrency(scannedPrice));
+      }
+      addProductToOrder(product, scannedPrice);
+      // We don't close the scanner automatically so the user can keep scanning
+    } else {
+      // Only alert if it's a new scan to prevent spam
+      alert('Không tìm thấy sản phẩm với mã vạch này!');
+    }
   };
 
   const handleUpdateQuantity = (productId: string, delta: number) => {
@@ -309,7 +352,16 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
 
               {/* Add Product */}
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Thêm sản phẩm vào đơn</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-slate-700">Thêm sản phẩm vào đơn</label>
+                  <button
+                    onClick={() => setIsScanning(true)}
+                    className="flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                  >
+                    <Barcode className="w-4 h-4" />
+                    Quét mã vạch
+                  </button>
+                </div>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <div className="relative flex-1 min-w-0">
                     <select 
@@ -507,6 +559,12 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
       </div>
       ) : (
         <OrderList transactions={transactions} products={products} deleteTransaction={deleteTransaction} />
+      )}
+      {isScanning && (
+        <BarcodeScanner
+          onScan={handleScan}
+          onClose={() => setIsScanning(false)}
+        />
       )}
     </div>
   );
