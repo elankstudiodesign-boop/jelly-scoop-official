@@ -18,28 +18,33 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
   const isProcessingRef = useRef(false);
   const isMountedRef = useRef(true);
   const onScanRef = useRef(onScan);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
   const playBeep = useCallback(() => {
     try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      
+      const audioCtx = audioCtxRef.current;
       
       const play = () => {
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
 
+        // Supermarket style: Higher frequency (1200Hz - 1500Hz)
         oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 note
-        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        oscillator.frequency.setValueAtTime(1200, audioCtx.currentTime); 
+        
+        // Louder volume
+        gainNode.gain.setValueAtTime(0.4, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
 
         oscillator.connect(gainNode);
         gainNode.connect(audioCtx.destination);
 
         oscillator.start();
-        oscillator.stop(audioCtx.currentTime + 0.1);
-        
-        // Close context after play to save resources
-        setTimeout(() => audioCtx.close(), 200);
+        oscillator.stop(audioCtx.currentTime + 0.08);
       };
 
       if (audioCtx.state === 'suspended') {
