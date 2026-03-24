@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { BarChart3, Package, Calculator, ShoppingCart, ArrowDownToLine, Wallet, Droplets, Settings as SettingsIcon } from 'lucide-react';
+import { BarChart3, Package, Calculator, ShoppingCart, ArrowDownToLine, Wallet, Droplets, Settings } from 'lucide-react';
 
 export default function Sidebar() {
   const navItems = [
@@ -11,7 +11,7 @@ export default function Sidebar() {
     { path: '/simulator', label: 'Mô phỏng', icon: <Calculator className="w-5 h-5" /> },
     { path: '/live', label: 'Đơn hàng', icon: <ShoppingCart className="w-5 h-5" /> },
     { path: '/finance', label: 'Tài chính', icon: <Wallet className="w-5 h-5" /> },
-    { path: '/settings', label: 'Cài đặt', icon: <SettingsIcon className="w-5 h-5" /> },
+    { path: '/settings', label: 'Cài đặt', icon: <Settings className="w-5 h-5" /> },
   ];
 
   return (

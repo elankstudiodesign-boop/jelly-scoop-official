@@ -8,14 +8,46 @@ import Simulator from './pages/Simulator';
 import Live from './pages/Live';
 import Import from './pages/Import';
 import Finance from './pages/Finance';
+import Settings from './pages/Settings';
 import { useSupabaseProducts, useSupabaseSessions, useSupabaseTransactions, useSupabaseSuppliers } from './hooks/useSupabase';
 import { hasSupabaseConfig } from './lib/supabase';
+import { Product, Supplier, Transaction, LiveSession } from './types';
 
 export default function App() {
   const { products, addProduct, updateProduct, deleteProduct, loading: productsLoading } = useSupabaseProducts();
   const { sessions, addSession, deleteSession, loading: sessionsLoading } = useSupabaseSessions();
   const { transactions, addTransaction, deleteTransaction, loading: transactionsLoading } = useSupabaseTransactions();
   const { suppliers, addSupplier, updateSupplier, deleteSupplier, loading: suppliersLoading } = useSupabaseSuppliers();
+
+  const handleImportData = async (data: {
+    products?: Product[];
+    suppliers?: Supplier[];
+    transactions?: Transaction[];
+    sessions?: LiveSession[];
+  }) => {
+    // Basic implementation: loop through and add
+    // In a real app, you'd want bulk upsert
+    if (data.suppliers) {
+      for (const s of data.suppliers) {
+        await addSupplier(s);
+      }
+    }
+    if (data.products) {
+      for (const p of data.products) {
+        await addProduct(p);
+      }
+    }
+    if (data.transactions) {
+      for (const t of data.transactions) {
+        await addTransaction(t);
+      }
+    }
+    if (data.sessions) {
+      for (const s of data.sessions) {
+        await addSession(s);
+      }
+    }
+  };
 
   if (productsLoading || sessionsLoading || transactionsLoading || suppliersLoading) {
     return (
@@ -52,6 +84,7 @@ export default function App() {
               <Route path="/simulator" element={<Simulator products={products} />} />
               <Route path="/live" element={<Live products={products} updateProduct={updateProduct} addTransaction={addTransaction} addSession={addSession} transactions={transactions} deleteTransaction={deleteTransaction} />} />
               <Route path="/finance" element={<Finance transactions={transactions} deleteTransaction={deleteTransaction} addTransaction={addTransaction} products={products} updateProduct={updateProduct} />} />
+              <Route path="/settings" element={<Settings products={products} suppliers={suppliers} transactions={transactions} sessions={sessions} onImportData={handleImportData} />} />
             </Routes>
           </div>
         </main>

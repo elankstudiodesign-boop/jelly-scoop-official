@@ -1,138 +1,230 @@
-import React, { useState } from 'react';
-import { Database, Download, CheckCircle2, AlertCircle } from 'lucide-react';
-import { useSupabaseProducts, useSupabaseSessions, useSupabaseTransactions, useSupabaseSuppliers, useSupabaseConfigs } from '../hooks/useSupabase';
-import { format } from 'date-fns';
+import React, { useState, useRef } from 'react';
+import { Database, Download, Upload, AlertTriangle, CheckCircle2, Trash2, Info } from 'lucide-react';
+import { Product, Transaction, LiveSession, Supplier } from '../types';
+import { formatCurrency } from '../lib/format';
 
-export default function Settings() {
-  const { products } = useSupabaseProducts();
-  const { sessions } = useSupabaseSessions();
-  const { transactions } = useSupabaseTransactions();
-  const { suppliers } = useSupabaseSuppliers();
-  const { configs } = useSupabaseConfigs([]);
+interface SettingsProps {
+  products: Product[];
+  suppliers: Supplier[];
+  transactions: Transaction[];
+  sessions: LiveSession[];
+  onImportData: (data: {
+    products?: Product[];
+    suppliers?: Supplier[];
+    transactions?: Transaction[];
+    sessions?: LiveSession[];
+  }) => Promise<void>;
+}
+
+export default function Settings({ products, suppliers, transactions, sessions, onImportData }: SettingsProps) {
   const [isExporting, setIsExporting] = useState(false);
-  const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState<string | null>(null);
+  const [lastBackup, setLastBackup] = useState<string | null>(localStorage.getItem('jellyscoop_last_backup'));
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const escapeSqlString = (str: string | undefined | null) => {
-    if (str === undefined || str === null) return 'NULL';
-    return `'${str.replace(/'/g, "''")}'`;
-  };
-
-  const escapeSqlNumber = (num: number | undefined | null) => {
-    if (num === undefined || num === null) return 'NULL';
-    return num;
-  };
-
-  const handleExportSql = () => {
+  const handleExport = () => {
     setIsExporting(true);
     try {
-      let sql = `-- Backup Data - ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')}\n\n`;
+      const now = new Date().toISOString();
+      const backupData = {
+        version: '1.0',
+        timestamp: now,
+        data: {
+          products,
+          suppliers,
+          transactions,
+          sessions
+        }
+      };
 
-      // Products
-      if (products.length > 0) {
-        sql += `-- Table: products\n`;
-        products.forEach(p => {
-          sql += `INSERT INTO products (id, name, cost, retail_price, margin, image_url, price_group, quantity, warehouse_quantity, note, supplier_id) VALUES (${escapeSqlString(p.id)}, ${escapeSqlString(p.name)}, ${escapeSqlNumber(p.cost)}, ${escapeSqlNumber(p.retailPrice)}, ${escapeSqlNumber(p.margin)}, ${escapeSqlString(p.imageUrl)}, ${escapeSqlString(p.priceGroup)}, ${escapeSqlNumber(p.quantity)}, ${escapeSqlNumber(p.warehouseQuantity)}, ${escapeSqlString(p.note)}, ${escapeSqlString(p.supplierId)}) ON CONFLICT (id) DO NOTHING;\n`;
-        });
-        sql += `\n`;
-      }
-
-      // Suppliers
-      if (suppliers.length > 0) {
-        sql += `-- Table: suppliers\n`;
-        suppliers.forEach(s => {
-          sql += `INSERT INTO suppliers (id, name, phone, address, note, created_at) VALUES (${escapeSqlString(s.id)}, ${escapeSqlString(s.name)}, ${escapeSqlString(s.phone)}, ${escapeSqlString(s.address)}, ${escapeSqlString(s.note)}, ${escapeSqlString(s.createdAt)}) ON CONFLICT (id) DO NOTHING;\n`;
-        });
-        sql += `\n`;
-      }
-
-      // Transactions
-      if (transactions.length > 0) {
-        sql += `-- Table: transactions\n`;
-        transactions.forEach(t => {
-          let description = t.description || '';
-          if (t.items && t.items.length > 0) {
-            description = `${description}|||__ITEMS__|||${JSON.stringify(t.items)}`;
-          }
-          sql += `INSERT INTO transactions (id, type, category, amount, description, date, customer_name, customer_phone, customer_address, supplier_id) VALUES (${escapeSqlString(t.id)}, ${escapeSqlString(t.type)}, ${escapeSqlString(t.category)}, ${escapeSqlNumber(t.amount)}, ${escapeSqlString(description)}, ${escapeSqlString(t.date)}, ${escapeSqlString(t.customerName)}, ${escapeSqlString(t.customerPhone)}, ${escapeSqlString(t.customerAddress)}, ${escapeSqlString(t.supplierId)}) ON CONFLICT (id) DO NOTHING;\n`;
-        });
-        sql += `\n`;
-      }
-
-      // Sessions
-      if (sessions.length > 0) {
-        sql += `-- Table: sessions\n`;
-        sessions.forEach(s => {
-          sql += `INSERT INTO sessions (id, date, scoops_sold, revenue, tiktok_fee_percent, packaging_cost_per_scoop, average_scoop_cost) VALUES (${escapeSqlString(s.id)}, ${escapeSqlString(s.date)}, ${escapeSqlNumber(s.scoopsSold)}, ${escapeSqlNumber(s.revenue)}, ${escapeSqlNumber(s.tiktokFeePercent)}, ${escapeSqlNumber(s.packagingCostPerScoop)}, ${escapeSqlNumber(s.averageScoopCost)}) ON CONFLICT (id) DO NOTHING;\n`;
-        });
-        sql += `\n`;
-      }
-
-      // Scoop Configs
-      if (configs.length > 0) {
-        sql += `-- Table: scoop_configs\n`;
-        configs.forEach(c => {
-          sql += `INSERT INTO scoop_configs (id, name, price, total_items, ratio_low, ratio_medium, ratio_high) VALUES (${escapeSqlString(c.id)}, ${escapeSqlString(c.name)}, ${escapeSqlNumber(c.price)}, ${escapeSqlNumber(c.totalItems)}, ${escapeSqlNumber(c.ratioLow)}, ${escapeSqlNumber(c.ratioMedium)}, ${escapeSqlNumber(c.ratioHigh)}) ON CONFLICT (id) DO NOTHING;\n`;
-        });
-        sql += `\n`;
-      }
-
-      const blob = new Blob([sql], { type: 'text/plain' });
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `jellyscoop_backup_${format(new Date(), 'yyyyMMdd_HHmmss')}.sql`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `jellyscoop_backup_${now.split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       URL.revokeObjectURL(url);
-
-      setNotification({ type: 'success', message: 'Đã xuất file SQL sao lưu thành công!' });
+      
+      localStorage.setItem('jellyscoop_last_backup', now);
+      setLastBackup(now);
+      setImportSuccess('Xuất dữ liệu thành công!');
+      setTimeout(() => setImportSuccess(null), 3000);
     } catch (error) {
       console.error('Export error:', error);
-      setNotification({ type: 'error', message: 'Có lỗi xảy ra khi xuất file SQL.' });
+      setImportError('Lỗi khi xuất dữ liệu.');
+      setTimeout(() => setImportError(null), 3000);
     } finally {
       setIsExporting(false);
-      setTimeout(() => setNotification(null), 3000);
     }
   };
 
-  return (
-    <div className="space-y-6">
-      {notification && (
-        <div className={`fixed top-[calc(env(safe-area-inset-top)+1rem)] left-4 right-4 md:top-4 md:left-auto md:right-4 md:max-w-md z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg border ${
-          notification.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
-        }`}>
-          {notification.type === 'success' ? <CheckCircle2 className="w-5 h-5 text-emerald-600" /> : <AlertCircle className="w-5 h-5 text-red-600" />}
-          <span className="font-medium text-sm">{notification.message}</span>
-        </div>
-      )}
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
 
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    setImportError(null);
+    setImportSuccess(null);
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const content = e.target?.result as string;
+        const backup = JSON.parse(content);
+
+        if (!backup.data || (!backup.data.products && !backup.data.suppliers && !backup.data.transactions && !backup.data.sessions)) {
+          throw new Error('Định dạng file không hợp lệ.');
+        }
+
+        if (window.confirm('CẢNH BÁO: Việc nhập dữ liệu sẽ ghi đè hoặc bổ sung vào dữ liệu hiện tại. Bạn có chắc chắn muốn tiếp tục?')) {
+          await onImportData(backup.data);
+          setImportSuccess('Nhập dữ liệu thành công!');
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+      } catch (error) {
+        console.error('Import error:', error);
+        setImportError('Lỗi khi nhập dữ liệu. Vui lòng kiểm tra lại file backup.');
+      } finally {
+        setIsImporting(false);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  return (
+    <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Cài đặt & Sao lưu</h1>
-        <p className="text-slate-500 mt-1 text-sm">Quản lý dữ liệu và cấu hình hệ thống.</p>
+        <h1 className="text-3xl font-black text-slate-900 tracking-tight">Cài đặt hệ thống</h1>
+        <p className="text-slate-500 mt-2">Quản lý dữ liệu và cấu hình ứng dụng.</p>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <Database className="w-5 h-5 text-indigo-600" />
-            Sao lưu dữ liệu (SQL)
-          </h2>
-          <p className="text-slate-600 text-sm mb-6">
-            Tính năng này giúp bạn xuất toàn bộ dữ liệu hiện tại (Sản phẩm, Nhà cung cấp, Giao dịch, Phiên live, Cấu hình) ra một file <code>.sql</code>. Bạn có thể sử dụng file này để sao lưu lên Cloud hoặc phục hồi dữ liệu vào Supabase.
-          </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Backup Section */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-slate-100 flex items-center gap-3 bg-slate-50">
+            <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600">
+              <Database className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="font-bold text-slate-900">Sao lưu & Phục hồi</h2>
+              <p className="text-xs text-slate-500">Bảo vệ dữ liệu của bạn</p>
+            </div>
+          </div>
           
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleExportSql}
-              disabled={isExporting}
-              className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Download className="w-5 h-5" />
-              {isExporting ? 'Đang xuất...' : 'Tải xuống file SQL'}
-            </button>
-            <div className="text-sm text-slate-500">
-              Tổng cộng: {products.length} sản phẩm, {suppliers.length} nhà cung cấp, {transactions.length} giao dịch.
+          <div className="p-6 space-y-6">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-amber-800">
+                <p className="font-bold mb-1">Lưu ý quan trọng</p>
+                <p>Bạn nên thực hiện sao lưu dữ liệu định kỳ (hàng tuần hoặc hàng tháng) để tránh mất mát thông tin khách hàng và lịch sử giao dịch trong trường hợp có sự cố hệ thống.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              <button
+                onClick={handleExport}
+                disabled={isExporting}
+                className="flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
+                    <Download className="w-6 h-6" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-bold text-slate-900">Xuất dữ liệu (Backup)</div>
+                    <div className="text-xs text-slate-500">Tải về file JSON chứa toàn bộ dữ liệu</div>
+                    {lastBackup && (
+                      <div className="text-[10px] text-green-600 font-medium mt-1 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Lần cuối: {new Date(lastBackup).toLocaleString('vi-VN')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="text-slate-300 group-hover:text-indigo-400">
+                  {isExporting ? 'Đang xử lý...' : 'Tải về'}
+                </div>
+              </button>
+
+              <button
+                onClick={handleImportClick}
+                disabled={isImporting}
+                className="flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 transition-all group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-emerald-100 group-hover:text-emerald-600 transition-colors">
+                    <Upload className="w-6 h-6" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-bold text-slate-900">Nhập dữ liệu (Restore)</div>
+                    <div className="text-xs text-slate-500">Khôi phục dữ liệu từ file backup đã lưu</div>
+                  </div>
+                </div>
+                <div className="text-slate-300 group-hover:text-emerald-400">
+                  {isImporting ? 'Đang xử lý...' : 'Chọn file'}
+                </div>
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept=".json"
+                className="hidden"
+              />
+            </div>
+
+            {(importError || importSuccess) && (
+              <div className={`p-4 rounded-xl flex items-center gap-3 ${importError ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
+                {importError ? <AlertTriangle className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
+                <span className="text-sm font-medium">{importError || importSuccess}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Statistics Summary */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-slate-100 flex items-center gap-3 bg-slate-50">
+            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600">
+              <Info className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="font-bold text-slate-900">Thông tin dữ liệu</h2>
+              <p className="text-xs text-slate-500">Tổng quan hệ thống</p>
+            </div>
+          </div>
+          
+          <div className="p-6">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                <span className="text-slate-600">Sản phẩm:</span>
+                <span className="font-bold text-slate-900">{products.length}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                <span className="text-slate-600">Nhà cung cấp:</span>
+                <span className="font-bold text-slate-900">{suppliers.length}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                <span className="text-slate-600">Giao dịch:</span>
+                <span className="font-bold text-slate-900">{transactions.length}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                <span className="text-slate-600">Phiên bán hàng:</span>
+                <span className="font-bold text-slate-900">{sessions.length}</span>
+              </div>
+              <div className="mt-6 p-4 bg-slate-50 rounded-xl">
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Dữ liệu của bạn được lưu trữ an toàn trên Supabase Cloud. Việc sao lưu thủ công giúp bạn có thêm một bản sao dự phòng trên máy tính cá nhân để an tâm tuyệt đối.
+                </p>
+              </div>
             </div>
           </div>
         </div>

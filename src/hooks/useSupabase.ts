@@ -90,13 +90,13 @@ export function useSupabaseProducts() {
   const addProduct = async (product: Product) => {
     setProducts(prev => upsertById(prev, product, (a, b) => a.name.localeCompare(b.name)));
     if (!hasSupabaseConfig) return;
-    const { error } = await supabase.from('products').insert([mapProductToDB(product)]);
+    const { error } = await supabase.from('products').upsert([mapProductToDB(product)]);
     if (error) {
       console.error('Error adding product:', error);
       if (error.message?.includes('note')) {
         const p2 = mapProductToDB(product);
         delete p2.note;
-        await supabase.from('products').insert([p2]);
+        await supabase.from('products').upsert([p2]);
       }
       fetchProducts();
     }
@@ -183,9 +183,9 @@ export function useSupabaseSuppliers() {
   };
 
   const addSupplier = async (supplier: Supplier) => {
-    setSuppliers(prev => [...prev, supplier].sort((a, b) => a.name.localeCompare(b.name)));
+    setSuppliers(prev => upsertById(prev, supplier, (a, b) => a.name.localeCompare(b.name)));
     if (!hasSupabaseConfig) return;
-    const { error } = await supabase.from('suppliers').insert([mapSupplierToDB(supplier)]);
+    const { error } = await supabase.from('suppliers').upsert([mapSupplierToDB(supplier)]);
     if (error) {
       console.error('Error adding supplier:', error);
       fetchSuppliers();
@@ -264,9 +264,9 @@ export function useSupabaseSessions() {
   };
 
   const addSession = async (session: LiveSession) => {
-    setSessions(prev => [...prev, session].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+    setSessions(prev => upsertById(prev, session, (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
     if (!hasSupabaseConfig) return;
-    const { error } = await supabase.from('sessions').insert([mapSessionToDB(session)]);
+    const { error } = await supabase.from('sessions').upsert([mapSessionToDB(session)]);
     if (error) {
       console.error('Error adding session:', error);
       fetchSessions();
@@ -531,9 +531,9 @@ export function useSupabaseTransactions() {
   };
 
   const addTransaction = async (transaction: Transaction) => {
-    setTransactions(prev => [transaction, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    setTransactions(prev => upsertById(prev, transaction, (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     if (!hasSupabaseConfig) return;
-    const { error } = await supabase.from('transactions').insert([mapTransactionToDB(transaction)]);
+    const { error } = await supabase.from('transactions').upsert([mapTransactionToDB(transaction)]);
     if (error) {
       console.error('Error adding transaction:', error);
       fetchTransactions();
