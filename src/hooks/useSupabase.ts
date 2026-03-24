@@ -78,17 +78,17 @@ export function useSupabaseProducts() {
   }, []);
 
   const fetchProducts = async () => {
-    const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: true });
+    const { data, error } = await supabase.from('products').select('*').order('name', { ascending: true });
     if (error) {
       console.error('Error fetching products:', error);
     } else if (data) {
-      setProducts(data.map(mapProductFromDB));
+      setProducts(data.map(mapProductFromDB).sort((a, b) => a.name.localeCompare(b.name)));
     }
     setLoading(false);
   };
 
   const addProduct = async (product: Product) => {
-    setProducts(prev => [...prev, product]);
+    setProducts(prev => upsertById(prev, product, (a, b) => a.name.localeCompare(b.name)));
     if (!hasSupabaseConfig) return;
     const { error } = await supabase.from('products').insert([mapProductToDB(product)]);
     if (error) {
@@ -103,7 +103,11 @@ export function useSupabaseProducts() {
   };
 
   const updateProduct = async (id: string, updates: Partial<Product>) => {
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+    setProducts(prev => {
+      const existing = prev.find(p => p.id === id);
+      if (!existing) return prev;
+      return upsertById(prev, { ...existing, ...updates }, (a, b) => a.name.localeCompare(b.name));
+    });
     if (!hasSupabaseConfig) return;
     const { error } = await supabase.from('products').update(mapProductToDB(updates)).eq('id', id);
     if (error) {
@@ -250,11 +254,11 @@ export function useSupabaseSessions() {
   }, []);
 
   const fetchSessions = async () => {
-    const { data, error } = await supabase.from('sessions').select('*').order('created_at', { ascending: true });
+    const { data, error } = await supabase.from('sessions').select('*').order('date', { ascending: true });
     if (error) {
       console.error('Error fetching sessions:', error);
     } else if (data) {
-      setSessions(data.map(mapSessionFromDB));
+      setSessions(data.map(mapSessionFromDB).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
     }
     setLoading(false);
   };
@@ -517,11 +521,11 @@ export function useSupabaseTransactions() {
   }, []);
 
   const fetchTransactions = async () => {
-    const { data, error } = await supabase.from('transactions').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('transactions').select('*').order('date', { ascending: false });
     if (error) {
       console.error('Error fetching transactions:', error);
     } else if (data) {
-      setTransactions(data.map(mapTransactionFromDB));
+      setTransactions(data.map(mapTransactionFromDB).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     }
     setLoading(false);
   };
