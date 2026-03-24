@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { X, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Loader2, CheckCircle2, AlertCircle, Zap, ZapOff } from 'lucide-react';
 
 interface BarcodeScannerProps {
   onScan: (decodedText: string) => void;
@@ -12,10 +12,59 @@ interface BarcodeScannerProps {
 export default function BarcodeScanner({ onScan, onClose, scanResult, onClearResult }: BarcodeScannerProps) {
   const [error, setError] = useState<string>('');
   const [isStarting, setIsStarting] = useState(true);
+  const [isFlashOn, setIsFlashOn] = useState(false);
+  const [hasFlash, setHasFlash] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isProcessingRef = useRef(false);
   const isMountedRef = useRef(true);
   const onScanRef = useRef(onScan);
+
+  const playBeep = useCallback(() => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      
+      const play = () => {
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 note
+        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.1);
+        
+        // Close context after play to save resources
+        setTimeout(() => audioCtx.close(), 200);
+      };
+
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume().then(play);
+      } else {
+        play();
+      }
+    } catch (e) {
+      console.warn("Could not play beep sound", e);
+    }
+  }, []);
+
+  const toggleFlash = async () => {
+    if (!scannerRef.current || !hasFlash) return;
+    
+    try {
+      const newFlashState = !isFlashOn;
+      await scannerRef.current.applyVideoConstraints({
+        advanced: [{ torch: newFlashState } as any]
+      });
+      setIsFlashOn(newFlashState);
+    } catch (err) {
+      console.error("Error toggling flash", err);
+    }
+  };
 
   useEffect(() => {
     onScanRef.current = onScan;
@@ -54,6 +103,7 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
           (decodedText) => {
             if (!isProcessingRef.current && isMountedRef.current) {
               isProcessingRef.current = true;
+              playBeep();
               onScanRef.current(decodedText);
             }
           },
@@ -61,6 +111,19 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
         );
         if (isMountedRef.current) {
           setIsStarting(false);
+          
+          // Check for flash support
+          try {
+            const track = (html5QrCode as any).getRunningTrack();
+            if (track) {
+              const capabilities = track.getCapabilities() as any;
+              if (capabilities.torch) {
+                setHasFlash(true);
+              }
+            }
+          } catch (e) {
+            console.warn("Flash capability check failed", e);
+          }
         }
       } catch (err) {
         if (isMountedRef.current) {
@@ -168,18 +231,32 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
               
               {/* Custom Scanner Overlay */}
               {!scanResult && !isStarting && (
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                  <div className="w-[70%] h-[42%] border-2 border-indigo-500/50 rounded-lg relative overflow-hidden">
-                    {/* Corner accents */}
-                    <div className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-indigo-500 rounded-tl-sm" />
-                    <div className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-indigo-500 rounded-tr-sm" />
-                    <div className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-indigo-500 rounded-bl-sm" />
-                    <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-indigo-500 rounded-br-sm" />
-                    
-                    {/* Scanning line animation */}
-                    <div className="absolute top-0 left-0 w-full h-0.5 bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.8)] animate-scan-line" />
+                <>
+                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                    <div className="w-[70%] h-[42%] border-2 border-indigo-500/50 rounded-lg relative overflow-hidden">
+                      {/* Corner accents */}
+                      <div className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-indigo-500 rounded-tl-sm" />
+                      <div className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-indigo-500 rounded-tr-sm" />
+                      <div className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-indigo-500 rounded-bl-sm" />
+                      <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-indigo-500 rounded-br-sm" />
+                      
+                      {/* Scanning line animation */}
+                      <div className="absolute top-0 left-0 w-full h-0.5 bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.8)] animate-scan-line" />
+                    </div>
                   </div>
-                </div>
+
+                  {/* Flashlight Button */}
+                  {hasFlash && (
+                    <button
+                      onClick={toggleFlash}
+                      className={`absolute bottom-4 right-4 p-3 rounded-full shadow-lg transition-all active:scale-90 ${
+                        isFlashOn ? 'bg-yellow-400 text-white' : 'bg-black/50 text-white/80'
+                      } pointer-events-auto`}
+                    >
+                      {isFlashOn ? <Zap className="w-6 h-6" /> : <ZapOff className="w-6 h-6" />}
+                    </button>
+                  )}
+                </>
               )}
 
               <div className="mt-6 flex flex-col items-center gap-2">
