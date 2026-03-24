@@ -5,15 +5,20 @@ import { formatCurrency, parseCurrency, generateBarcodeNumber } from '../lib/for
 import { supabase, hasSupabaseConfig } from '../lib/supabase';
 import { uploadProductImage, dataUrlToBlob, processImage } from '../lib/imageUpload';
 import EditProductModal from '../components/EditProductModal';
+import ComboTab from '../components/ComboTab';
 import { v4 as uuidv4 } from 'uuid';
 import JsBarcode from 'jsbarcode';
 
 const downloadBarcode = (product: Product) => {
-  const barcodeValue = generateBarcodeNumber(product.id);
+  const isCombo = product.isCombo;
+  const barcodeValue = isCombo && product.barcode ? product.barcode : generateBarcodeNumber(product.id);
   const canvas = document.createElement('canvas');
-  // 35x22mm at 300 DPI
-  canvas.width = 414;
-  canvas.height = 260;
+  
+  // Combo: 40x30mm at 300 DPI (472x354)
+  // Normal: 35x22mm at 300 DPI (414x260)
+  canvas.width = isCombo ? 472 : 414;
+  canvas.height = isCombo ? 354 : 260;
+  
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
@@ -26,12 +31,12 @@ const downloadBarcode = (product: Product) => {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   
-  let fontSize = 36;
-  ctx.font = `${fontSize}px "Inter", Arial, sans-serif`;
+  let fontSize = isCombo ? 40 : 36;
+  ctx.font = `bold ${fontSize}px "Inter", Arial, sans-serif`;
   let textWidth = ctx.measureText(product.name).width;
   while (textWidth > canvas.width - 40 && fontSize > 16) {
     fontSize -= 2;
-    ctx.font = `${fontSize}px "Inter", Arial, sans-serif`;
+    ctx.font = `bold ${fontSize}px "Inter", Arial, sans-serif`;
     textWidth = ctx.measureText(product.name).width;
   }
   
@@ -41,10 +46,10 @@ const downloadBarcode = (product: Product) => {
   const barcodeCanvas = document.createElement('canvas');
   JsBarcode(barcodeCanvas, barcodeValue, {
     format: "CODE128",
-    width: 3,
-    height: 110,
+    width: isCombo ? 4 : 3,
+    height: isCombo ? 140 : 110,
     displayValue: true,
-    fontSize: 36,
+    fontSize: isCombo ? 40 : 36,
     textMargin: 8,
     margin: 0
   });
@@ -65,6 +70,12 @@ const downloadBarcode = (product: Product) => {
   const y = 20 + fontSize + 20;
   
   ctx.drawImage(barcodeCanvas, x, y, drawWidth, drawHeight);
+
+  // For combos, we might want to display the price too
+  if (isCombo && product.retailPrice) {
+    ctx.font = `bold 32px "Inter", Arial, sans-serif`;
+    ctx.fillText(formatCurrency(product.retailPrice) + 'đ', canvas.width / 2, y + drawHeight + 15);
+  }
 
   // Download
   const url = canvas.toDataURL('image/png');
@@ -172,7 +183,7 @@ export default function Import({
   updatePackagingItem,
   deletePackagingItem
 }: ImportProps) {
-  const [activeTab, setActiveTab] = useState<'import' | 'suppliers' | 'packaging'>('import');
+  const [activeTab, setActiveTab] = useState<'import' | 'suppliers' | 'packaging' | 'combo'>('import');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('');
@@ -480,8 +491,46 @@ export default function Import({
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const handleDeleteMany = (ids: string[]) => {
-    ids.forEach(id => deleteProduct(id));
+  const handleDeleteMany = async (ids: string[]) => {
+    const productUpdates: Record<string, number> = {};
+    const packagingUpdates: Record<string, number> = {};
+
+    for (const id of ids) {
+      const product = products.find(p => p.id === id);
+      if (product && product.isCombo && product.comboItems) {
+        // Accumulate inventory restoration for combo components
+        for (const item of product.comboItems) {
+          const required = item.quantity * ((product.warehouseQuantity || 0) + (product.quantity || 0));
+          if (required > 0) {
+            if (item.type === 'product') {
+              productUpdates[item.id] = (productUpdates[item.id] || 0) + required;
+            } else {
+              packagingUpdates[item.id] = (packagingUpdates[item.id] || 0) + required;
+            }
+          }
+        }
+      }
+    }
+
+    // Apply accumulated updates
+    for (const [id, amount] of Object.entries(productUpdates)) {
+      const p = products.find(p => p.id === id);
+      if (p) {
+        await updateProduct(id, { warehouseQuantity: (p.warehouseQuantity || 0) + amount });
+      }
+    }
+
+    for (const [id, amount] of Object.entries(packagingUpdates)) {
+      const p = packagingItems.find(p => p.id === id);
+      if (p) {
+        await updatePackagingItem(id, { quantity: p.quantity + amount });
+      }
+    }
+
+    for (const id of ids) {
+      await deleteProduct(id);
+    }
+    
     setSelectedIds(prev => {
       const next = new Set(prev);
       ids.forEach(id => next.delete(id));
@@ -740,6 +789,15 @@ export default function Import({
           >
             <Archive className="w-4 h-4" />
             Bao bì
+          </button>
+          <button
+            onClick={() => setActiveTab('combo')}
+            className={`flex-1 md:flex-none flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-xs font-bold transition-all ${
+              activeTab === 'combo' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            <PackagePlus className="w-4 h-4" />
+            Tạo Combo
           </button>
         </div>
       </div>
@@ -1569,6 +1627,16 @@ export default function Import({
             </div>
           </div>
         </div>
+      ) : activeTab === 'combo' ? (
+        <ComboTab
+          products={products}
+          packagingItems={packagingItems}
+          addProduct={addProduct}
+          updateProduct={updateProduct}
+          updatePackagingItem={updatePackagingItem}
+          addTransaction={addTransaction}
+          setNotification={setNotification}
+        />
       ) : null}
 
       {selectedSupplierForDetail && (

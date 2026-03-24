@@ -11,6 +11,9 @@ CREATE TABLE products (
   warehouse_quantity NUMERIC DEFAULT 0,
   note TEXT,
   supplier_id TEXT,
+  is_combo BOOLEAN DEFAULT FALSE,
+  combo_items JSONB DEFAULT '[]'::jsonb,
+  barcode TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
@@ -50,6 +53,7 @@ CREATE TABLE transactions (
   customer_phone TEXT,
   customer_address TEXT,
   supplier_id TEXT,
+  items JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
@@ -117,3 +121,11 @@ VALUES
   ('1', 'Scoop Nhỏ', 99000, 10, 4, 3, 3),
   ('2', 'Scoop Vừa', 199000, 22, 8, 7, 7),
   ('3', 'Scoop Lớn', 299000, 35, 12, 11, 12);
+
+-- Bật Realtime cho các bảng
+alter publication supabase_realtime add table products;
+alter publication supabase_realtime add table scoop_configs;
+alter publication supabase_realtime add table sessions;
+alter publication supabase_realtime add table transactions;
+alter publication supabase_realtime add table suppliers;
+alter publication supabase_realtime add table packaging_items;

@@ -189,7 +189,8 @@ export default function EditProductModal({ product, onClose, onSave }: EditProdu
                     type="number"
                     value={warehouseQuantity}
                     onChange={(e) => setWarehouseQuantity(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    disabled={product.isCombo}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:text-slate-500"
                   />
                 </div>
                 <div>
@@ -198,7 +199,8 @@ export default function EditProductModal({ product, onClose, onSave }: EditProdu
                     type="number"
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    disabled={product.isCombo}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:text-slate-500"
                   />
                 </div>
               </div>

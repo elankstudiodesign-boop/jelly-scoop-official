@@ -1,5 +1,11 @@
 export type PriceGroup = 'Thấp' | 'Trung' | 'Cao' | 'Cao cấp';
 
+export interface ComboItem {
+  type: 'product' | 'packaging';
+  id: string;
+  quantity: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -12,6 +18,9 @@ export interface Product {
   warehouseQuantity?: number;
   note?: string;
   supplierId?: string | null;
+  isCombo?: boolean;
+  comboItems?: ComboItem[];
+  barcode?: string;
 }
 
 export interface OrderItem {

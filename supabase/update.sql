@@ -7,6 +7,9 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS retail_price NUMERIC;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS margin NUMERIC;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS note TEXT;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS supplier_id TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS is_combo BOOLEAN DEFAULT FALSE;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS combo_items JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS barcode TEXT;
 
 -- 2. Tạo bảng suppliers (nếu chưa có)
 CREATE TABLE IF NOT EXISTS suppliers (
@@ -30,6 +33,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   customer_phone TEXT,
   customer_address TEXT,
   supplier_id TEXT,
+  items JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
@@ -38,6 +42,7 @@ ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer_name TEXT;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer_phone TEXT;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer_address TEXT;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS supplier_id TEXT;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS items JSONB DEFAULT '[]'::jsonb;
 
 -- 3. Tạo bảng sessions (nếu chưa có)
 CREATE TABLE IF NOT EXISTS sessions (
@@ -184,6 +189,55 @@ WHERE NOT EXISTS (SELECT 1 FROM scoop_configs WHERE id = '2');
 INSERT INTO scoop_configs (id, name, price, total_items, ratio_low, ratio_medium, ratio_high)
 SELECT '3', 'Scoop Lớn', 299000, 35, 12, 11, 12
 WHERE NOT EXISTS (SELECT 1 FROM scoop_configs WHERE id = '3');
+
+-- 8. Bật Realtime cho các bảng (nếu chưa bật)
+-- Lưu ý: Lệnh này có thể gây lỗi nếu bảng đã có trong publication, 
+-- nhưng trong Supabase SQL Editor nó thường được xử lý ổn.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'products'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE products;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'scoop_configs'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE scoop_configs;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'sessions'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE sessions;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'transactions'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE transactions;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'suppliers'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE suppliers;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'packaging_items'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE packaging_items;
+    END IF;
+END
+$$;
 
 -- 7. (Tùy chọn) Cập nhật dữ liệu cũ sang các danh mục giao dịch mới
 -- Chạy các lệnh dưới đây nếu bạn muốn chuyển đổi các giao dịch cũ sang danh mục chi tiết hơn

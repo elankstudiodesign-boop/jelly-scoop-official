@@ -103,17 +103,18 @@ export function useSupabaseProducts() {
   };
 
   const updateProduct = async (id: string, updates: Partial<Product>) => {
+    const existing = products.find(p => p.id === id);
     setProducts(prev => {
-      const existing = prev.find(p => p.id === id);
-      if (!existing) return prev;
-      return upsertById(prev, { ...existing, ...updates }, (a, b) => a.name.localeCompare(b.name));
+      const ex = prev.find(p => p.id === id);
+      if (!ex) return prev;
+      return upsertById(prev, { ...ex, ...updates }, (a, b) => a.name.localeCompare(b.name));
     });
     if (!hasSupabaseConfig) return;
-    const { error } = await supabase.from('products').update(mapProductToDB(updates)).eq('id', id);
+    const { error } = await supabase.from('products').update(mapProductToDB(updates, existing)).eq('id', id);
     if (error) {
       console.error('Error updating product:', error);
       if (error.message?.includes('note')) {
-        const u2 = mapProductToDB(updates);
+        const u2 = mapProductToDB(updates, existing);
         delete u2.note;
         await supabase.from('products').update(u2).eq('id', id);
       }
@@ -396,18 +397,47 @@ export function useSupabaseConfigs(defaultConfigs: ScoopConfig[]) {
 }
 
 // Mappers to handle camelCase to snake_case
-function mapProductToDB(p: Partial<Product>) {
+function mapProductToDB(p: Partial<Product>, existing?: Product) {
   const res: any = { ...p };
   if (p.retailPrice !== undefined) { res.retail_price = p.retailPrice; delete res.retailPrice; }
   if (p.imageUrl !== undefined) { res.image_url = p.imageUrl; delete res.imageUrl; }
   if (p.priceGroup !== undefined) { res.price_group = p.priceGroup; delete res.priceGroup; }
   if (p.warehouseQuantity !== undefined) { res.warehouse_quantity = p.warehouseQuantity; delete res.warehouseQuantity; }
-  if (p.note !== undefined) { res.note = p.note; }
+  if (p.barcode !== undefined) { res.barcode = p.barcode; delete res.barcode; }
+  
+  const isCombo = p.isCombo !== undefined ? p.isCombo : existing?.isCombo;
+  const comboItems = p.comboItems !== undefined ? p.comboItems : existing?.comboItems;
+  
+  if (p.note !== undefined || p.isCombo !== undefined || p.comboItems !== undefined) {
+    let note = p.note !== undefined ? p.note : (existing?.note || '');
+    if (isCombo && comboItems) {
+      note = `${note}|||__COMBO__|||${JSON.stringify(comboItems)}`;
+    }
+    res.note = note;
+  }
+  
   if ('supplierId' in p) { res.supplier_id = p.supplierId; delete res.supplierId; }
+  delete res.isCombo;
+  delete res.comboItems;
   return res;
 }
 
 function mapProductFromDB(p: any): Product {
+  let note = p.note || '';
+  let isCombo = false;
+  let comboItems: any[] | undefined = undefined;
+
+  if (note.includes('|||__COMBO__|||')) {
+    const parts = note.split('|||__COMBO__|||');
+    note = parts[0];
+    isCombo = true;
+    try {
+      comboItems = JSON.parse(parts[1]);
+    } catch (e) {
+      // ignore
+    }
+  }
+
   return {
     id: p.id,
     name: p.name,
@@ -418,8 +448,11 @@ function mapProductFromDB(p: any): Product {
     priceGroup: p.price_group,
     quantity: Number(p.quantity),
     warehouseQuantity: Number(p.warehouse_quantity || 0),
-    note: p.note,
-    supplierId: p.supplier_id
+    note,
+    supplierId: p.supplier_id,
+    isCombo,
+    comboItems,
+    barcode: p.barcode
   };
 }
 
