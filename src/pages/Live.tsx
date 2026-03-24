@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Product, ScoopConfig, Transaction, LiveSession, OrderItem } from '../types';
+import { Product, ScoopConfig, Transaction, LiveSession, OrderItem, PackagingItem } from '../types';
 import { useSupabaseConfigs } from '../hooks/useSupabase';
 import { useDraftOrderSync, DraftOrderState } from '../hooks/useDraftOrderSync';
 import { defaultConfigs } from './Simulator';
@@ -12,14 +12,25 @@ import BarcodeScanner from '../components/BarcodeScanner';
 
 interface LiveProps {
   products: Product[];
-  updateProduct: (id: string, updates: Partial<Product>) => void;
-  addTransaction: (transaction: Transaction) => void;
-  addSession: (session: LiveSession) => void;
+  updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
+  addTransaction: (transaction: Transaction) => Promise<void>;
+  addSession: (session: LiveSession) => Promise<void>;
   transactions: Transaction[];
-  deleteTransaction: (id: string) => void;
+  deleteTransaction: (id: string) => Promise<void>;
+  packagingItems: PackagingItem[];
+  updatePackagingItem: (id: string, updates: Partial<PackagingItem>) => Promise<{ error: any } | { error: null }>;
 }
 
-export default function Live({ products, updateProduct, addTransaction, addSession, transactions, deleteTransaction }: LiveProps) {
+export default function Live({ 
+  products, 
+  updateProduct, 
+  addTransaction, 
+  addSession, 
+  transactions, 
+  deleteTransaction,
+  packagingItems,
+  updatePackagingItem
+}: LiveProps) {
   const { configs, loading } = useSupabaseConfigs(defaultConfigs);
   
   const [activeTab, setActiveTab] = useState<'CREATE' | 'LIST'>('CREATE');
@@ -29,6 +40,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [itemRetailPrice, setItemRetailPrice] = useState<string>('');
   const [retailPackagingCost, setRetailPackagingCost] = useState<string>('');
+  const [scannedPackagingItems, setScannedPackagingItems] = useState<{ item: PackagingItem, quantity: number }[]>([]);
   
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -44,6 +56,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
     if (newState.customerName !== undefined) setCustomerName(newState.customerName);
     if (newState.customerPhone !== undefined) setCustomerPhone(newState.customerPhone);
     if (newState.customerAddress !== undefined) setCustomerAddress(newState.customerAddress);
+    if (newState.scannedPackagingItems !== undefined) setScannedPackagingItems(newState.scannedPackagingItems);
   }, []);
 
   const handleOrderCompleted = useCallback(() => {
@@ -52,6 +65,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
     setCustomerPhone('');
     setCustomerAddress('');
     setRetailPackagingCost('');
+    setScannedPackagingItems([]);
     setSelectedProductId('');
     setItemRetailPrice('');
     setScanResult(null);
@@ -73,6 +87,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
         customerName,
         customerPhone,
         customerAddress,
+        scannedPackagingItems,
       });
     }
   }, [
@@ -83,6 +98,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
     customerName,
     customerPhone,
     customerAddress,
+    scannedPackagingItems,
     broadcastStateUpdate,
   ]);
 
@@ -137,22 +153,35 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
   }, [orderType]);
 
   const handleScan = useCallback((decodedText: string) => {
+    // Check if it's a product
     const product = products.find(p => generateBarcodeNumber(p.id) === decodedText);
     if (product) {
-      // Set the retail price if it's retail order
       let scannedPrice: number | undefined;
       if (orderType === 'RETAIL') {
         scannedPrice = product.retailPrice || product.cost;
-        // We update the UI price field but this won't trigger scanner re-init 
-        // because addProductToOrder no longer depends on itemRetailPrice
         setItemRetailPrice(formatCurrency(scannedPrice));
       }
       addProductToOrder(product, scannedPrice);
-      setScanResult({ type: 'success', message: `Đã thêm: ${product.name}` });
-    } else {
-      setScanResult({ type: 'error', message: 'Không tìm thấy sản phẩm với mã vạch này!' });
+      setScanResult({ type: 'success', message: `Đã thêm sản phẩm: ${product.name}` });
+      return;
     }
-  }, [products, orderType, addProductToOrder]);
+
+    // Check if it's a packaging item
+    const packagingItem = packagingItems.find(pi => pi.barcode === decodedText);
+    if (packagingItem) {
+      setScannedPackagingItems(prev => {
+        const existing = prev.find(p => p.item.id === packagingItem.id);
+        if (existing) {
+          return prev.map(p => p.item.id === packagingItem.id ? { ...p, quantity: p.quantity + 1 } : p);
+        }
+        return [...prev, { item: packagingItem, quantity: 1 }];
+      });
+      setScanResult({ type: 'success', message: `Đã thêm bao bì: ${packagingItem.name}` });
+      return;
+    }
+
+    setScanResult({ type: 'error', message: 'Không tìm thấy sản phẩm hoặc bao bì với mã vạch này!' });
+  }, [products, packagingItems, orderType, addProductToOrder]);
 
   // Derived state
   const selectedConfig = configs.find(c => c.id === selectedConfigId);
@@ -162,8 +191,14 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
   const totalRetail = orderItems.reduce((sum, item) => sum + ((item.retailPrice ?? item.product.retailPrice ?? item.product.cost) * item.quantity), 0);
   
   const currentRevenue = orderType === 'SCOOP' ? scoopPrice : totalRetail;
+  
+  // Calculate packaging cost from scanned items
+  const scannedPackagingCost = scannedPackagingItems.reduce((sum, p) => sum + (p.item.price * p.quantity), 0);
+  
   const packagingCost = orderType === 'SCOOP' ? 10000 : 0;
-  const currentPackagingCost = orderType === 'SCOOP' ? packagingCost : parseCurrency(retailPackagingCost);
+  const currentPackagingCost = orderType === 'SCOOP' 
+    ? (scannedPackagingItems.length > 0 ? scannedPackagingCost : packagingCost) 
+    : (scannedPackagingItems.length > 0 ? scannedPackagingCost : parseCurrency(retailPackagingCost));
   
   const netProfit = currentRevenue - totalCost - currentPackagingCost;
   const profitMargin = currentRevenue > 0 ? (netProfit / currentRevenue) * 100 : 0;
@@ -194,25 +229,31 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
     handleOrderCompleted();
   };
 
-  const handleCompleteOrder = () => {
+  const handleCompleteOrder = async () => {
     if (orderItems.length === 0) return;
 
     const now = new Date().toISOString();
 
     // 1. Deduct inventory
-    orderItems.forEach(item => {
+    for (const item of orderItems) {
       if (orderType === 'RETAIL') {
         const currentWarehouseQty = item.product.warehouseQuantity || 0;
-        updateProduct(item.product.id, { warehouseQuantity: Math.max(0, currentWarehouseQty - item.quantity) });
+        await updateProduct(item.product.id, { warehouseQuantity: Math.max(0, currentWarehouseQty - item.quantity) });
       } else {
         const currentQty = item.product.quantity || 0;
-        updateProduct(item.product.id, { quantity: Math.max(0, currentQty - item.quantity) });
+        await updateProduct(item.product.id, { quantity: Math.max(0, currentQty - item.quantity) });
       }
-    });
+    }
+
+    // Deduct packaging inventory
+    for (const p of scannedPackagingItems) {
+      const currentQty = p.item.quantity || 0;
+      await updatePackagingItem(p.item.id, { quantity: Math.max(0, currentQty - p.quantity) });
+    }
 
     if (orderType === 'SCOOP') {
       // 2. Add Income Transaction (Revenue)
-      addTransaction({
+      await addTransaction({
         id: uuidv4(),
         type: 'IN',
         category: 'ORDER',
@@ -226,30 +267,30 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
       });
 
       // 3. Add Expense Transaction (Packaging)
-      if (packagingCost > 0) {
-        addTransaction({
+      if (currentPackagingCost > 0) {
+        await addTransaction({
           id: uuidv4(),
           type: 'OUT',
           category: 'PACKAGING',
-          amount: packagingCost,
+          amount: currentPackagingCost,
           description: `Chi phí bao bì đơn hàng ${selectedConfig?.name}`,
           date: now
         });
       }
 
       // 4. Record Session (Analytics)
-      addSession({
+      await addSession({
         id: uuidv4(),
         date: now,
         scoopsSold: 1,
         revenue: scoopPrice,
         tiktokFeePercent: 0,
-        packagingCostPerScoop: packagingCost,
+        packagingCostPerScoop: currentPackagingCost,
         averageScoopCost: totalCost
       });
     } else {
       // 2. Add Income Transaction (Revenue)
-      addTransaction({
+      await addTransaction({
         id: uuidv4(),
         type: 'IN',
         category: 'ORDER',
@@ -264,7 +305,7 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
 
       // 3. Add Expense Transaction (Packaging)
       if (currentPackagingCost > 0) {
-        addTransaction({
+        await addTransaction({
           id: uuidv4(),
           type: 'OUT',
           category: 'PACKAGING',
@@ -467,6 +508,53 @@ export default function Live({ products, updateProduct, addTransaction, addSessi
                             <button 
                               onClick={() => handleUpdateQuantity(item.product.id, 1)}
                               className="px-2.5 py-1 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Scanned Packaging Items */}
+              {scannedPackagingItems.length > 0 && (
+                <div className="mt-6 pt-6 border-t border-slate-100">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-4">Bao bì đã quét ({scannedPackagingItems.reduce((sum, p) => sum + p.quantity, 0)} món)</h3>
+                  <div className="space-y-3">
+                    {scannedPackagingItems.map((p) => (
+                      <div key={p.item.id} className="flex items-center justify-between p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded bg-indigo-100 flex items-center justify-center border border-indigo-200">
+                            <Barcode className="w-5 h-5 text-indigo-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-indigo-900 text-sm">{p.item.name}</p>
+                            <p className="text-xs text-indigo-500">Giá: {formatCurrency(p.item.price)}đ</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center bg-white border border-indigo-200 rounded-md">
+                            <button 
+                              onClick={() => {
+                                setScannedPackagingItems(prev => prev.map(item => 
+                                  item.item.id === p.item.id ? { ...item, quantity: Math.max(0, item.quantity - 1) } : item
+                                ).filter(item => item.quantity > 0));
+                              }}
+                              className="px-2.5 py-1 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
+                            >
+                              -
+                            </button>
+                            <span className="w-8 text-center text-sm font-medium text-indigo-900">{p.quantity}</span>
+                            <button 
+                              onClick={() => {
+                                setScannedPackagingItems(prev => prev.map(item => 
+                                  item.item.id === p.item.id ? { ...item, quantity: item.quantity + 1 } : item
+                                ));
+                              }}
+                              className="px-2.5 py-1 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
                             >
                               +
                             </button>

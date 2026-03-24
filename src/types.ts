@@ -62,3 +62,12 @@ export interface Supplier {
   note?: string;
   createdAt: string;
 }
+
+export interface PackagingItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  barcode: string;
+  createdAt: string;
+}

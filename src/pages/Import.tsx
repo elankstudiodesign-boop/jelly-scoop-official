@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Product, Transaction, PriceGroup, Supplier } from '../types';
-import { PackagePlus, Search, AlertCircle, Trash2, X, CheckCircle2, Upload, Image as ImageIcon, Edit2, Barcode, Truck, Plus, Phone, MapPin, User } from 'lucide-react';
+import { Product, Transaction, PriceGroup, Supplier, PackagingItem } from '../types';
+import { PackagePlus, Search, AlertCircle, Trash2, X, CheckCircle2, Upload, Image as ImageIcon, Edit2, Barcode, Truck, Plus, Phone, MapPin, User, Archive, Download } from 'lucide-react';
 import { formatCurrency, parseCurrency, generateBarcodeNumber } from '../lib/format';
 import { supabase, hasSupabaseConfig } from '../lib/supabase';
 import { uploadProductImage, dataUrlToBlob, processImage } from '../lib/imageUpload';
@@ -74,17 +74,86 @@ const downloadBarcode = (product: Product) => {
   a.click();
 };
 
+const downloadPackagingBarcode = (item: PackagingItem) => {
+  const canvas = document.createElement('canvas');
+  // 35x22mm at 300 DPI
+  canvas.width = 414;
+  canvas.height = 260;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  // Background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Name
+  ctx.fillStyle = '#000000';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  
+  let fontSize = 36;
+  ctx.font = `${fontSize}px "Inter", Arial, sans-serif`;
+  let textWidth = ctx.measureText(item.name).width;
+  while (textWidth > canvas.width - 40 && fontSize > 16) {
+    fontSize -= 2;
+    ctx.font = `${fontSize}px "Inter", Arial, sans-serif`;
+    textWidth = ctx.measureText(item.name).width;
+  }
+  
+  ctx.fillText(item.name, canvas.width / 2, 20);
+
+  // Generate Barcode
+  const barcodeCanvas = document.createElement('canvas');
+  JsBarcode(barcodeCanvas, item.barcode, {
+    format: "CODE128",
+    width: 3,
+    height: 110,
+    displayValue: true,
+    fontSize: 36,
+    textMargin: 8,
+    margin: 0
+  });
+
+  // Draw Barcode
+  const bcWidth = barcodeCanvas.width;
+  const bcHeight = barcodeCanvas.height;
+  
+  let scale = 1;
+  if (bcWidth > canvas.width - 40) {
+    scale = (canvas.width - 40) / bcWidth;
+  }
+  
+  const drawWidth = bcWidth * scale;
+  const drawHeight = bcHeight * scale;
+  
+  const x = (canvas.width - drawWidth) / 2;
+  const y = 20 + fontSize + 20;
+  
+  ctx.drawImage(barcodeCanvas, x, y, drawWidth, drawHeight);
+
+  // Download
+  const url = canvas.toDataURL('image/png');
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `barcode-packaging-${item.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.png`;
+  a.click();
+};
+
 interface ImportProps {
   products: Product[];
   transactions: Transaction[];
-  addProduct: (product: Product) => void;
-  updateProduct: (id: string, updates: Partial<Product>) => void;
-  addTransaction: (transaction: Transaction) => void;
-  deleteProduct: (id: string) => void;
+  addProduct: (product: Product) => Promise<void>;
+  updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
+  addTransaction: (transaction: Transaction) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
   suppliers: Supplier[];
-  addSupplier: (supplier: Supplier) => void;
-  updateSupplier: (id: string, updates: Partial<Supplier>) => void;
-  deleteSupplier: (id: string) => void;
+  addSupplier: (supplier: Supplier) => Promise<void>;
+  updateSupplier: (id: string, updates: Partial<Supplier>) => Promise<void>;
+  deleteSupplier: (id: string) => Promise<void>;
+  packagingItems: PackagingItem[];
+  addPackagingItem: (item: PackagingItem) => Promise<{ error: any } | { error: null }>;
+  updatePackagingItem: (id: string, updates: Partial<PackagingItem>) => Promise<{ error: any } | { error: null }>;
+  deletePackagingItem: (id: string) => Promise<{ error: any } | { error: null }>;
 }
 
 export default function Import({ 
@@ -97,9 +166,13 @@ export default function Import({
   suppliers,
   addSupplier,
   updateSupplier,
-  deleteSupplier
+  deleteSupplier,
+  packagingItems,
+  addPackagingItem,
+  updatePackagingItem,
+  deletePackagingItem
 }: ImportProps) {
-  const [activeTab, setActiveTab] = useState<'import' | 'suppliers'>('import');
+  const [activeTab, setActiveTab] = useState<'import' | 'suppliers' | 'packaging'>('import');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('');
@@ -132,6 +205,14 @@ export default function Import({
   const [selectedSupplierForDetail, setSelectedSupplierForDetail] = useState<Supplier | null>(null);
   const [assigningSupplierForProductId, setAssigningSupplierForProductId] = useState<string | null>(null);
   const [modalSupplierId, setModalSupplierId] = useState<string>('');
+
+  // Packaging Form State
+  const [packagingName, setPackagingName] = useState('');
+  const [packagingPrice, setPackagingPrice] = useState('');
+  const [packagingQuantity, setPackagingQuantity] = useState('');
+  const [packagingBarcode, setPackagingBarcode] = useState('');
+  const [editingPackagingId, setEditingPackagingId] = useState<string | null>(null);
+  const [showPackagingForm, setShowPackagingForm] = useState(false);
 
   const openAssignModal = (productId: string) => {
     const p = products.find(prod => prod.id === productId);
@@ -513,6 +594,74 @@ export default function Import({
     }
   };
 
+  const handlePackagingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!packagingName || !packagingPrice || !packagingQuantity) return;
+
+    const price = parseCurrency(packagingPrice);
+    const quantity = Number(packagingQuantity);
+    const id = editingPackagingId || uuidv4();
+    const barcode = packagingBarcode || generateBarcodeNumber(id);
+
+    if (editingPackagingId) {
+      const { error } = await updatePackagingItem(editingPackagingId, {
+        name: packagingName,
+        price,
+        quantity,
+        barcode,
+      });
+      if (error) {
+        setNotification({ type: 'error', message: 'Lỗi khi cập nhật bao bì: ' + error.message });
+      } else {
+        setNotification({ type: 'success', message: 'Cập nhật bao bì thành công!' });
+      }
+    } else {
+      const { error } = await addPackagingItem({
+        id,
+        name: packagingName,
+        price,
+        quantity,
+        barcode,
+        createdAt: new Date().toISOString(),
+      });
+      if (error) {
+        setNotification({ type: 'error', message: 'Lỗi khi thêm bao bì: ' + error.message });
+      } else {
+        setNotification({ type: 'success', message: 'Thêm bao bì mới thành công!' });
+      }
+    }
+
+    // Reset form
+    setPackagingName('');
+    setPackagingPrice('');
+    setPackagingQuantity('');
+    setPackagingBarcode('');
+    setEditingPackagingId(null);
+    setShowPackagingForm(false);
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  const handleEditPackaging = (item: PackagingItem) => {
+    setPackagingName(item.name);
+    setPackagingPrice(formatCurrency(item.price));
+    setPackagingQuantity(item.quantity.toString());
+    setPackagingBarcode(item.barcode);
+    setEditingPackagingId(item.id);
+    setShowPackagingForm(true);
+  };
+
+  const handleDeletePackaging = async (id: string) => {
+    if (window.confirm('Bạn có chắc chắn muốn xoá bao bì này?')) {
+      const { error } = await deletePackagingItem(id);
+      if (error) {
+        setNotification({ type: 'error', message: 'Lỗi khi xoá bao bì: ' + error.message });
+      } else {
+        setNotification({ type: 'success', message: 'Đã xoá bao bì.' });
+      }
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
   return (
     <div className="space-y-6 relative">
       {notification && (
@@ -587,6 +736,18 @@ export default function Import({
             Nhà cung cấp
           </div>
           {activeTab === 'suppliers' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />}
+        </button>
+        <button
+          onClick={() => setActiveTab('packaging')}
+          className={`px-6 py-3 text-sm font-medium transition-colors relative ${
+            activeTab === 'packaging' ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Archive className="w-4 h-4" />
+            Bao bì
+          </div>
+          {activeTab === 'packaging' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />}
         </button>
       </div>
 
@@ -1058,7 +1219,7 @@ export default function Import({
         </div>
       </div>
         </>
-      ) : (
+      ) : activeTab === 'suppliers' ? (
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -1231,9 +1392,192 @@ export default function Import({
             )}
           </div>
         </div>
-      )}
+      ) : activeTab === 'packaging' ? (
+        <div className="space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Tìm kiếm bao bì..."
+                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <button
+              onClick={() => {
+                setEditingPackagingId(null);
+                setPackagingName('');
+                setPackagingPrice('');
+                setPackagingQuantity('');
+                setPackagingBarcode('');
+                setShowPackagingForm(true);
+              }}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Thêm bao bì mới
+            </button>
+          </div>
 
-      {/* Supplier Detail Modal */}
+          {showPackagingForm && (
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-4 duration-200">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-bold text-slate-900">
+                  {editingPackagingId ? 'Chỉnh sửa bao bì' : 'Thêm bao bì mới'}
+                </h3>
+                <button 
+                  onClick={() => setShowPackagingForm(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handlePackagingSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">Tên bao bì</label>
+                  <input
+                    type="text"
+                    required
+                    value={packagingName}
+                    onChange={(e) => setPackagingName(e.target.value)}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Ví dụ: Túi zip 10x15"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">Giá nhập (VNĐ)</label>
+                  <input
+                    type="text"
+                    required
+                    value={packagingPrice}
+                    onChange={(e) => setPackagingPrice(formatCurrency(e.target.value))}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">Số lượng</label>
+                  <input
+                    type="number"
+                    required
+                    value={packagingQuantity}
+                    onChange={(e) => setPackagingQuantity(e.target.value)}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">Mã Barcode</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={packagingBarcode}
+                      onChange={(e) => setPackagingBarcode(e.target.value)}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Quét hoặc nhập mã vạch (Để trống để tự tạo)"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPackagingBarcode(generateBarcodeNumber(uuidv4()))}
+                      className="px-3 py-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
+                      title="Tạo mã ngẫu nhiên"
+                    >
+                      <Barcode className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+                <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowPackagingForm(false)}
+                    className="px-6 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+                  >
+                    {editingPackagingId ? 'Lưu thay đổi' : 'Thêm bao bì'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Tên bao bì</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Giá nhập</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Số lượng</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Barcode</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {packagingItems.length > 0 ? (
+                    packagingItems.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-50 transition-colors group">
+                        <td className="px-6 py-4">
+                          <div className="font-bold text-slate-900">{item.name}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-slate-600">{formatCurrency(item.price)}đ</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-slate-600">{item.quantity}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2 text-slate-500 font-mono text-xs">
+                            <Barcode className="w-3 h-3" />
+                            {item.barcode}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => downloadPackagingBarcode(item)}
+                              className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                              title="Tải mã vạch"
+                            >
+                              <Download className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleEditPackaging(item)}
+                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="Chỉnh sửa"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePackaging(item.id)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Xoá"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                        Chưa có bao bì nào được nhập.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {selectedSupplierForDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">

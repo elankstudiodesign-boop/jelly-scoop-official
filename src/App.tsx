@@ -9,9 +9,9 @@ import Live from './pages/Live';
 import Import from './pages/Import';
 import Finance from './pages/Finance';
 import Settings from './pages/Settings';
-import { useSupabaseProducts, useSupabaseSessions, useSupabaseTransactions, useSupabaseSuppliers } from './hooks/useSupabase';
+import { useSupabaseProducts, useSupabaseSessions, useSupabaseTransactions, useSupabaseSuppliers, useSupabasePackagingItems } from './hooks/useSupabase';
 import { hasSupabaseConfig } from './lib/supabase';
-import { Product, Supplier, Transaction, LiveSession } from './types';
+import { Product, Supplier, Transaction, LiveSession, PackagingItem } from './types';
 
 export default function App() {
   const { products, addProduct, updateProduct, deleteProduct, loading: productsLoading } = useSupabaseProducts();
@@ -19,11 +19,14 @@ export default function App() {
   const { transactions, addTransaction, deleteTransaction, loading: transactionsLoading } = useSupabaseTransactions();
   const { suppliers, addSupplier, updateSupplier, deleteSupplier, loading: suppliersLoading } = useSupabaseSuppliers();
 
+  const { packagingItems, addPackagingItem, updatePackagingItem, deletePackagingItem, loading: packagingLoading } = useSupabasePackagingItems();
+
   const handleImportData = async (data: {
     products?: Product[];
     suppliers?: Supplier[];
     transactions?: Transaction[];
     sessions?: LiveSession[];
+    packagingItems?: PackagingItem[];
   }) => {
     // Basic implementation: loop through and add
     // In a real app, you'd want bulk upsert
@@ -35,6 +38,11 @@ export default function App() {
     if (data.products) {
       for (const p of data.products) {
         await addProduct(p);
+      }
+    }
+    if (data.packagingItems) {
+      for (const pi of data.packagingItems) {
+        await addPackagingItem(pi);
       }
     }
     if (data.transactions) {
@@ -49,7 +57,7 @@ export default function App() {
     }
   };
 
-  if (productsLoading || sessionsLoading || transactionsLoading || suppliersLoading) {
+  if (productsLoading || sessionsLoading || transactionsLoading || suppliersLoading || packagingLoading) {
     return (
       <div className="flex min-h-screen min-h-[100dvh] items-center justify-center bg-slate-50">
         <div className="text-indigo-600 font-medium">Đang tải dữ liệu từ Supabase...</div>
@@ -80,9 +88,9 @@ export default function App() {
               <Route path="/" element={<Analytics sessions={sessions} addSession={addSession} deleteSession={deleteSession} />} />
               <Route path="/products" element={<Products products={products} addProduct={addProduct} updateProduct={updateProduct} deleteProduct={deleteProduct} suppliers={suppliers} />} />
               <Route path="/pool-distribution" element={<PoolDistribution products={products} />} />
-              <Route path="/import" element={<Import products={products} transactions={transactions} addProduct={addProduct} updateProduct={updateProduct} addTransaction={addTransaction} deleteProduct={deleteProduct} suppliers={suppliers} addSupplier={addSupplier} updateSupplier={updateSupplier} deleteSupplier={deleteSupplier} />} />
+              <Route path="/import" element={<Import products={products} transactions={transactions} addProduct={addProduct} updateProduct={updateProduct} addTransaction={addTransaction} deleteProduct={deleteProduct} suppliers={suppliers} addSupplier={addSupplier} updateSupplier={updateSupplier} deleteSupplier={deleteSupplier} packagingItems={packagingItems} addPackagingItem={addPackagingItem} updatePackagingItem={updatePackagingItem} deletePackagingItem={deletePackagingItem} />} />
               <Route path="/simulator" element={<Simulator products={products} />} />
-              <Route path="/live" element={<Live products={products} updateProduct={updateProduct} addTransaction={addTransaction} addSession={addSession} transactions={transactions} deleteTransaction={deleteTransaction} />} />
+              <Route path="/live" element={<Live products={products} updateProduct={updateProduct} addTransaction={addTransaction} addSession={addSession} transactions={transactions} deleteTransaction={deleteTransaction} packagingItems={packagingItems} updatePackagingItem={updatePackagingItem} />} />
               <Route path="/finance" element={<Finance transactions={transactions} deleteTransaction={deleteTransaction} addTransaction={addTransaction} products={products} updateProduct={updateProduct} />} />
               <Route path="/settings" element={<Settings products={products} suppliers={suppliers} transactions={transactions} sessions={sessions} onImportData={handleImportData} />} />
             </Routes>

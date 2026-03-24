@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, hasSupabaseConfig } from '../lib/supabase';
-import { Product, LiveSession, ScoopConfig, Transaction, Supplier } from '../types';
+import { Product, LiveSession, ScoopConfig, Transaction, Supplier, PackagingItem } from '../types';
 import { useLocalStorage } from './useLocalStorage';
 
 function upsertById<T extends { id: string }>(items: T[], next: T, sortFn?: (a: T, b: T) => number) {
@@ -482,6 +482,23 @@ function mapSupplierFromDB(s: any): Supplier {
   };
 }
 
+function mapPackagingItemToDB(p: Partial<PackagingItem>) {
+  const res: any = { ...p };
+  if (p.createdAt !== undefined) { res.created_at = p.createdAt; delete res.createdAt; }
+  return res;
+}
+
+function mapPackagingItemFromDB(p: any): PackagingItem {
+  return {
+    id: p.id,
+    name: p.name,
+    price: Number(p.price),
+    quantity: Number(p.quantity),
+    barcode: p.barcode,
+    createdAt: p.created_at
+  };
+}
+
 export function useSupabaseTransactions() {
   const [transactions, setTransactions] = useLocalStorage<Transaction[]>('scoop_transactions', []);
   const [loading, setLoading] = useState(true);
@@ -551,6 +568,100 @@ export function useSupabaseTransactions() {
   };
 
   return { transactions, addTransaction, deleteTransaction, loading };
+}
+
+export function useSupabasePackagingItems() {
+  const [packagingItems, setPackagingItems] = useLocalStorage<PackagingItem[]>('scoop_packaging_items', []);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!hasSupabaseConfig) {
+      setLoading(false);
+      return;
+    }
+    fetchPackagingItems();
+
+    const channel = supabase
+      .channel('realtime:packaging_items')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'packaging_items' },
+        (payload: any) => {
+          if (payload.eventType === 'DELETE') {
+            const id = payload.old?.id;
+            if (typeof id === 'string') setPackagingItems(prev => removeById(prev, id));
+            return;
+          }
+          const row = payload.new;
+          if (!row) return;
+          const mapped = mapPackagingItemFromDB(row);
+          setPackagingItems(prev => upsertById(prev, mapped, (a, b) => a.name.localeCompare(b.name)));
+        }
+      )
+      .subscribe();
+
+    const stopAutoRefresh = bindAutoRefresh(fetchPackagingItems, 15000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      stopAutoRefresh();
+    };
+  }, []);
+
+  const fetchPackagingItems = async () => {
+    const { data, error } = await supabase.from('packaging_items').select('*').order('name', { ascending: true });
+    if (error) {
+      console.error('Error fetching packaging items:', error);
+    } else if (data) {
+      setPackagingItems(data.map(mapPackagingItemFromDB).sort((a, b) => a.name.localeCompare(b.name)));
+    }
+    setLoading(false);
+  };
+
+  const addPackagingItem = async (item: PackagingItem) => {
+    setPackagingItems(prev => upsertById(prev, item, (a, b) => a.name.localeCompare(b.name)));
+    if (!hasSupabaseConfig) return { error: null };
+    
+    const { error } = await supabase.from('packaging_items').upsert([mapPackagingItemToDB(item)]);
+    if (error) {
+      console.error('Error adding packaging item:', error);
+      fetchPackagingItems();
+      return { error };
+    }
+    return { error: null };
+  };
+
+  const updatePackagingItem = async (id: string, updates: Partial<PackagingItem>) => {
+    setPackagingItems(prev => {
+      const existing = prev.find(p => p.id === id);
+      if (!existing) return prev;
+      return upsertById(prev, { ...existing, ...updates }, (a, b) => a.name.localeCompare(b.name));
+    });
+    
+    if (!hasSupabaseConfig) return { error: null };
+    
+    const { error } = await supabase.from('packaging_items').update(mapPackagingItemToDB(updates)).eq('id', id);
+    if (error) {
+      console.error('Error updating packaging item:', error);
+      fetchPackagingItems();
+      return { error };
+    }
+    return { error: null };
+  };
+
+  const deletePackagingItem = async (id: string) => {
+    setPackagingItems(prev => prev.filter(p => p.id !== id));
+    if (!hasSupabaseConfig) return { error: null };
+    const { error } = await supabase.from('packaging_items').delete().eq('id', id);
+    if (error) {
+      console.error('Error deleting packaging item:', error);
+      fetchPackagingItems();
+      return { error };
+    }
+    return { error: null };
+  };
+
+  return { packagingItems, addPackagingItem, updatePackagingItem, deletePackagingItem, loading };
 }
 
 function mapTransactionToDB(t: Partial<Transaction>) {

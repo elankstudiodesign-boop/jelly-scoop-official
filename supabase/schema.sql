@@ -63,12 +63,23 @@ CREATE TABLE suppliers (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
+-- Tạo bảng packaging_items
+CREATE TABLE packaging_items (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  price NUMERIC NOT NULL,
+  quantity NUMERIC NOT NULL DEFAULT 0,
+  barcode TEXT UNIQUE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
 -- Bật RLS (Row Level Security) nhưng cho phép truy cập công khai (vì đây là app nội bộ)
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE scoop_configs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE packaging_items ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow public read access on products" ON products FOR SELECT USING (true);
 CREATE POLICY "Allow public insert access on products" ON products FOR INSERT WITH CHECK (true);
@@ -95,17 +106,12 @@ CREATE POLICY "Allow public insert access on suppliers" ON suppliers FOR INSERT 
 CREATE POLICY "Allow public update access on suppliers" ON suppliers FOR UPDATE USING (true);
 CREATE POLICY "Allow public delete access on suppliers" ON suppliers FOR DELETE USING (true);
 
--- Migration: Thêm cột supplier_id vào các bảng cũ nếu chưa có
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='supplier_id') THEN
-        ALTER TABLE products ADD COLUMN supplier_id TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transactions' AND column_name='supplier_id') THEN
-        ALTER TABLE transactions ADD COLUMN supplier_id TEXT;
-    END IF;
-END
-$$;
+CREATE POLICY "Allow public read access on packaging_items" ON packaging_items FOR SELECT USING (true);
+CREATE POLICY "Allow public insert access on packaging_items" ON packaging_items FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update access on packaging_items" ON packaging_items FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete access on packaging_items" ON packaging_items FOR DELETE USING (true);
+
+-- Thêm dữ liệu mặc định cho scoop_configs
 INSERT INTO scoop_configs (id, name, price, total_items, ratio_low, ratio_medium, ratio_high)
 VALUES 
   ('1', 'Scoop Nhỏ', 99000, 10, 4, 3, 3),

@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { supabase, hasSupabaseConfig } from '../lib/supabase';
-import { OrderItem } from '../types';
+import { OrderItem, PackagingItem } from '../types';
 
 export interface DraftOrderState {
   orderType: 'SCOOP' | 'RETAIL';
@@ -10,6 +10,7 @@ export interface DraftOrderState {
   customerName: string;
   customerPhone: string;
   customerAddress: string;
+  scannedPackagingItems: { item: PackagingItem, quantity: number }[];
 }
 
 export function useDraftOrderSync(
