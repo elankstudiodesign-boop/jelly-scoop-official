@@ -6,8 +6,19 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS warehouse_quantity NUMERIC DEFAULT
 ALTER TABLE products ADD COLUMN IF NOT EXISTS retail_price NUMERIC;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS margin NUMERIC;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS note TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS supplier_id TEXT;
 
--- 2. Tạo bảng transactions (nếu chưa có)
+-- 2. Tạo bảng suppliers (nếu chưa có)
+CREATE TABLE IF NOT EXISTS suppliers (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  phone TEXT,
+  address TEXT,
+  note TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- 3. Tạo bảng transactions (nếu chưa có)
 CREATE TABLE IF NOT EXISTS transactions (
   id TEXT PRIMARY KEY,
   type TEXT NOT NULL,
@@ -15,8 +26,18 @@ CREATE TABLE IF NOT EXISTS transactions (
   amount NUMERIC NOT NULL,
   description TEXT,
   date TEXT NOT NULL,
+  customer_name TEXT,
+  customer_phone TEXT,
+  customer_address TEXT,
+  supplier_id TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
+
+-- 4. Thêm các cột mới vào bảng transactions (nếu bảng đã tồn tại từ trước)
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer_name TEXT;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer_phone TEXT;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer_address TEXT;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS supplier_id TEXT;
 
 -- 3. Tạo bảng sessions (nếu chưa có)
 CREATE TABLE IF NOT EXISTS sessions (
@@ -42,13 +63,39 @@ CREATE TABLE IF NOT EXISTS scoop_configs (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- 5. Bật RLS và thêm Policy cho các bảng (nếu chưa có)
+-- 6. Bật RLS và thêm Policy cho các bảng (nếu chưa có)
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE scoop_configs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
 
 DO $$
 BEGIN
+    -- Suppliers policies
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'suppliers' AND policyname = 'Allow public read access on suppliers'
+    ) THEN
+        CREATE POLICY "Allow public read access on suppliers" ON suppliers FOR SELECT USING (true);
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'suppliers' AND policyname = 'Allow public insert access on suppliers'
+    ) THEN
+        CREATE POLICY "Allow public insert access on suppliers" ON suppliers FOR INSERT WITH CHECK (true);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'suppliers' AND policyname = 'Allow public update access on suppliers'
+    ) THEN
+        CREATE POLICY "Allow public update access on suppliers" ON suppliers FOR UPDATE USING (true);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'suppliers' AND policyname = 'Allow public delete access on suppliers'
+    ) THEN
+        CREATE POLICY "Allow public delete access on suppliers" ON suppliers FOR DELETE USING (true);
+    END IF;
+
     IF NOT EXISTS (
         SELECT 1 FROM pg_policies WHERE tablename = 'transactions' AND policyname = 'Allow public read access on transactions'
     ) THEN

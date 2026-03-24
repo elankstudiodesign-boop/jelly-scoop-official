@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Product, PriceGroup } from '../types';
-import { AlertCircle, ArrowDownToLine, Package, RotateCcw, Edit2 } from 'lucide-react';
+import { Product, PriceGroup, Supplier } from '../types';
+import { AlertCircle, ArrowDownToLine, Package, RotateCcw, Edit2, Truck } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '../lib/format';
 import EditProductModal from '../components/EditProductModal';
 
@@ -9,9 +9,10 @@ interface ProductsProps {
   addProduct: (p: Product) => void;
   updateProduct: (id: string, updates: Partial<Product>) => void;
   deleteProduct: (id: string) => void;
+  suppliers: Supplier[];
 }
 
-export default function Products({ products, updateProduct, deleteProduct }: ProductsProps) {
+export default function Products({ products, updateProduct, deleteProduct, suppliers }: ProductsProps) {
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [margin, setMargin] = useState('50'); // Default 50%
   const [retailPrice, setRetailPrice] = useState('');
@@ -254,11 +255,15 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
                 required
               >
                 <option value="" disabled>-- Chọn sản phẩm --</option>
-                {products.map(p => (
-                  <option key={p.id} value={p.id} disabled={(p.warehouseQuantity || 0) === 0}>
-                    {p.name} (Tồn kho: {p.warehouseQuantity || 0})
-                  </option>
-                ))}
+                {products.map(p => {
+                  const supplier = suppliers.find(s => s.id === p.supplierId);
+                  const supplierName = supplier ? ` - ${supplier.name}` : '';
+                  return (
+                    <option key={p.id} value={p.id} disabled={(p.warehouseQuantity || 0) === 0}>
+                      {p.name}{supplierName} (Tồn kho: {p.warehouseQuantity || 0})
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -486,6 +491,13 @@ export default function Products({ products, updateProduct, deleteProduct }: Pro
                     <div className="flex justify-between text-slate-600 pt-1 sm:pt-1.5 border-t border-slate-200 mt-1 sm:mt-1.5">
                       <span>Giá bán lẻ:</span>
                       <span className="font-medium text-emerald-600">{formatCurrency(product.retailPrice || 0)}đ</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600 pt-1 sm:pt-1.5 border-t border-slate-200 mt-1 sm:mt-1.5">
+                      <span>Nhà cung cấp:</span>
+                      <span className="font-medium flex items-center gap-1">
+                        <Truck className="w-3 h-3 text-slate-400" />
+                        {suppliers.find(s => s.id === product.supplierId)?.name || 'Chưa gán'}
+                      </span>
                     </div>
                   </div>
                 </div>

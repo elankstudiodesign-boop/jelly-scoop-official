@@ -11,6 +11,7 @@ export interface Product {
   quantity?: number;
   warehouseQuantity?: number;
   note?: string;
+  supplierId?: string | null;
 }
 
 export interface OrderItem {
@@ -50,4 +51,14 @@ export interface Transaction {
   customerName?: string;
   customerPhone?: string;
   customerAddress?: string;
+  supplierId?: string | null;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  phone: string;
+  address: string;
+  note?: string;
+  createdAt: string;
 }

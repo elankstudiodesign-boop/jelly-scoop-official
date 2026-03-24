@@ -10,6 +10,7 @@ CREATE TABLE products (
   quantity NUMERIC DEFAULT 0,
   warehouse_quantity NUMERIC DEFAULT 0,
   note TEXT,
+  supplier_id TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
@@ -48,6 +49,17 @@ CREATE TABLE transactions (
   customer_name TEXT,
   customer_phone TEXT,
   customer_address TEXT,
+  supplier_id TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- Tạo bảng suppliers
+CREATE TABLE suppliers (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  phone TEXT,
+  address TEXT,
+  note TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
@@ -56,6 +68,7 @@ ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE scoop_configs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow public read access on products" ON products FOR SELECT USING (true);
 CREATE POLICY "Allow public insert access on products" ON products FOR INSERT WITH CHECK (true);
@@ -77,7 +90,22 @@ CREATE POLICY "Allow public insert access on transactions" ON transactions FOR I
 CREATE POLICY "Allow public update access on transactions" ON transactions FOR UPDATE USING (true);
 CREATE POLICY "Allow public delete access on transactions" ON transactions FOR DELETE USING (true);
 
--- Thêm dữ liệu mặc định cho scoop_configs
+CREATE POLICY "Allow public read access on suppliers" ON suppliers FOR SELECT USING (true);
+CREATE POLICY "Allow public insert access on suppliers" ON suppliers FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update access on suppliers" ON suppliers FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete access on suppliers" ON suppliers FOR DELETE USING (true);
+
+-- Migration: Thêm cột supplier_id vào các bảng cũ nếu chưa có
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='supplier_id') THEN
+        ALTER TABLE products ADD COLUMN supplier_id TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transactions' AND column_name='supplier_id') THEN
+        ALTER TABLE transactions ADD COLUMN supplier_id TEXT;
+    END IF;
+END
+$$;
 INSERT INTO scoop_configs (id, name, price, total_items, ratio_low, ratio_medium, ratio_high)
 VALUES 
   ('1', 'Scoop Nhỏ', 99000, 10, 4, 3, 3),

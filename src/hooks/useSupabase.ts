@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, hasSupabaseConfig } from '../lib/supabase';
-import { Product, LiveSession, ScoopConfig, Transaction } from '../types';
+import { Product, LiveSession, ScoopConfig, Transaction, Supplier } from '../types';
 import { useLocalStorage } from './useLocalStorage';
 
 function upsertById<T extends { id: string }>(items: T[], next: T, sortFn?: (a: T, b: T) => number) {
@@ -128,6 +128,87 @@ export function useSupabaseProducts() {
   };
 
   return { products, addProduct, updateProduct, deleteProduct, loading };
+}
+
+export function useSupabaseSuppliers() {
+  const [suppliers, setSuppliers] = useLocalStorage<Supplier[]>('scoop_suppliers', []);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!hasSupabaseConfig) {
+      setLoading(false);
+      return;
+    }
+    fetchSuppliers();
+
+    const channel = supabase
+      .channel('realtime:suppliers')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'suppliers' },
+        (payload: any) => {
+          if (payload.eventType === 'DELETE') {
+            const id = payload.old?.id;
+            if (typeof id === 'string') setSuppliers(prev => removeById(prev, id));
+            return;
+          }
+          const row = payload.new;
+          if (!row) return;
+          const mapped = mapSupplierFromDB(row);
+          setSuppliers(prev => upsertById(prev, mapped, (a, b) => a.name.localeCompare(b.name)));
+        }
+      )
+      .subscribe();
+
+    const stopAutoRefresh = bindAutoRefresh(fetchSuppliers, 15000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      stopAutoRefresh();
+    };
+  }, []);
+
+  const fetchSuppliers = async () => {
+    const { data, error } = await supabase.from('suppliers').select('*').order('name', { ascending: true });
+    if (error) {
+      console.error('Error fetching suppliers:', error);
+    } else if (data) {
+      setSuppliers(data.map(mapSupplierFromDB));
+    }
+    setLoading(false);
+  };
+
+  const addSupplier = async (supplier: Supplier) => {
+    setSuppliers(prev => [...prev, supplier].sort((a, b) => a.name.localeCompare(b.name)));
+    if (!hasSupabaseConfig) return;
+    const { error } = await supabase.from('suppliers').insert([mapSupplierToDB(supplier)]);
+    if (error) {
+      console.error('Error adding supplier:', error);
+      fetchSuppliers();
+    }
+  };
+
+  const updateSupplier = async (id: string, updates: Partial<Supplier>) => {
+    setSuppliers(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    if (!hasSupabaseConfig) return;
+    const { error } = await supabase.from('suppliers').update(mapSupplierToDB(updates)).eq('id', id);
+    if (error) {
+      console.error('Error updating supplier:', error);
+      fetchSuppliers();
+    }
+  };
+
+  const deleteSupplier = async (id: string) => {
+    setSuppliers(prev => prev.filter(s => s.id !== id));
+    if (!hasSupabaseConfig) return;
+    const { error } = await supabase.from('suppliers').delete().eq('id', id);
+    if (error) {
+      console.error('Error deleting supplier:', error);
+      fetchSuppliers();
+    }
+  };
+
+  return { suppliers, addSupplier, updateSupplier, deleteSupplier, loading };
 }
 
 export function useSupabaseSessions() {
@@ -318,6 +399,7 @@ function mapProductToDB(p: Partial<Product>) {
   if (p.priceGroup !== undefined) { res.price_group = p.priceGroup; delete res.priceGroup; }
   if (p.warehouseQuantity !== undefined) { res.warehouse_quantity = p.warehouseQuantity; delete res.warehouseQuantity; }
   if (p.note !== undefined) { res.note = p.note; }
+  if ('supplierId' in p) { res.supplier_id = p.supplierId; delete res.supplierId; }
   return res;
 }
 
@@ -332,7 +414,8 @@ function mapProductFromDB(p: any): Product {
     priceGroup: p.price_group,
     quantity: Number(p.quantity),
     warehouseQuantity: Number(p.warehouse_quantity || 0),
-    note: p.note
+    note: p.note,
+    supplierId: p.supplier_id
   };
 }
 
@@ -375,6 +458,23 @@ function mapConfigFromDB(c: any): ScoopConfig {
     ratioLow: Number(c.ratio_low),
     ratioMedium: Number(c.ratio_medium),
     ratioHigh: Number(c.ratio_high)
+  };
+}
+
+function mapSupplierToDB(s: Partial<Supplier>) {
+  const res: any = { ...s };
+  if (s.createdAt !== undefined) { res.created_at = s.createdAt; delete res.createdAt; }
+  return res;
+}
+
+function mapSupplierFromDB(s: any): Supplier {
+  return {
+    id: s.id,
+    name: s.name,
+    phone: s.phone || '',
+    address: s.address || '',
+    note: s.note,
+    createdAt: s.created_at
   };
 }
 
@@ -459,6 +559,7 @@ function mapTransactionToDB(t: Partial<Transaction>) {
   if (t.customerName !== undefined) { res.customer_name = t.customerName; delete res.customerName; }
   if (t.customerPhone !== undefined) { res.customer_phone = t.customerPhone; delete res.customerPhone; }
   if (t.customerAddress !== undefined) { res.customer_address = t.customerAddress; delete res.customerAddress; }
+  if ('supplierId' in t) { res.supplier_id = t.supplierId; delete res.supplierId; }
   
   return res;
 }
@@ -495,6 +596,7 @@ function mapTransactionFromDB(t: any): Transaction {
     items,
     customerName: t.customer_name,
     customerPhone: t.customer_phone,
-    customerAddress: t.customer_address
+    customerAddress: t.customer_address,
+    supplierId: t.supplier_id
   };
 }

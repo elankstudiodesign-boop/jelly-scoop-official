@@ -8,15 +8,16 @@ import Simulator from './pages/Simulator';
 import Live from './pages/Live';
 import Import from './pages/Import';
 import Finance from './pages/Finance';
-import { useSupabaseProducts, useSupabaseSessions, useSupabaseTransactions } from './hooks/useSupabase';
+import { useSupabaseProducts, useSupabaseSessions, useSupabaseTransactions, useSupabaseSuppliers } from './hooks/useSupabase';
 import { hasSupabaseConfig } from './lib/supabase';
 
 export default function App() {
   const { products, addProduct, updateProduct, deleteProduct, loading: productsLoading } = useSupabaseProducts();
   const { sessions, addSession, deleteSession, loading: sessionsLoading } = useSupabaseSessions();
   const { transactions, addTransaction, deleteTransaction, loading: transactionsLoading } = useSupabaseTransactions();
+  const { suppliers, addSupplier, updateSupplier, deleteSupplier, loading: suppliersLoading } = useSupabaseSuppliers();
 
-  if (productsLoading || sessionsLoading || transactionsLoading) {
+  if (productsLoading || sessionsLoading || transactionsLoading || suppliersLoading) {
     return (
       <div className="flex min-h-screen min-h-[100dvh] items-center justify-center bg-slate-50">
         <div className="text-indigo-600 font-medium">Đang tải dữ liệu từ Supabase...</div>
@@ -45,9 +46,9 @@ export default function App() {
             )}
             <Routes>
               <Route path="/" element={<Analytics sessions={sessions} addSession={addSession} deleteSession={deleteSession} />} />
-              <Route path="/products" element={<Products products={products} addProduct={addProduct} updateProduct={updateProduct} deleteProduct={deleteProduct} />} />
+              <Route path="/products" element={<Products products={products} addProduct={addProduct} updateProduct={updateProduct} deleteProduct={deleteProduct} suppliers={suppliers} />} />
               <Route path="/pool-distribution" element={<PoolDistribution products={products} />} />
-              <Route path="/import" element={<Import products={products} addProduct={addProduct} updateProduct={updateProduct} addTransaction={addTransaction} deleteProduct={deleteProduct} />} />
+              <Route path="/import" element={<Import products={products} transactions={transactions} addProduct={addProduct} updateProduct={updateProduct} addTransaction={addTransaction} deleteProduct={deleteProduct} suppliers={suppliers} addSupplier={addSupplier} updateSupplier={updateSupplier} deleteSupplier={deleteSupplier} />} />
               <Route path="/simulator" element={<Simulator products={products} />} />
               <Route path="/live" element={<Live products={products} updateProduct={updateProduct} addTransaction={addTransaction} addSession={addSession} transactions={transactions} deleteTransaction={deleteTransaction} />} />
               <Route path="/finance" element={<Finance transactions={transactions} deleteTransaction={deleteTransaction} addTransaction={addTransaction} products={products} updateProduct={updateProduct} />} />
