@@ -1538,7 +1538,7 @@ export default function Import({
                           </div>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex justify-end gap-2">
                             <button
                               onClick={() => downloadPackagingBarcode(item)}
                               className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
