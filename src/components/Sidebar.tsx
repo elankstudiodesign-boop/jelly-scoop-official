@@ -52,7 +52,9 @@ export default function Sidebar() {
 
       {/* Mobile Bottom Nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 flex justify-around items-center pb-safe">
-        {navItems.map((item) => (
+        {navItems
+          .filter(item => !['/pool-distribution', '/simulator'].includes(item.path))
+          .map((item) => (
           <NavLink
             key={item.path}
             to={item.path}

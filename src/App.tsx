@@ -85,7 +85,7 @@ export default function App() {
               </div>
             )}
             <Routes>
-              <Route path="/" element={<Analytics sessions={sessions} addSession={addSession} deleteSession={deleteSession} />} />
+              <Route path="/" element={<Analytics sessions={sessions} addSession={addSession} deleteSession={deleteSession} products={products} />} />
               <Route path="/products" element={<Products products={products} addProduct={addProduct} updateProduct={updateProduct} deleteProduct={deleteProduct} suppliers={suppliers} />} />
               <Route path="/pool-distribution" element={<PoolDistribution products={products} />} />
               <Route path="/import" element={<Import products={products} transactions={transactions} addProduct={addProduct} updateProduct={updateProduct} addTransaction={addTransaction} deleteProduct={deleteProduct} suppliers={suppliers} addSupplier={addSupplier} updateSupplier={updateSupplier} deleteSupplier={deleteSupplier} packagingItems={packagingItems} addPackagingItem={addPackagingItem} updatePackagingItem={updatePackagingItem} deletePackagingItem={deletePackagingItem} />} />

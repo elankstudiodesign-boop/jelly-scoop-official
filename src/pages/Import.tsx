@@ -706,49 +706,42 @@ export default function Import({
         </div>
       )}
 
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Nhập kho</h1>
-        <p className="text-slate-500 mt-1 text-sm">Thêm số lượng sản phẩm vào kho và ghi nhận chi phí.</p>
-      </div>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Nhập kho</h1>
+          <p className="text-slate-500 mt-1 text-sm">Thêm số lượng sản phẩm vào kho và ghi nhận chi phí.</p>
+        </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-slate-200">
-        <button
-          onClick={() => setActiveTab('import')}
-          className={`px-6 py-3 text-sm font-medium transition-colors relative ${
-            activeTab === 'import' ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          <div className="flex items-center gap-2">
+        {/* Tabs */}
+        <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm w-full md:w-auto">
+          <button
+            onClick={() => setActiveTab('import')}
+            className={`flex-1 md:flex-none flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-xs font-bold transition-all ${
+              activeTab === 'import' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
             <PackagePlus className="w-4 h-4" />
             Nhập kho
-          </div>
-          {activeTab === 'import' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />}
-        </button>
-        <button
-          onClick={() => setActiveTab('suppliers')}
-          className={`px-6 py-3 text-sm font-medium transition-colors relative ${
-            activeTab === 'suppliers' ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          <div className="flex items-center gap-2">
+          </button>
+          <button
+            onClick={() => setActiveTab('suppliers')}
+            className={`flex-1 md:flex-none flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-xs font-bold transition-all ${
+              activeTab === 'suppliers' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
             <Truck className="w-4 h-4" />
             Nhà cung cấp
-          </div>
-          {activeTab === 'suppliers' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />}
-        </button>
-        <button
-          onClick={() => setActiveTab('packaging')}
-          className={`px-6 py-3 text-sm font-medium transition-colors relative ${
-            activeTab === 'packaging' ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          <div className="flex items-center gap-2">
+          </button>
+          <button
+            onClick={() => setActiveTab('packaging')}
+            className={`flex-1 md:flex-none flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-xs font-bold transition-all ${
+              activeTab === 'packaging' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
             <Archive className="w-4 h-4" />
             Bao bì
-          </div>
-          {activeTab === 'packaging' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />}
-        </button>
+          </button>
+        </div>
       </div>
 
       {activeTab === 'import' ? (
@@ -1345,7 +1338,7 @@ export default function Import({
                     <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
                       <Truck className="w-5 h-5" />
                     </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1">
                       <button
                         onClick={() => setSelectedSupplierForDetail(s)}
                         className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md"
