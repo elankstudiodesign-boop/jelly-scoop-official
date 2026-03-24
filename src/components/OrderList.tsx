@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Transaction, Product } from '../types';
 import { formatCurrency } from '../lib/format';
-import { Printer, Trash2, Eye, X } from 'lucide-react';
+import { Printer, Trash2, Eye, X, Search } from 'lucide-react';
 
 interface OrderListProps {
   transactions: Transaction[];
@@ -11,9 +11,16 @@ interface OrderListProps {
 
 export default function OrderList({ transactions, products, deleteTransaction }: OrderListProps) {
   const [selectedOrder, setSelectedOrder] = useState<Transaction | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   
-  // Filter only ORDER transactions
-  const orders = transactions.filter(t => t.category === 'ORDER').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  // Filter only ORDER transactions and apply search
+  const orders = transactions
+    .filter(t => t.category === 'ORDER')
+    .filter(t => 
+      t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (t.customerName && t.customerName.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const handleDelete = (id: string) => {
     if (window.confirm('Bạn có chắc chắn muốn xoá đơn hàng này?')) {
@@ -303,6 +310,22 @@ export default function OrderList({ transactions, products, deleteTransaction }:
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Tìm kiếm theo mô tả hoặc tên khách hàng..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
+          />
+        </div>
+        <div className="text-sm text-slate-500">
+          Hiển thị <span className="font-semibold text-slate-900">{orders.length}</span> đơn hàng
+        </div>
+      </div>
+
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">

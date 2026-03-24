@@ -18,6 +18,7 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [activeTab, setActiveTab] = useState<'ALL' | 'IN' | 'OUT'>('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
   const selectAllRef = useRef<HTMLInputElement>(null);
   
   // Form state for new transaction
@@ -87,7 +88,11 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
   }, [transactions]);
 
   const sortedTransactions = [...transactions]
-    .filter(t => activeTab === 'ALL' || t.type === activeTab)
+    .filter(t => {
+      const matchesTab = activeTab === 'ALL' || t.type === activeTab;
+      const matchesSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesTab && matchesSearch;
+    })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const allIds = sortedTransactions.map(t => t.id);
   const allSelected = allIds.length > 0 && selectedIds.size === allIds.length;
@@ -211,10 +216,10 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
 
       {/* Transactions List */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:justify-between lg:items-center gap-3">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-            <h2 className="text-lg font-bold text-slate-900">Lịch sử giao dịch</h2>
-            <div className="flex bg-slate-100 p-1 rounded-lg">
+        <div className="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-1">
+            <h2 className="text-lg font-bold text-slate-900 whitespace-nowrap">Lịch sử giao dịch</h2>
+            <div className="flex bg-slate-100 p-1 rounded-lg shrink-0">
               <button
                 onClick={() => setActiveTab('ALL')}
                 className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'ALL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
@@ -234,8 +239,27 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
                 Chi
               </button>
             </div>
+            
+            {/* Search Input */}
+            <div className="relative flex-1 max-w-md">
+              <input
+                type="text"
+                placeholder="Tìm kiếm theo mô tả..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-4 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 shrink-0">
             {isSelectionMode ? (
               <div className="flex items-center gap-3">
                 <label className="flex items-center gap-2 text-sm text-slate-600 select-none">
