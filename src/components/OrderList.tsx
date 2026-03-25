@@ -81,46 +81,40 @@ export default function OrderList({ transactions, products, deleteTransaction }:
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          margin-bottom: 50px;
-        }
-        .brand-section {
-          display: flex;
-          flex-direction: column;
+          margin-bottom: 40px;
         }
         .brand-name {
-          font-size: 42px;
+          font-size: 48px;
           font-weight: 900;
           line-height: 1;
-          letter-spacing: -1px;
           text-transform: uppercase;
-          margin-bottom: 10px;
+          margin-bottom: 15px;
         }
         .social-links {
           display: flex;
           flex-direction: column;
-          gap: 5px;
-          font-size: 16px;
+          gap: 8px;
+          font-size: 18px;
         }
         .social-link {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 10px;
         }
         .invoice-title {
-          font-size: 100px;
+          font-size: 96px;
           font-weight: 900;
-          line-height: 0.8;
-          letter-spacing: -4px;
+          line-height: 1;
           text-transform: uppercase;
         }
         .info-section {
           display: grid;
-          grid-template-columns: 1.5fr 1fr 1fr;
+          grid-template-columns: 1fr 1fr 1fr;
           gap: 20px;
-          margin-bottom: 50px;
+          margin-bottom: 40px;
         }
         .info-block h3 {
-          font-size: 20px;
+          font-size: 18px;
           font-weight: 900;
           text-transform: uppercase;
           margin: 0 0 10px 0;
@@ -128,7 +122,6 @@ export default function OrderList({ transactions, products, deleteTransaction }:
         .info-block p {
           font-size: 16px;
           margin: 0;
-          font-weight: 400;
         }
         table {
           width: 100%;
@@ -136,7 +129,7 @@ export default function OrderList({ transactions, products, deleteTransaction }:
           margin-bottom: 40px;
         }
         th {
-          font-size: 20px;
+          font-size: 18px;
           font-weight: 900;
           text-transform: uppercase;
           padding: 15px 0;
@@ -147,10 +140,8 @@ export default function OrderList({ transactions, products, deleteTransaction }:
           font-size: 16px;
           padding: 15px 0;
         }
-        .border-dotted-row td {
+        .product-row {
           border-bottom: 2px dotted #000;
-          padding: 0;
-          height: 10px;
         }
         .left { text-align: left; }
         .center { text-align: center; }
@@ -160,13 +151,13 @@ export default function OrderList({ transactions, products, deleteTransaction }:
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          margin-top: 50px;
+          margin-top: 40px;
         }
         .payment-info h3 {
-          font-size: 20px;
+          font-size: 18px;
           font-weight: 900;
           text-transform: uppercase;
-          margin: 0 0 15px 0;
+          margin: 0 0 10px 0;
         }
         .payment-info p {
           margin: 0 0 5px 0;
@@ -175,32 +166,15 @@ export default function OrderList({ transactions, products, deleteTransaction }:
         .payment-info .bold {
           font-weight: 900;
         }
-        .qr-section {
-          margin-top: 20px;
-          display: flex;
-          align-items: center;
-          gap: 15px;
-        }
-        .qr-code {
-          width: 120px;
-          height: 120px;
-          border: 1px solid #eee;
-        }
         
         .summary {
-          width: 250px;
+          width: 300px;
         }
         .summary-row {
           display: flex;
           justify-content: space-between;
           margin-bottom: 8px;
           font-size: 16px;
-        }
-        .summary-row.title {
-          font-weight: 900;
-          text-transform: uppercase;
-          font-size: 20px;
-          margin-bottom: 15px;
         }
         .summary-row.total {
           font-weight: 900;
@@ -216,15 +190,15 @@ export default function OrderList({ transactions, products, deleteTransaction }:
             <div class="brand-name">JELLY<br>SCOOP</div>
             <div class="social-links">
               <div class="social-link">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.86-.6-4.12-1.31a6.33 6.33 0 0 1-1.87-1.5c-.02 3.87-.03 7.74-.03 11.61 0 .54-.08 1.1-.23 1.62-.83 2.85-3.67 4.64-6.55 4.39-3.82-.31-6.03-4.72-4.05-7.96 1.08-1.79 3.13-2.79 5.23-2.53v4.26c-.74-.18-1.54-.02-2.14.39-.87.61-1.17 1.81-.7 2.7.42.8 1.48 1.11 2.31.7.58-.29.91-.9.91-1.54V0h1.25z"/></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.86-.6-4.12-1.31a6.33 6.33 0 0 1-1.87-1.5c-.02 3.87-.03 7.74-.03 11.61 0 .54-.08 1.1-.23 1.62-.83 2.85-3.67 4.64-6.55 4.39-3.82-.31-6.03-4.72-4.05-7.96 1.08-1.79 3.13-2.79 5.23-2.53v4.26c-.74-.18-1.54-.02-2.14.39-.87.61-1.17 1.81-.7 2.7.42.8 1.48 1.11 2.31.7.58-.29.91-.9.91-1.54V0h1.25z"/></svg>
                 @jellyscoop
               </div>
               <div class="social-link">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 1.366.062 2.633.332 3.608 1.308.975.975 1.245 2.242 1.308 3.608.058 1.266.07 1.646.07 4.85s-.012 3.584-.07 4.85c-.062 1.366-.332 2.633-1.308 3.608-.975.975-2.242 1.245-3.608 1.308-1.266.058-1.646.07-4.85.07s-3.584-.012-4.85-.07c-1.366-.062-2.633-.332-3.608-1.308-.975-.975-1.245-2.242-1.308-3.608-.058-1.266-.07-1.646-.07-4.85s.012-3.584.07-4.85c.062-1.366.332-2.633 1.308-3.608.975-.975 2.242-1.245 3.608-1.308 1.266-.058 1.646-.07 4.85-.07zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.355 2.618 6.778 6.98 6.978 1.28.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.058-1.28.072-1.689.072-4.948 0-3.259-.014-3.668-.072-4.948-.199-4.359-2.612-6.784-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4.162 4.162 0 110-8.324 4.162 4.162 0 010 8.324zM18.406 4.406a1.44 1.44 0 100 2.88 1.44 1.44 0 000-2.88z"/></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 1.366.062 2.633.332 3.608 1.308.975.975 1.245 2.242 1.308 3.608.058 1.266.07 1.646.07 4.85s-.012 3.584-.07 4.85c-.062 1.366-.332 2.633-1.308 3.608-.975.975-2.242 1.245-3.608 1.308-1.266.058-1.646.07-4.85.07s-3.584-.012-4.85-.07c-1.366-.062-2.633-.332-3.608-1.308-.975-.975-1.245-2.242-1.308-3.608-.058-1.266-.07-1.646-.07-4.85s.012-3.584.07-4.85c.062-1.366.332-2.633 1.308-3.608.975-.975 2.242-1.245 3.608-1.308 1.266-.058 1.646-.07 4.85-.07zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.355 2.618 6.778 6.98 6.978 1.28.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.058-1.28.072-1.689.072-4.948 0-3.259-.014-3.668-.072-4.948-.199-4.359-2.612-6.784-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4.162 4.162 0 110-8.324 4.162 4.162 0 010 8.324zM18.406 4.406a1.44 1.44 0 100 2.88 1.44 1.44 0 000-2.88z"/></svg>
                 @jellyscoop
               </div>
               <div class="social-link">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.46 14.88l-1.05-1.05c-.14-.14-.14-.37 0-.51l1.05-1.05c.14-.14.37-.14.51 0l1.05 1.05c.14.14.14.37 0 .51l-1.05 1.05c-.14.14-.37.14-.51 0zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm0-10c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4z"/></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.46 14.88l-1.05-1.05c-.14-.14-.14-.37 0-.51l1.05-1.05c.14-.14.37-.14.51 0l1.05 1.05c.14.14.14.37 0 .51l-1.05 1.05c-.14.14-.37.14-.51 0zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm0-10c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4z"/></svg>
                 0886 849 783
               </div>
             </div>
@@ -258,10 +232,19 @@ export default function OrderList({ transactions, products, deleteTransaction }:
             </tr>
           </thead>
           <tbody>
-            ${orderItemsHtml}
-            <tr class="border-dotted-row">
-              <td colspan="4"></td>
-            </tr>
+            ${order.items?.map(item => {
+              const product = products.find(p => p.id === item.productId);
+              const name = product ? product.name : 'Sản phẩm không xác định';
+              const price = item.retailPrice ?? (product?.retailPrice ?? product?.cost ?? 0);
+              return `
+                <tr class="product-row">
+                  <td class="left">${name}</td>
+                  <td class="center">${item.quantity}</td>
+                  <td class="right">${formatCurrency(price)}</td>
+                  <td class="right">${formatCurrency(price * item.quantity)}</td>
+                </tr>
+              `;
+            }).join('')}
           </tbody>
         </table>
       
@@ -272,18 +255,8 @@ export default function OrderList({ transactions, products, deleteTransaction }:
             <p class="bold">MB BANK</p>
             <p class="bold">LÝ THỊ KIM NHẪN</p>
             <p class="bold">11391679168</p>
-            <div class="qr-section">
-              <img src="https://img.vietqr.io/image/MB-11391679168-compact.png?amount=${order.amount}&addInfo=Thanh%20toan%20don%20hang%20${order.id.slice(0,8)}&accountName=LY%20THI%20KIM%20NHAN" class="qr-code" alt="Bank QR" crossorigin="anonymous" />
-              <div>
-                <p class="bold">Quét mã thanh toán</p>
-                <p>MB Bank - 11391679168</p>
-              </div>
-            </div>
           </div>
           <div class="summary">
-            <div class="summary-row title">
-              <span>TỔNG PHỤ</span>
-            </div>
             <div class="summary-row">
               <span>Giảm giá</span>
               <span>0</span>
