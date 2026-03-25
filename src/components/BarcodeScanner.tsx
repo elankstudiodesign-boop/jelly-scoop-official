@@ -238,22 +238,15 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
               {!scanResult && !isStarting && (
                 <>
                   <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                    <div className="w-[75%] h-[45%] border-2 border-white/20 rounded-3xl relative overflow-hidden bg-indigo-500/5 backdrop-blur-[1px]">
-                      {/* Corner accents - Modern Indigo style */}
-                      <div className="absolute top-0 left-0 w-8 h-8 border-t-[6px] border-l-[6px] border-indigo-600 rounded-tl-2xl" />
-                      <div className="absolute top-0 right-0 w-8 h-8 border-t-[6px] border-r-[6px] border-indigo-600 rounded-tr-2xl" />
-                      <div className="absolute bottom-0 left-0 w-8 h-8 border-b-[6px] border-l-[6px] border-indigo-600 rounded-bl-2xl" />
-                      <div className="absolute bottom-0 right-0 w-8 h-8 border-b-[6px] border-r-[6px] border-indigo-600 rounded-br-2xl" />
+                    <div className="w-[70%] h-[42%] border-2 border-indigo-500/50 rounded-lg relative overflow-hidden">
+                      {/* Corner accents */}
+                      <div className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-indigo-500 rounded-tl-sm" />
+                      <div className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-indigo-500 rounded-tr-sm" />
+                      <div className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-indigo-500 rounded-bl-sm" />
+                      <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-indigo-500 rounded-br-sm" />
                       
-                      {/* Scanning line animation - Professional Glow */}
-                      <div className="absolute left-0 w-full h-1 z-10 animate-scan-line">
-                        <div className="w-full h-full bg-gradient-to-r from-transparent via-indigo-500 to-transparent shadow-[0_0_25px_rgba(99,102,241,1),0_0_10px_rgba(99,102,241,0.8)]" />
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-[40px] bg-gradient-to-b from-indigo-500/20 to-transparent blur-md" />
-                      </div>
-
-                      {/* Subtle grid pattern for high-tech feel */}
-                      <div className="absolute inset-0 opacity-10 pointer-events-none" 
-                           style={{ backgroundImage: 'radial-gradient(circle, #6366f1 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+                      {/* Scanning line animation */}
+                      <div className="absolute top-0 left-0 w-full h-0.5 bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.8)] animate-scan-line" />
                     </div>
                   </div>
 
@@ -287,12 +280,11 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
 
       <style>{`
         @keyframes scan-line {
-          0% { top: 0%; opacity: 0.5; }
-          50% { opacity: 1; }
-          100% { top: 100%; opacity: 0.5; }
+          0% { top: 0%; }
+          100% { top: 100%; }
         }
         .animate-scan-line {
-          animation: scan-line 2.5s ease-in-out infinite alternate;
+          animation: scan-line 2s linear infinite;
         }
         #reader video {
           object-fit: cover !important;
