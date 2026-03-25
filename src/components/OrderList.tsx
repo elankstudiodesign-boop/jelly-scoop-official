@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { Transaction, Product } from '../types';
 import { formatCurrency } from '../lib/format';
 import { Printer, Trash2, Eye, X, Search } from 'lucide-react';
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
 
 interface OrderListProps {
   transactions: Transaction[];
@@ -33,7 +31,13 @@ export default function OrderList({ transactions, products, deleteTransaction }:
     }
   };
 
-  const handlePrint = async (order: Transaction) => {
+  const handlePrint = (order: Transaction) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Vui lòng cho phép popup để in hoá đơn');
+      return;
+    }
+
     const orderItemsHtml = order.items?.map(item => {
       const product = products.find(p => p.id === item.productId);
       const name = product ? product.name : 'Sản phẩm không xác định';
@@ -48,157 +52,171 @@ export default function OrderList({ transactions, products, deleteTransaction }:
       `;
     }).join('') || '';
 
-    const dateObj = new Date(order.date);
-    const day = String(dateObj.getDate()).padStart(2, '0');
-    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const year = dateObj.getFullYear();
-    const formattedDate = `${day}-${month}-${year}`;
-
-    // Create a hidden container for the invoice
-    const container = document.createElement('div');
-    container.style.position = 'absolute';
-    container.style.left = '-9999px';
-    container.style.top = '-9999px';
-    container.style.width = '210mm'; // A4 width
-    container.style.backgroundColor = '#fff';
-    container.style.fontFamily = "'Inter', sans-serif";
-    container.style.color = '#000';
-    
-    container.innerHTML = `
-      <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        .invoice-container {
-          width: 210mm;
-          min-height: 297mm;
-          background: #fff;
-          padding: 20mm;
-          box-sizing: border-box;
-          font-family: 'Inter', sans-serif;
-          position: relative;
-          color: #000;
-        }
-        .header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 40px;
-        }
-        .brand-name {
-          font-size: 48px;
-          font-weight: 900;
-          line-height: 1;
-          text-transform: uppercase;
-          margin-bottom: 15px;
-        }
-        .social-links {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          font-size: 18px;
-        }
-        .social-link {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-        .invoice-title {
-          font-size: 96px;
-          font-weight: 900;
-          line-height: 1;
-          text-transform: uppercase;
-        }
-        .info-section {
-          display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
-          gap: 20px;
-          margin-bottom: 40px;
-        }
-        .info-block h3 {
-          font-size: 18px;
-          font-weight: 900;
-          text-transform: uppercase;
-          margin: 0 0 10px 0;
-        }
-        .info-block p {
-          font-size: 16px;
-          margin: 0;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-bottom: 40px;
-        }
-        th {
-          font-size: 18px;
-          font-weight: 900;
-          text-transform: uppercase;
-          padding: 15px 0;
-          border-bottom: 2px solid #000;
-          text-align: left;
-        }
-        td {
-          font-size: 16px;
-          padding: 15px 0;
-        }
-        .product-row {
-          border-bottom: 2px dotted #000;
-        }
-        .left { text-align: left; }
-        .center { text-align: center; }
-        .right { text-align: right; }
-        
-        .footer {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-top: 40px;
-        }
-        .payment-info h3 {
-          font-size: 18px;
-          font-weight: 900;
-          text-transform: uppercase;
-          margin: 0 0 10px 0;
-        }
-        .payment-info p {
-          margin: 0 0 5px 0;
-          font-size: 16px;
-        }
-        .payment-info .bold {
-          font-weight: 900;
-        }
-        
-        .summary {
-          width: 300px;
-        }
-        .summary-row {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 8px;
-          font-size: 16px;
-        }
-        .summary-row.total {
-          font-weight: 900;
-          font-size: 24px;
-          margin-top: 20px;
-          padding-top: 15px;
-          border-top: 2px solid #000;
-        }
-      </style>
-      <div class="invoice-container">
+    const html = `
+      <!DOCTYPE html>
+      <html lang="vi">
+      <head>
+        <meta charset="UTF-8">
+        <title>Hoá đơn ${order.id.slice(0, 8)}</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Oswald:wght@700&display=swap');
+          
+          @page {
+            size: A4;
+            margin: 0;
+          }
+          body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 60px 80px;
+            color: #000;
+            background: #fff;
+            -webkit-print-color-adjust: exact;
+          }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 60px;
+          }
+          .brand-name {
+            font-size: 36px;
+            font-weight: 800;
+            line-height: 1.1;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+          }
+          .social-links {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          }
+          .social-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+            font-weight: 500;
+          }
+          .social-link svg {
+            width: 20px;
+            height: 20px;
+          }
+          .invoice-title {
+            font-family: 'Oswald', sans-serif;
+            font-size: 80px;
+            font-weight: 700;
+            line-height: 1;
+            text-transform: uppercase;
+            letter-spacing: -1px;
+          }
+          
+          .info-section {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 50px;
+          }
+          .info-block h3 {
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin: 0 0 12px 0;
+          }
+          .info-block p {
+            margin: 0 0 6px 0;
+            font-size: 15px;
+          }
+          
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 60px;
+          }
+          th {
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding-bottom: 15px;
+            border-bottom: none;
+          }
+          th.left { text-align: left; }
+          th.center { text-align: center; }
+          th.right { text-align: right; }
+          
+          td {
+            padding: 15px 0;
+            font-size: 15px;
+            border-bottom: 2px dotted #000;
+          }
+          td.left { text-align: left; }
+          td.center { text-align: center; }
+          td.right { text-align: right; }
+          
+          .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-top: 60px;
+          }
+          .payment-info h3 {
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin: 0 0 12px 0;
+          }
+          .payment-info p {
+            margin: 0 0 8px 0;
+            font-size: 15px;
+          }
+          .payment-info .bold {
+            font-weight: 700;
+          }
+          
+          .summary {
+            width: 300px;
+          }
+          .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 15px;
+          }
+          .summary-row.title {
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+            font-size: 16px;
+          }
+          .summary-row.total {
+            font-weight: 700;
+            font-size: 18px;
+            margin-top: 20px;
+            padding-top: 20px;
+          }
+        </style>
+      </head>
+      <body>
         <div class="header">
-          <div class="brand-section">
+          <div>
             <div class="brand-name">JELLY<br>SCOOP</div>
             <div class="social-links">
               <div class="social-link">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.86-.6-4.12-1.31a6.33 6.33 0 0 1-1.87-1.5c-.02 3.87-.03 7.74-.03 11.61 0 .54-.08 1.1-.23 1.62-.83 2.85-3.67 4.64-6.55 4.39-3.82-.31-6.03-4.72-4.05-7.96 1.08-1.79 3.13-2.79 5.23-2.53v4.26c-.74-.18-1.54-.02-2.14.39-.87.61-1.17 1.81-.7 2.7.42.8 1.48 1.11 2.31.7.58-.29.91-.9.91-1.54V0h1.25z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M9 0h1.98c.144.715.54 1.617 1.235 2.512C12.895 3.389 13.797 4 15 4v2c-1.753 0-3.07-.814-4-1.829V11a5 5 0 1 1-5-5v2a3 3 0 1 0 3 3V0Z"/>
+                </svg>
                 @jellyscoop
               </div>
               <div class="social-link">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 1.366.062 2.633.332 3.608 1.308.975.975 1.245 2.242 1.308 3.608.058 1.266.07 1.646.07 4.85s-.012 3.584-.07 4.85c-.062 1.366-.332 2.633-1.308 3.608-.975.975-2.242 1.245-3.608 1.308-1.266.058-1.646.07-4.85.07s-3.584-.012-4.85-.07c-1.366-.062-2.633-.332-3.608-1.308-.975-.975-1.245-2.242-1.308-3.608-.058-1.266-.07-1.646-.07-4.85s.012-3.584.07-4.85c.062-1.366.332-2.633 1.308-3.608.975-.975 2.242-1.245 3.608-1.308 1.266-.058 1.646-.07 4.85-.07zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.355 2.618 6.778 6.98 6.978 1.28.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.058-1.28.072-1.689.072-4.948 0-3.259-.014-3.668-.072-4.948-.199-4.359-2.612-6.784-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4.162 4.162 0 110-8.324 4.162 4.162 0 010 8.324zM18.406 4.406a1.44 1.44 0 100 2.88 1.44 1.44 0 000-2.88z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0h.003zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.036 1.204.166 1.486.275.373.145.64.319.92.599.28.28.453.546.598.92.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.47 2.47 0 0 1-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.478 2.478 0 0 1-.92-.598 2.48 2.48 0 0 1-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233 0-2.136.008-2.388.046-3.231.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92.28-.28.546-.453.92-.598.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045v.002zm4.988 1.328a.96.96 0 1 0 0 1.92.96.96 0 0 0 0-1.92zm-4.27 1.122a4.109 4.109 0 1 0 0 8.217 4.109 4.109 0 0 0 0-8.217zm0 1.441a2.667 2.667 0 1 1 0 5.334 2.667 2.667 0 0 1 0-5.334z"/>
+                </svg>
                 @jellyscoop
               </div>
               <div class="social-link">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.46 14.88l-1.05-1.05c-.14-.14-.14-.37 0-.51l1.05-1.05c.14-.14.37-.14.51 0l1.05 1.05c.14.14.14.37 0 .51l-1.05 1.05c-.14.14-.37.14-.51 0zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm0-10c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                  <path fill-rule="evenodd" d="M1.885.511a1.745 1.745 0 0 1 2.61.163L6.29 2.98c.329.423.445.974.315 1.494l-.547 2.19a.678.678 0 0 0 .178.643l2.457 2.457a.678.678 0 0 0 .644.178l2.189-.547a1.745 1.745 0 0 1 1.494.315l2.306 1.794c.829.645.905 1.87.163 2.611l-1.034 1.034c-.74.74-1.846 1.065-2.877.702a18.634 18.634 0 0 1-7.01-4.42 18.634 18.634 0 0 1-4.42-7.009c-.362-1.03-.037-2.137.703-2.877L1.885.511z"/>
+                </svg>
                 0886 849 783
               </div>
             </div>
@@ -210,11 +228,12 @@ export default function OrderList({ transactions, products, deleteTransaction }:
           <div class="info-block">
             <h3>KHÁCH HÀNG</h3>
             <p>${order.customerName || 'Khách lẻ'}</p>
+            ${order.customerPhone ? `<p>${order.customerPhone}</p>` : ''}
             ${order.customerAddress ? `<p>${order.customerAddress}</p>` : ''}
           </div>
           <div class="info-block">
             <h3>NGÀY</h3>
-            <p>${formattedDate}</p>
+            <p>${new Date(order.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
           </div>
           <div class="info-block">
             <h3>MÃ ĐƠN HÀNG</h3>
@@ -232,31 +251,30 @@ export default function OrderList({ transactions, products, deleteTransaction }:
             </tr>
           </thead>
           <tbody>
-            ${order.items?.map(item => {
-              const product = products.find(p => p.id === item.productId);
-              const name = product ? product.name : 'Sản phẩm không xác định';
-              const price = item.retailPrice ?? (product?.retailPrice ?? product?.cost ?? 0);
-              return `
-                <tr class="product-row">
-                  <td class="left">${name}</td>
-                  <td class="center">${item.quantity}</td>
-                  <td class="right">${formatCurrency(price)}</td>
-                  <td class="right">${formatCurrency(price * item.quantity)}</td>
-                </tr>
-              `;
-            }).join('')}
+            ${orderItemsHtml}
           </tbody>
         </table>
       
         <div class="footer">
           <div class="payment-info">
-            <h3>PHƯƠNG THỨC THANH TOÁN</h3>
+            <h3>THÔNG TIN THANH TOÁN</h3>
             <p>Chuyển khoản ngân hàng</p>
-            <p class="bold">MB BANK</p>
-            <p class="bold">LÝ THỊ KIM NHẪN</p>
-            <p class="bold">11391679168</p>
+            <p>MB bank</p>
+            <p class="bold">LY THI KIM NHAN</p>
+            <p>11391679168</p>
+            
+            <div style="margin-top: 25px; display: flex; align-items: center; gap: 15px;">
+              <img src="https://img.vietqr.io/image/MB-11391679168-compact.png?amount=${order.amount}&addInfo=Thanh%20toan%20don%20hang%20${order.id.slice(0,8)}&accountName=LY%20THI%20KIM%20NHAN" alt="Bank QR" style="width: 100px; height: 100px;" />
+              <div>
+                <p style="font-weight: 700; margin-bottom: 4px; font-size: 14px;">Quét mã thanh toán</p>
+                <p style="font-size: 14px; margin: 0;">MB Bank - 11391679168</p>
+              </div>
+            </div>
           </div>
           <div class="summary">
+            <div class="summary-row title">
+              <span>TỔNG PHỤ</span>
+            </div>
             <div class="summary-row">
               <span>Giảm giá</span>
               <span>0</span>
@@ -275,42 +293,19 @@ export default function OrderList({ transactions, products, deleteTransaction }:
             </div>
           </div>
         </div>
-      </div>
+        <script>
+          window.onload = function() {
+            window.print();
+            setTimeout(function() { window.close(); }, 500);
+          };
+        </script>
+      </body>
+      </html>
     `;
 
-    document.body.appendChild(container);
-
-    try {
-      // Wait for images to load
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const canvas = await html2canvas(container, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        width: 210 * 3.7795275591,
-        height: 297 * 3.7795275591,
-        windowWidth: 210 * 3.7795275591,
-        windowHeight: 297 * 3.7795275591
-      });
-
-      const imgData = canvas.toDataURL('image/png', 1.0);
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      pdf.addImage(imgData, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
-      pdf.save(`invoice-${order.id.slice(0, 8)}.pdf`);
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Có lỗi xảy ra khi tạo PDF. Vui lòng thử lại.');
-    } finally {
-      document.body.removeChild(container);
-    }
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   return (
@@ -332,8 +327,7 @@ export default function OrderList({ transactions, products, deleteTransaction }:
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-        {/* Desktop Table View */}
-        <div className="hidden md:block overflow-x-auto">
+        <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-600 font-semibold">
               <tr>
@@ -400,74 +394,6 @@ export default function OrderList({ transactions, products, deleteTransaction }:
             </tbody>
           </table>
         </div>
-
-        {/* Mobile Card View */}
-        <div className="md:hidden divide-y divide-slate-100">
-          {orders.length === 0 ? (
-            <div className="p-8 text-center text-slate-500">
-              Chưa có đơn hàng nào
-            </div>
-          ) : (
-            orders.map(order => (
-              <div key={order.id} className="p-4 space-y-4 active:bg-slate-50 transition-colors">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-                        #{order.id.slice(0, 8).toUpperCase()}
-                      </span>
-                      <span className="text-xs text-slate-400">
-                        {new Date(order.date).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
-                      </span>
-                    </div>
-                    <div className="font-semibold text-slate-900">
-                      {order.customerName || 'Khách lẻ'}
-                    </div>
-                    {order.customerPhone && (
-                      <div className="text-xs text-slate-500">{order.customerPhone}</div>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-indigo-600">
-                      {formatCurrency(order.amount)}đ
-                    </div>
-                    <div className="text-[10px] uppercase tracking-wider font-bold text-slate-400">
-                      {order.description.includes('Scoop') ? 'Đơn Scoop' : 'Đơn lẻ'}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-slate-50">
-                  <div className="text-xs text-slate-500 truncate max-w-[180px]">
-                    {order.description}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setSelectedOrder(order)}
-                      className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-1.5"
-                    >
-                      <Eye className="w-4 h-4" />
-                      <span className="text-xs font-medium">Xem</span>
-                    </button>
-                    <button
-                      onClick={() => handlePrint(order)}
-                      className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors flex items-center gap-1.5"
-                    >
-                      <Printer className="w-4 h-4" />
-                      <span className="text-xs font-medium">In</span>
-                    </button>
-                    <button
-                      onClick={() => handleDelete(order.id)}
-                      className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
       </div>
 
       {/* Order Details Modal */}
@@ -484,59 +410,35 @@ export default function OrderList({ transactions, products, deleteTransaction }:
               </button>
             </div>
             
-            <div className="p-4 md:p-6 overflow-y-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6">
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Thông tin chung</h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between md:block">
-                      <span className="text-slate-500 md:mr-2">Mã ĐH:</span>
-                      <span className="font-mono font-bold text-slate-700">{selectedOrder.id.slice(0, 8).toUpperCase()}</span>
-                    </div>
-                    <div className="flex justify-between md:block">
-                      <span className="text-slate-500 md:mr-2">Ngày:</span>
-                      <span className="text-slate-700">{new Date(selectedOrder.date).toLocaleString('vi-VN')}</span>
-                    </div>
-                    <div className="flex justify-between md:block">
-                      <span className="text-slate-500 md:mr-2">Mô tả:</span>
-                      <span className="text-slate-700">{selectedOrder.description}</span>
-                    </div>
+            <div className="p-6 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-6 mb-6">
+                <div>
+                  <h3 className="text-sm font-medium text-slate-500 mb-1">Thông tin chung</h3>
+                  <div className="space-y-1 text-sm">
+                    <p><span className="text-slate-500">Mã ĐH:</span> <span className="font-mono">{selectedOrder.id.slice(0, 8).toUpperCase()}</span></p>
+                    <p><span className="text-slate-500">Ngày:</span> {new Date(selectedOrder.date).toLocaleString('vi-VN')}</p>
+                    <p><span className="text-slate-500">Mô tả:</span> {selectedOrder.description}</p>
                   </div>
                 </div>
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Khách hàng</h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between md:block">
-                      <span className="text-slate-500 md:mr-2">Tên:</span>
-                      <span className="font-bold text-slate-700">{selectedOrder.customerName || 'Khách lẻ'}</span>
-                    </div>
-                    {selectedOrder.customerPhone && (
-                      <div className="flex justify-between md:block">
-                        <span className="text-slate-500 md:mr-2">SĐT:</span>
-                        <span className="text-slate-700">{selectedOrder.customerPhone}</span>
-                      </div>
-                    )}
-                    {selectedOrder.customerAddress && (
-                      <div className="flex justify-between md:block">
-                        <span className="text-slate-500 md:mr-2">Địa chỉ:</span>
-                        <span className="text-slate-700">{selectedOrder.customerAddress}</span>
-                      </div>
-                    )}
+                <div>
+                  <h3 className="text-sm font-medium text-slate-500 mb-1">Khách hàng</h3>
+                  <div className="space-y-1 text-sm">
+                    <p><span className="text-slate-500">Tên:</span> {selectedOrder.customerName || 'Khách lẻ'}</p>
+                    {selectedOrder.customerPhone && <p><span className="text-slate-500">SĐT:</span> {selectedOrder.customerPhone}</p>}
+                    {selectedOrder.customerAddress && <p><span className="text-slate-500">Địa chỉ:</span> {selectedOrder.customerAddress}</p>}
                   </div>
                 </div>
               </div>
 
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1">Sản phẩm ({selectedOrder.items?.length || 0})</h3>
-              
-              {/* Desktop Table View */}
-              <div className="hidden md:block border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+              <h3 className="text-sm font-medium text-slate-500 mb-3">Sản phẩm</h3>
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-600">
                     <tr>
-                      <th className="p-4">Sản phẩm</th>
-                      <th className="p-4 text-center">Số lượng</th>
-                      <th className="p-4 text-right">Đơn giá</th>
-                      <th className="p-4 text-right">Thành tiền</th>
+                      <th className="p-3">Sản phẩm</th>
+                      <th className="p-3 text-center">Số lượng</th>
+                      <th className="p-3 text-right">Đơn giá</th>
+                      <th className="p-3 text-right">Thành tiền</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -544,77 +446,45 @@ export default function OrderList({ transactions, products, deleteTransaction }:
                       const product = products.find(p => p.id === item.productId);
                       const price = item.retailPrice ?? (product?.retailPrice ?? product?.cost ?? 0);
                       return (
-                        <tr key={index} className="hover:bg-slate-50 transition-colors">
-                          <td className="p-4">
+                        <tr key={index}>
+                          <td className="p-3">
                             <div className="flex items-center gap-3">
                               {product?.imageUrl ? (
-                                <img src={product.imageUrl} alt={product.name} className="w-10 h-10 rounded-lg object-cover border border-slate-200" />
+                                <img src={product.imageUrl} alt={product.name} className="w-8 h-8 rounded object-cover" />
                               ) : (
-                                <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] text-slate-400 border border-slate-200">No img</div>
+                                <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-xs text-slate-400">No img</div>
                               )}
-                              <span className="font-semibold text-slate-900">{product?.name || 'Sản phẩm không xác định'}</span>
+                              <span className="font-medium text-slate-900">{product?.name || 'Sản phẩm không xác định'}</span>
                             </div>
                           </td>
-                          <td className="p-4 text-center font-medium">{item.quantity}</td>
-                          <td className="p-4 text-right text-slate-600">{formatCurrency(price)}đ</td>
-                          <td className="p-4 text-right font-bold text-slate-900">{formatCurrency(price * item.quantity)}đ</td>
+                          <td className="p-3 text-center">{item.quantity}</td>
+                          <td className="p-3 text-right">{formatCurrency(price)}đ</td>
+                          <td className="p-3 text-right font-medium">{formatCurrency(price * item.quantity)}đ</td>
                         </tr>
                       );
                     })}
                   </tbody>
                   <tfoot className="bg-slate-50 border-t border-slate-200">
                     <tr>
-                      <td colSpan={3} className="p-4 text-right font-bold text-slate-600 uppercase tracking-wider text-xs">Tổng cộng:</td>
-                      <td className="p-4 text-right font-black text-lg text-indigo-600">{formatCurrency(selectedOrder.amount)}đ</td>
+                      <td colSpan={3} className="p-3 text-right font-medium text-slate-600">Tổng cộng:</td>
+                      <td className="p-3 text-right font-bold text-indigo-600">{formatCurrency(selectedOrder.amount)}đ</td>
                     </tr>
                   </tfoot>
                 </table>
               </div>
-
-              {/* Mobile Card View */}
-              <div className="md:hidden space-y-3">
-                {selectedOrder.items?.map((item, index) => {
-                  const product = products.find(p => p.id === item.productId);
-                  const price = item.retailPrice ?? (product?.retailPrice ?? product?.cost ?? 0);
-                  return (
-                    <div key={index} className="bg-white border border-slate-200 rounded-xl p-3 flex gap-3 shadow-sm">
-                      {product?.imageUrl ? (
-                        <img src={product.imageUrl} alt={product.name} className="w-16 h-16 rounded-lg object-cover border border-slate-100 flex-shrink-0" />
-                      ) : (
-                        <div className="w-16 h-16 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] text-slate-400 border border-slate-100 flex-shrink-0">No img</div>
-                      )}
-                      <div className="flex-1 min-w-0 flex flex-col justify-between">
-                        <div className="font-bold text-slate-900 text-sm truncate">{product?.name || 'Sản phẩm không xác định'}</div>
-                        <div className="flex justify-between items-end">
-                          <div className="text-xs text-slate-500">
-                            {formatCurrency(price)}đ x {item.quantity}
-                          </div>
-                          <div className="font-bold text-indigo-600 text-sm">
-                            {formatCurrency(price * item.quantity)}đ
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div className="bg-indigo-600 rounded-xl p-4 flex justify-between items-center shadow-lg shadow-indigo-200">
-                  <span className="text-white/80 font-bold text-xs uppercase tracking-widest">Tổng cộng</span>
-                  <span className="text-white font-black text-xl">{formatCurrency(selectedOrder.amount)}đ</span>
-                </div>
-              </div>
             </div>
             
-            <div className="p-4 md:p-6 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-end gap-3">
+            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
               <button
                 onClick={() => handlePrint(selectedOrder)}
-                className="w-full sm:w-auto px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors flex items-center gap-2"
               >
-                <Printer className="w-5 h-5" />
+                <Printer className="w-4 h-4" />
                 In hoá đơn
               </button>
               <button
                 onClick={() => setSelectedOrder(null)}
-                className="w-full sm:w-auto px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 active:scale-95"
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
               >
                 Đóng
               </button>
