@@ -233,7 +233,7 @@ export default function OrderList({ transactions, products, deleteTransaction }:
           </div>
           <div class="info-block">
             <h3>NGÀY</h3>
-            <p>${new Date(order.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+            <p>${new Date(order.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-')}</p>
           </div>
           <div class="info-block">
             <h3>MÃ ĐƠN HÀNG</h3>
