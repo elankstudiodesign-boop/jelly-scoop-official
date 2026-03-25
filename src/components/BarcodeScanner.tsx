@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { X, Loader2, CheckCircle2, AlertCircle, Zap, ZapOff, Camera, RefreshCw } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { X, Loader2, CheckCircle2, AlertCircle, Zap, ZapOff } from 'lucide-react';
 
 interface BarcodeScannerProps {
   onScan: (decodedText: string) => void;
@@ -33,9 +32,11 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
 
+        // Supermarket style: Higher frequency (1200Hz - 1500Hz)
         oscillator.type = 'sine';
         oscillator.frequency.setValueAtTime(1200, audioCtx.currentTime); 
         
+        // Louder volume
         gainNode.gain.setValueAtTime(0.4, audioCtx.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
 
@@ -50,11 +51,6 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
         audioCtx.resume().then(play);
       } else {
         play();
-      }
-
-      // Haptic feedback if available
-      if ('vibrate' in navigator) {
-        navigator.vibrate(50);
       }
     } catch (e) {
       console.warn("Could not play beep sound", e);
@@ -89,21 +85,25 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
     scannerRef.current = html5QrCode;
 
     const startScanner = async () => {
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Small delay to allow modal transition to complete
+      await new Promise(resolve => setTimeout(resolve, 400));
       if (!isMountedRef.current) return;
 
       try {
         await html5QrCode.start(
           { facingMode: "environment" },
           {
-            fps: 20,
+            fps: 15, // Slightly lower FPS for better stability on mobile
             qrbox: (viewfinderWidth, viewfinderHeight) => {
-              const width = viewfinderWidth * 0.8;
-              const height = width * 0.5;
-              return { width, height };
+              const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+              const qrboxSize = Math.floor(minEdge * 0.75);
+              return {
+                width: qrboxSize,
+                height: qrboxSize * 0.55 // Optimized for barcodes
+              };
             },
             aspectRatio: 1.0,
-            disableFlip: true
+            disableFlip: true // Barcodes don't need flipping
           },
           (decodedText) => {
             if (!isProcessingRef.current && isMountedRef.current) {
@@ -112,11 +112,12 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
               onScanRef.current(decodedText);
             }
           },
-          () => {} 
+          () => {} // Ignore errors
         );
         if (isMountedRef.current) {
           setIsStarting(false);
           
+          // Check for flash support
           try {
             const track = (html5QrCode as any).getRunningTrack();
             if (track) {
@@ -144,175 +145,152 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
       isMountedRef.current = false;
       if (scannerRef.current) {
         const currentScanner = scannerRef.current;
+        // Immediate stop attempt
         if (currentScanner.isScanning) {
           currentScanner.stop().then(() => {
             currentScanner.clear();
           }).catch(e => {
-            console.warn("Scanner stop error:", e);
+            console.warn("Scanner stop error (expected if already stopped):", e);
           });
         }
       }
     };
-  }, [playBeep]);
+  }, []); // Empty dependency array means it only runs once on mount
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black flex flex-col overflow-hidden">
-      {/* Camera Viewport */}
-      <div className="relative flex-1 bg-black overflow-hidden">
-        <div id="reader" className="absolute inset-0 w-full h-full"></div>
-        
-        {/* Overlay Masks */}
-        <div className="absolute inset-0 z-10 pointer-events-none">
-          <div className="absolute inset-0 bg-black/60" style={{
-            maskImage: 'radial-gradient(ellipse 80% 40% at 50% 50%, transparent 100%, black 100%)',
-            WebkitMaskImage: 'radial-gradient(ellipse 80% 40% at 50% 50%, transparent 100%, black 100%)',
-          }} />
-          
-          {/* Scanning Frame */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-[80%] aspect-[2/1] relative">
-              {/* Corner Accents */}
-              <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-indigo-500 rounded-tl-xl" />
-              <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-indigo-500 rounded-tr-xl" />
-              <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-indigo-500 rounded-bl-xl" />
-              <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-indigo-500 rounded-br-xl" />
-              
-              {/* Scanning Line */}
-              {!scanResult && !isStarting && (
-                <motion.div 
-                  initial={{ top: '0%' }}
-                  animate={{ top: '100%' }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                  className="absolute left-0 right-0 h-0.5 bg-indigo-400 shadow-[0_0_15px_rgba(99,102,241,1)] z-20"
-                />
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Top Controls */}
-        <div className="absolute top-0 left-0 right-0 p-6 flex items-center justify-between z-30 pt-[env(safe-area-inset-top)]">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20">
-              <Camera className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h3 className="text-white font-bold text-lg leading-tight">Quét mã vạch</h3>
-              <p className="text-white/60 text-xs font-medium">Căn chỉnh mã vào khung hình</p>
-            </div>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 backdrop-blur-md">
+      <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative border border-white/20">
+        <div className="flex items-center justify-between p-5 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse" />
+            <h3 className="text-lg font-bold text-slate-800">Quét mã vạch</h3>
           </div>
           <button
             onClick={onClose}
-            className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 text-white active:scale-90 transition-transform"
+            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all active:scale-95"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
         </div>
-
-        {/* Loading State */}
-        {isStarting && !error && (
-          <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
-            <Loader2 className="w-12 h-12 text-indigo-500 animate-spin mb-4" />
-            <p className="text-white font-medium">Đang khởi động camera...</p>
-          </div>
-        )}
-
-        {/* Error State */}
-        {error && (
-          <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/90 p-8 text-center">
-            <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mb-6">
-              <AlertCircle className="w-10 h-10 text-red-500" />
+        <div className="p-4 relative min-h-[350px] flex flex-col items-center justify-center bg-slate-50">
+          {isStarting && !error && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-10 rounded-b-3xl">
+              <div className="relative">
+                <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-2 h-2 bg-indigo-600 rounded-full" />
+                </div>
+              </div>
+              <p className="text-sm font-medium text-slate-600">Đang tối ưu camera...</p>
+              <p className="text-xs text-slate-400 mt-1">Vui lòng đợi trong giây lát</p>
             </div>
-            <h4 className="text-white text-xl font-bold mb-2">Lỗi Camera</h4>
-            <p className="text-white/60 mb-8">{error}</p>
-            <button 
-              onClick={onClose}
-              className="px-8 py-3 bg-white text-black rounded-full font-bold active:scale-95 transition-transform"
-            >
-              Quay lại
-            </button>
-          </div>
-        )}
-
-        {/* Bottom Controls */}
-        <div className="absolute bottom-12 left-0 right-0 flex flex-col items-center gap-8 z-30 pb-[env(safe-area-inset-bottom)]">
-          {hasFlash && (
-            <button
-              onClick={toggleFlash}
-              className={`w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-xl border transition-all active:scale-90 ${
-                isFlashOn 
-                  ? 'bg-yellow-400 border-yellow-300 text-black shadow-[0_0_30px_rgba(250,204,21,0.4)]' 
-                  : 'bg-white/10 border-white/20 text-white'
-              }`}
-            >
-              {isFlashOn ? <Zap className="w-8 h-8 fill-current" /> : <ZapOff className="w-8 h-8" />}
-            </button>
           )}
           
-          <div className="flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-md rounded-full border border-white/10">
-            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-[10px] font-bold text-white/80 uppercase tracking-widest">Auto-Focus Active</span>
-          </div>
+          {scanResult && (
+            <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-white/95 backdrop-blur-md p-8 text-center rounded-b-3xl animate-in fade-in zoom-in duration-300">
+              <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 ${scanResult.type === 'success' ? 'bg-emerald-100' : 'bg-red-100'}`}>
+                {scanResult.type === 'success' ? (
+                  <CheckCircle2 className="w-12 h-12 text-emerald-500" />
+                ) : (
+                  <AlertCircle className="w-12 h-12 text-red-500" />
+                )}
+              </div>
+              <h4 className={`text-2xl font-bold mb-3 ${scanResult.type === 'success' ? 'text-emerald-600' : 'text-red-600'}`}>
+                {scanResult.type === 'success' ? 'Đã nhận diện!' : 'Không nhận diện được'}
+              </h4>
+              <p className="text-slate-600 mb-10 font-medium text-lg leading-relaxed">{scanResult.message}</p>
+              <div className="flex gap-4 w-full">
+                <button
+                  onClick={onClose}
+                  className="flex-1 py-4 px-6 bg-slate-100 text-slate-700 rounded-2xl font-bold hover:bg-slate-200 transition-all active:scale-95"
+                >
+                  Đóng
+                </button>
+                <button
+                  onClick={onClearResult}
+                  className="flex-1 py-4 px-6 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-95"
+                >
+                  Quét tiếp
+                </button>
+              </div>
+            </div>
+          )}
+
+          {error ? (
+            <div className="text-center p-8">
+              <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertCircle className="w-8 h-8 text-red-500" />
+              </div>
+              <p className="text-slate-800 font-bold mb-2">Lỗi Camera</p>
+              <p className="text-slate-500 text-sm mb-8">{error}</p>
+              <button 
+                onClick={onClose} 
+                className="w-full py-4 bg-slate-100 text-slate-700 rounded-2xl font-bold hover:bg-slate-200 transition-all active:scale-95"
+              >
+                Quay lại
+              </button>
+            </div>
+          ) : (
+            <div className="w-full relative">
+              <div id="reader" className="w-full overflow-hidden rounded-2xl border-2 border-slate-200 bg-black shadow-inner"></div>
+              
+              {/* Custom Scanner Overlay */}
+              {!scanResult && !isStarting && (
+                <>
+                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                    <div className="w-[70%] h-[42%] border-2 border-indigo-500/50 rounded-lg relative overflow-hidden">
+                      {/* Corner accents */}
+                      <div className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-indigo-500 rounded-tl-sm" />
+                      <div className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-indigo-500 rounded-tr-sm" />
+                      <div className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-indigo-500 rounded-bl-sm" />
+                      <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-indigo-500 rounded-br-sm" />
+                      
+                      {/* Scanning line animation */}
+                      <div className="absolute top-0 left-0 w-full h-0.5 bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.8)] animate-scan-line" />
+                    </div>
+                  </div>
+
+                  {/* Flashlight Button */}
+                  {hasFlash && (
+                    <button
+                      onClick={toggleFlash}
+                      className={`absolute bottom-4 right-4 p-3 rounded-full shadow-lg transition-all active:scale-90 ${
+                        isFlashOn ? 'bg-yellow-400 text-white' : 'bg-black/50 text-white/80'
+                      } pointer-events-auto`}
+                    >
+                      {isFlashOn ? <Zap className="w-6 h-6" /> : <ZapOff className="w-6 h-6" />}
+                    </button>
+                  )}
+                </>
+              )}
+
+              <div className="mt-6 flex flex-col items-center gap-2">
+                <p className="text-center text-sm font-medium text-slate-600">
+                  Đưa mã vạch vào khung hình
+                </p>
+                <div className="flex items-center gap-1.5 py-1 px-3 bg-indigo-50 rounded-full">
+                  <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
+                  <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Auto Focus Active</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Result Modal */}
-      <AnimatePresence>
-        {scanResult && (
-          <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="absolute inset-x-0 bottom-0 z-50 bg-white rounded-t-[2.5rem] p-8 shadow-[0_-20px_50px_rgba(0,0,0,0.3)]"
-          >
-            <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-8" />
-            
-            <div className="flex items-center gap-4 mb-6">
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
-                scanResult.type === 'success' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'
-              }`}>
-                {scanResult.type === 'success' ? <CheckCircle2 className="w-8 h-8" /> : <AlertCircle className="w-8 h-8" />}
-              </div>
-              <div>
-                <h4 className="text-xl font-black text-slate-900 leading-tight">
-                  {scanResult.type === 'success' ? 'Đã nhận diện' : 'Lỗi nhận diện'}
-                </h4>
-                <p className="text-slate-500 text-sm font-medium">Kết quả quét mã vạch</p>
-              </div>
-            </div>
-
-            <div className="bg-slate-50 rounded-2xl p-5 mb-8 border border-slate-100">
-              <p className="text-slate-800 font-bold text-lg break-all">{scanResult.message}</p>
-            </div>
-
-            <div className="flex gap-4">
-              <button
-                onClick={onClose}
-                className="flex-1 py-4 px-6 bg-slate-100 text-slate-600 rounded-2xl font-bold active:scale-95 transition-transform"
-              >
-                Đóng
-              </button>
-              <button
-                onClick={onClearResult}
-                className="flex-[2] py-4 px-6 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 active:scale-95 transition-transform flex items-center justify-center gap-2"
-              >
-                <RefreshCw className="w-5 h-5" />
-                Quét tiếp
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <style>{`
+        @keyframes scan-line {
+          0% { top: 0%; }
+          100% { top: 100%; }
+        }
+        .animate-scan-line {
+          animation: scan-line 2s linear infinite;
+        }
         #reader video {
           object-fit: cover !important;
           width: 100% !important;
           height: 100% !important;
-        }
-        #reader {
-          background: black;
+          border-radius: 1rem;
         }
       `}</style>
     </div>
