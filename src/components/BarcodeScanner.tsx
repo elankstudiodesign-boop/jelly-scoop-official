@@ -350,21 +350,6 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
                       <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-lg" />
                       <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-lg" />
                     </div>
-
-                    <div className="mt-16 text-center">
-                      <motion.div 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="px-6 py-2 bg-black/40 backdrop-blur-xl rounded-full border border-white/10 inline-block mb-4"
-                      >
-                        <p className="text-white font-black text-sm tracking-widest uppercase">
-                          Căn chỉnh mã vạch
-                        </p>
-                      </motion.div>
-                      <p className="text-white/30 text-[10px] font-black uppercase tracking-[0.3em]">
-                        Auto-Focus & AI Detection
-                      </p>
-                    </div>
                   </div>
 
                   {/* Controls - Bottom Floating */}
