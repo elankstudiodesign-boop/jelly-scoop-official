@@ -344,11 +344,11 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
                   <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
                     {/* Viewfinder - Optimized for Barcodes */}
                     <div className="w-[85%] aspect-[2.5/1] relative">
-                      {/* Corner brackets */}
-                      <div className="absolute -top-1 -left-1 w-12 h-12 border-t-[5px] border-l-[5px] border-indigo-500 rounded-tl-3xl" />
-                      <div className="absolute -top-1 -right-1 w-12 h-12 border-t-[5px] border-r-[5px] border-indigo-500 rounded-tr-3xl" />
-                      <div className="absolute -bottom-1 -left-1 w-12 h-12 border-b-[5px] border-l-[5px] border-indigo-500 rounded-bl-3xl" />
-                      <div className="absolute -bottom-1 -right-1 w-12 h-12 border-b-[5px] border-r-[5px] border-indigo-500 rounded-br-3xl" />
+                      {/* Corner Brackets */}
+                      <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-lg" />
+                      <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-lg" />
+                      <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-lg" />
+                      <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-lg" />
                       
                       {/* Scanning line animation - Dual line for "high-tech" look */}
                       <motion.div 
@@ -358,11 +358,6 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
                       >
                         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-full bg-white/40 blur-sm" />
                       </motion.div>
-
-                      {/* Viewfinder inner glow & grid */}
-                      <div className="absolute inset-0 bg-indigo-500/[0.03] rounded-2xl border border-white/10 overflow-hidden">
-                        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, #6366f1 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
-                      </div>
                     </div>
 
                     <div className="mt-16 text-center">
