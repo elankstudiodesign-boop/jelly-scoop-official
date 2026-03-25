@@ -69,7 +69,7 @@ export function useSupabaseProducts() {
       )
       .subscribe();
 
-    const stopAutoRefresh = bindAutoRefresh(fetchProducts, 8000);
+    const stopAutoRefresh = bindAutoRefresh(fetchProducts, 60000);
 
     return () => {
       supabase.removeChannel(channel);
@@ -165,7 +165,7 @@ export function useSupabaseSuppliers() {
       )
       .subscribe();
 
-    const stopAutoRefresh = bindAutoRefresh(fetchSuppliers, 15000);
+    const stopAutoRefresh = bindAutoRefresh(fetchSuppliers, 60000);
 
     return () => {
       supabase.removeChannel(channel);
@@ -246,7 +246,7 @@ export function useSupabaseSessions() {
       )
       .subscribe();
 
-    const stopAutoRefresh = bindAutoRefresh(fetchSessions, 15000);
+    const stopAutoRefresh = bindAutoRefresh(fetchSessions, 60000);
 
     return () => {
       supabase.removeChannel(channel);
@@ -343,7 +343,7 @@ export function useSupabaseConfigs(defaultConfigs: ScoopConfig[]) {
       )
       .subscribe();
 
-    const stopAutoRefresh = bindAutoRefresh(fetchConfigs, 15000);
+    const stopAutoRefresh = bindAutoRefresh(fetchConfigs, 60000);
 
     return () => {
       supabase.removeChannel(channel);
@@ -562,7 +562,7 @@ export function useSupabaseTransactions() {
       )
       .subscribe();
 
-    const stopAutoRefresh = bindAutoRefresh(fetchTransactions, 8000);
+    const stopAutoRefresh = bindAutoRefresh(fetchTransactions, 60000);
 
     return () => {
       supabase.removeChannel(channel);
@@ -633,7 +633,7 @@ export function useSupabasePackagingItems() {
       )
       .subscribe();
 
-    const stopAutoRefresh = bindAutoRefresh(fetchPackagingItems, 15000);
+    const stopAutoRefresh = bindAutoRefresh(fetchPackagingItems, 60000);
 
     return () => {
       supabase.removeChannel(channel);

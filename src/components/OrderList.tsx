@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Transaction, Product } from '../types';
 import { formatCurrency } from '../lib/format';
 import { Printer, Trash2, Eye, X, Search } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface OrderListProps {
   transactions: Transaction[];
@@ -31,13 +33,7 @@ export default function OrderList({ transactions, products, deleteTransaction }:
     }
   };
 
-  const handlePrint = (order: Transaction) => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert('Vui lòng cho phép popup để in hoá đơn');
-      return;
-    }
-
+  const handlePrint = async (order: Transaction) => {
     const orderItemsHtml = order.items?.map(item => {
       const product = products.find(p => p.id === item.productId);
       const name = product ? product.name : 'Sản phẩm không xác định';
@@ -52,175 +48,210 @@ export default function OrderList({ transactions, products, deleteTransaction }:
       `;
     }).join('') || '';
 
-    const html = `
-      <!DOCTYPE html>
-      <html lang="vi">
-      <head>
-        <meta charset="UTF-8">
-        <title>Hoá đơn ${order.id.slice(0, 8)}</title>
-        <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Oswald:wght@700&display=swap');
-          
-          @page {
-            size: A4;
-            margin: 0;
-          }
-          body {
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            padding: 60px 80px;
-            color: #000;
-            background: #fff;
-            -webkit-print-color-adjust: exact;
-          }
-          .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 60px;
-          }
-          .brand-name {
-            font-size: 36px;
-            font-weight: 800;
-            line-height: 1.1;
-            text-transform: uppercase;
-            margin-bottom: 20px;
-          }
-          .social-links {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-          }
-          .social-link {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 15px;
-            font-weight: 500;
-          }
-          .social-link svg {
-            width: 20px;
-            height: 20px;
-          }
-          .invoice-title {
-            font-family: 'Oswald', sans-serif;
-            font-size: 80px;
-            font-weight: 700;
-            line-height: 1;
-            text-transform: uppercase;
-            letter-spacing: -1px;
-          }
-          
-          .info-section {
-            display: grid;
-            grid-template-columns: 2fr 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 50px;
-          }
-          .info-block h3 {
-            font-size: 15px;
-            font-weight: 700;
-            text-transform: uppercase;
-            margin: 0 0 12px 0;
-          }
-          .info-block p {
-            margin: 0 0 6px 0;
-            font-size: 15px;
-          }
-          
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 60px;
-          }
-          th {
-            font-size: 15px;
-            font-weight: 700;
-            text-transform: uppercase;
-            padding-bottom: 15px;
-            border-bottom: none;
-          }
-          th.left { text-align: left; }
-          th.center { text-align: center; }
-          th.right { text-align: right; }
-          
-          td {
-            padding: 15px 0;
-            font-size: 15px;
-            border-bottom: 2px dotted #000;
-          }
-          td.left { text-align: left; }
-          td.center { text-align: center; }
-          td.right { text-align: right; }
-          
-          .footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-top: 60px;
-          }
-          .payment-info h3 {
-            font-size: 15px;
-            font-weight: 700;
-            text-transform: uppercase;
-            margin: 0 0 12px 0;
-          }
-          .payment-info p {
-            margin: 0 0 8px 0;
-            font-size: 15px;
-          }
-          .payment-info .bold {
-            font-weight: 700;
-          }
-          
-          .summary {
-            width: 300px;
-          }
-          .summary-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 12px;
-            font-size: 15px;
-          }
-          .summary-row.title {
-            font-weight: 700;
-            text-transform: uppercase;
-            margin-bottom: 20px;
-            font-size: 16px;
-          }
-          .summary-row.total {
-            font-weight: 700;
-            font-size: 18px;
-            margin-top: 20px;
-            padding-top: 20px;
-          }
-        </style>
-      </head>
-      <body>
+    // Create a hidden container for the invoice
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.top = '-9999px';
+    container.style.width = '76mm'; // A7 width
+    container.style.backgroundColor = '#fff';
+    container.style.padding = '5mm';
+    container.style.fontFamily = "'Inter', sans-serif";
+    container.style.color = '#000';
+    
+    container.innerHTML = `
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        .invoice-container {
+          width: 76mm;
+          height: 128mm;
+          background: #fff;
+          padding: 5mm;
+          box-sizing: border-box;
+          font-family: 'Inter', sans-serif;
+          position: relative;
+          overflow: hidden;
+        }
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 15px;
+        }
+        .brand-section {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .brand-name {
+          font-size: 18px;
+          font-weight: 900;
+          line-height: 1.1;
+          letter-spacing: -0.5px;
+          text-transform: uppercase;
+          color: #000;
+        }
+        .social-links {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          font-size: 9px;
+          color: #444;
+        }
+        .social-link {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        .logo-character {
+          width: 50px;
+          height: auto;
+        }
+        .invoice-title {
+          font-size: 20px;
+          font-weight: 900;
+          letter-spacing: -0.5px;
+          text-transform: uppercase;
+          color: #000;
+        }
+        .info-section {
+          display: grid;
+          grid-template-columns: 1.2fr 1fr 1fr;
+          gap: 6px;
+          margin-bottom: 15px;
+          border-top: 1px solid #eee;
+          padding-top: 10px;
+        }
+        .info-block h3 {
+          font-size: 8px;
+          font-weight: 700;
+          text-transform: uppercase;
+          margin: 0 0 2px 0;
+          color: #666;
+        }
+        .info-block p {
+          font-size: 9px;
+          margin: 0;
+          font-weight: 600;
+          color: #000;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 15px;
+        }
+        th {
+          font-size: 8px;
+          font-weight: 700;
+          text-transform: uppercase;
+          padding: 5px 0;
+          border-bottom: 1px solid #000;
+          color: #333;
+        }
+        td {
+          font-size: 9px;
+          padding: 5px 0;
+          color: #000;
+        }
+        .border-dotted {
+          border-bottom: 1px dotted #ccc;
+        }
+        .left { text-align: left; }
+        .center { text-align: center; }
+        .right { text-align: right; }
+        
+        .footer {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+          gap: 10px;
+          position: absolute;
+          bottom: 5mm;
+          left: 5mm;
+          right: 5mm;
+        }
+        .payment-info {
+          flex: 1;
+        }
+        .payment-info h3 {
+          font-size: 8px;
+          font-weight: 700;
+          text-transform: uppercase;
+          margin: 0 0 4px 0;
+          color: #666;
+        }
+        .payment-info p {
+          margin: 0 0 2px 0;
+          font-size: 8px;
+          color: #333;
+        }
+        .payment-info .bold {
+          font-weight: 700;
+          color: #000;
+        }
+        .qr-section {
+          margin-top: 8px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .qr-code {
+          width: 45px;
+          height: 45px;
+          border: 1px solid #eee;
+        }
+        .qr-text {
+          font-size: 7px;
+          line-height: 1.2;
+        }
+        
+        .summary {
+          width: 90px;
+          text-align: right;
+        }
+        .summary-row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 3px;
+          font-size: 8px;
+          color: #444;
+        }
+        .summary-row.title {
+          font-weight: 700;
+          text-transform: uppercase;
+          margin-bottom: 6px;
+          font-size: 9px;
+          color: #000;
+        }
+        .summary-row.total {
+          font-weight: 900;
+          font-size: 10px;
+          margin-top: 8px;
+          padding-top: 5px;
+          border-top: 1px solid #000;
+          color: #000;
+        }
+      </style>
+      <div class="invoice-container">
         <div class="header">
-          <div>
+          <div class="brand-section">
             <div class="brand-name">JELLY<br>SCOOP</div>
             <div class="social-links">
               <div class="social-link">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                  <path d="M9 0h1.98c.144.715.54 1.617 1.235 2.512C12.895 3.389 13.797 4 15 4v2c-1.753 0-3.07-.814-4-1.829V11a5 5 0 1 1-5-5v2a3 3 0 1 0 3 3V0Z"/>
-                </svg>
+                <svg width="7" height="7" viewBox="0 0 16 16" fill="currentColor"><path d="M9 0h1.98c.144.715.54 1.617 1.235 2.512C12.895 3.389 13.797 4 15 4v2c-1.753 0-3.07-.814-4-1.829V11a5 5 0 1 1-5-5v2a3 3 0 1 0 3 3V0Z"/></svg>
                 @jellyscoop
               </div>
               <div class="social-link">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                  <path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0h.003zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.036 1.204.166 1.486.275.373.145.64.319.92.599.28.28.453.546.598.92.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.47 2.47 0 0 1-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.478 2.478 0 0 1-.92-.598 2.48 2.48 0 0 1-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233 0-2.136.008-2.388.046-3.231.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92.28-.28.546-.453.92-.598.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045v.002zm4.988 1.328a.96.96 0 1 0 0 1.92.96.96 0 0 0 0-1.92zm-4.27 1.122a4.109 4.109 0 1 0 0 8.217 4.109 4.109 0 0 0 0-8.217zm0 1.441a2.667 2.667 0 1 1 0 5.334 2.667 2.667 0 0 1 0-5.334z"/>
-                </svg>
-                @jellyscoop
+                <svg width="7" height="7" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0h.003zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.036 1.204.166 1.486.275.373.145.64.319.92.599.28.28.453.546.598.92.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.47 2.47 0 0 1-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.478 2.478 0 0 1-.92-.598 2.48 2.48 0 0 1-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233 0-2.136.008-2.388.046-3.231.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92.28-.28.546-.453.92-.598.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045v.002zm4.988 1.328a.96.96 0 1 0 0 1.92.96.96 0 0 0 0-1.92zm-4.27 1.122a4.109 4.109 0 1 0 0 8.217 4.109 4.109 0 0 0 0-8.217zm0 1.441a2.667 2.667 0 1 1 0 5.334 2.667 2.667 0 0 1 0-5.334z"/></svg>
+              @jellyscoop
               </div>
               <div class="social-link">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                  <path fill-rule="evenodd" d="M1.885.511a1.745 1.745 0 0 1 2.61.163L6.29 2.98c.329.423.445.974.315 1.494l-.547 2.19a.678.678 0 0 0 .178.643l2.457 2.457a.678.678 0 0 0 .644.178l2.189-.547a1.745 1.745 0 0 1 1.494.315l2.306 1.794c.829.645.905 1.87.163 2.611l-1.034 1.034c-.74.74-1.846 1.065-2.877.702a18.634 18.634 0 0 1-7.01-4.42 18.634 18.634 0 0 1-4.42-7.009c-.362-1.03-.037-2.137.703-2.877L1.885.511z"/>
-                </svg>
+                <svg width="7" height="7" viewBox="0 0 16 16" fill="currentColor"><path d="M1.885.511a1.745 1.745 0 0 1 2.61.163L6.29 2.98c.329.423.445.974.315 1.494l-.547 2.19a.678.678 0 0 0 .178.643l2.457 2.457a.678.678 0 0 0 .644.178l2.189-.547a1.745 1.745 0 0 1 1.494.315l2.306 1.794c.829.645.905 1.87.163 2.611l-1.034 1.034c-.74.74-1.846 1.065-2.877.702a18.634 18.634 0 0 1-7.01-4.42 18.634 18.634 0 0 1-4.42-7.009c-.362-1.03-.037-2.137.703-2.877L1.885.511z"/></svg>
                 0886 849 783
               </div>
             </div>
           </div>
+          <img src="https://i.ibb.co/Lz0T1qZ/jelly-scoop-logo.png" class="logo-character" alt="Logo" crossorigin="anonymous" />
           <div class="invoice-title">INVOICE</div>
         </div>
       
@@ -228,8 +259,6 @@ export default function OrderList({ transactions, products, deleteTransaction }:
           <div class="info-block">
             <h3>KHÁCH HÀNG</h3>
             <p>${order.customerName || 'Khách lẻ'}</p>
-            ${order.customerPhone ? `<p>${order.customerPhone}</p>` : ''}
-            ${order.customerAddress ? `<p>${order.customerAddress}</p>` : ''}
           </div>
           <div class="info-block">
             <h3>NGÀY</h3>
@@ -245,29 +274,31 @@ export default function OrderList({ transactions, products, deleteTransaction }:
           <thead>
             <tr>
               <th class="left">SẢN PHẨM</th>
-              <th class="center">SỐ LƯỢNG</th>
+              <th class="center">SL</th>
               <th class="right">ĐƠN GIÁ</th>
               <th class="right">THÀNH TIỀN</th>
             </tr>
           </thead>
           <tbody>
             ${orderItemsHtml}
+            <tr>
+              <td colspan="4" class="border-dotted"></td>
+            </tr>
           </tbody>
         </table>
       
         <div class="footer">
           <div class="payment-info">
-            <h3>THÔNG TIN THANH TOÁN</h3>
-            <p>Chuyển khoản ngân hàng</p>
+            <h3>THANH TOÁN</h3>
             <p>MB bank</p>
             <p class="bold">LY THI KIM NHAN</p>
             <p>11391679168</p>
             
-            <div style="margin-top: 25px; display: flex; align-items: center; gap: 15px;">
-              <img src="https://img.vietqr.io/image/MB-11391679168-compact.png?amount=${order.amount}&addInfo=Thanh%20toan%20don%20hang%20${order.id.slice(0,8)}&accountName=LY%20THI%20KIM%20NHAN" alt="Bank QR" style="width: 100px; height: 100px;" />
-              <div>
-                <p style="font-weight: 700; margin-bottom: 4px; font-size: 14px;">Quét mã thanh toán</p>
-                <p style="font-size: 14px; margin: 0;">MB Bank - 11391679168</p>
+            <div class="qr-section">
+              <img src="https://img.vietqr.io/image/MB-11391679168-compact.png?amount=${order.amount}&addInfo=Thanh%20toan%20don%20hang%20${order.id.slice(0,8)}&accountName=LY%20THI%20KIM%20NHAN" class="qr-code" alt="Bank QR" crossorigin="anonymous" />
+              <div class="qr-text">
+                <p class="bold">Quét mã thanh toán</p>
+                <p>MB Bank - 11391679168</p>
               </div>
             </div>
           </div>
@@ -283,29 +314,48 @@ export default function OrderList({ transactions, products, deleteTransaction }:
               <span>Thuế</span>
               <span>0</span>
             </div>
-            <div class="summary-row">
-              <span>Vận chuyển</span>
-              <span>0</span>
-            </div>
             <div class="summary-row total">
               <span>TỔNG CỘNG</span>
               <span>${formatCurrency(order.amount)} VNĐ</span>
             </div>
           </div>
         </div>
-        <script>
-          window.onload = function() {
-            window.print();
-            setTimeout(function() { window.close(); }, 500);
-          };
-        </script>
-      </body>
-      </html>
+      </div>
     `;
 
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
+    document.body.appendChild(container);
+
+    try {
+      // Wait for images to load
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const canvas = await html2canvas(container, {
+        scale: 4,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: 76 * 3.7795275591,
+        height: 128 * 3.7795275591,
+        windowWidth: 76 * 3.7795275591,
+        windowHeight: 128 * 3.7795275591
+      });
+
+      const imgData = canvas.toDataURL('image/png', 1.0);
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [76, 128]
+      });
+
+      pdf.addImage(imgData, 'PNG', 0, 0, 76, 128, undefined, 'FAST');
+      pdf.save(`invoice-${order.id.slice(0, 8)}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Có lỗi xảy ra khi tạo PDF. Vui lòng thử lại.');
+    } finally {
+      document.body.removeChild(container);
+    }
   };
 
   return (
