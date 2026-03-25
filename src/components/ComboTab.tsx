@@ -7,13 +7,14 @@ import { v4 as uuidv4 } from 'uuid';
 import { hasSupabaseConfig } from '../lib/supabase';
 import BarcodePrintModal, { PrintItem } from './BarcodePrintModal';
 import JsBarcode from 'jsbarcode';
+import { jsPDF } from 'jspdf';
 
 const downloadBarcode = (product: Product) => {
   const barcodeValue = product.barcode ? product.barcode : generateBarcodeNumber(product.id);
   const canvas = document.createElement('canvas');
   
-  // Standard label size: 50x30mm at 300 DPI (590x354)
-  canvas.width = 590;
+  // Standard label size: 40x30mm at 300 DPI (472x354)
+  canvas.width = 472;
   canvas.height = 354;
   
   const ctx = canvas.getContext('2d');
@@ -43,7 +44,7 @@ const downloadBarcode = (product: Product) => {
   ctx.font = `bold ${fontSize}px "Inter", Arial, sans-serif`;
   let name = product.name;
   
-  while (ctx.measureText(name + '...').width > 530 && name.length > 0) {
+  while (ctx.measureText(name + '...').width > 412 && name.length > 0) {
     name = name.slice(0, -1);
   }
   if (name !== product.name) name += '...';
@@ -58,12 +59,12 @@ const downloadBarcode = (product: Product) => {
   ctx.lineWidth = 4;
   if (ctx.roundRect) {
     ctx.beginPath();
-    ctx.roundRect(20, yellowY, 550, yellowHeight, 16);
+    ctx.roundRect(20, yellowY, 432, yellowHeight, 16);
     ctx.fill();
     ctx.stroke();
   } else {
-    ctx.fillRect(20, yellowY, 550, yellowHeight);
-    ctx.strokeRect(20, yellowY, 550, yellowHeight);
+    ctx.fillRect(20, yellowY, 432, yellowHeight);
+    ctx.strokeRect(20, yellowY, 432, yellowHeight);
   }
 
   // Price
@@ -74,7 +75,7 @@ const downloadBarcode = (product: Product) => {
   
   let priceFontSize = 80;
   ctx.font = `bold ${priceFontSize}px "Inter", Arial, sans-serif`;
-  while (ctx.measureText(priceText).width > 500 && priceFontSize > 20) {
+  while (ctx.measureText(priceText).width > 382 && priceFontSize > 20) {
     priceFontSize -= 2;
     ctx.font = `bold ${priceFontSize}px "Inter", Arial, sans-serif`;
   }
@@ -96,19 +97,22 @@ const downloadBarcode = (product: Product) => {
   const bcWidth = barcodeCanvas.width;
   const bcHeight = barcodeCanvas.height;
   let scale = 1;
-  if (bcWidth > 530) scale = 530 / bcWidth;
+  if (bcWidth > 412) scale = 412 / bcWidth;
   const drawWidth = bcWidth * scale;
   const drawHeight = bcHeight * scale;
   const x = (canvas.width - drawWidth) / 2;
   const y = 220;
   ctx.drawImage(barcodeCanvas, x, y, drawWidth, drawHeight);
 
-  // Download
-  const url = canvas.toDataURL('image/png');
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `barcode-combo-${product.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.png`;
-  a.click();
+  // Download as PDF
+  const imgData = canvas.toDataURL('image/png');
+  const pdf = new jsPDF({
+    orientation: 'landscape',
+    unit: 'px',
+    format: [canvas.width, canvas.height]
+  });
+  pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+  pdf.save(`barcode-combo-${product.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`);
 };
 
 interface ComboTabProps {

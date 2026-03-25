@@ -17,6 +17,110 @@ interface BarcodePrintModalProps {
   onClose: () => void;
 }
 
+const generateLabelCanvas = (item: PrintItem): HTMLCanvasElement => {
+  const canvas = document.createElement('canvas');
+  // Standard label size: 40x30mm at 300 DPI (472x354)
+  canvas.width = 472;
+  canvas.height = 354;
+  
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+
+  // Background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Optional: Draw rounded border for the whole label
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 2;
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(2, 2, canvas.width - 4, canvas.height - 4, 20);
+    ctx.stroke();
+  } else {
+    ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+  }
+
+  // Top Left: Product Name
+  ctx.fillStyle = '#1e293b'; // slate-800
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  
+  let fontSize = 28;
+  ctx.font = `bold ${fontSize}px "Inter", Arial, sans-serif`;
+  let name = item.name;
+  
+  // Truncate product name if too long
+  while (ctx.measureText(name + '...').width > 412 && name.length > 0) {
+    name = name.slice(0, -1);
+  }
+  if (name !== item.name) name += '...';
+  
+  ctx.fillText(name, 30, 25);
+
+  // Middle: White Block with Black Border
+  const boxY = 70;
+  const boxHeight = 130;
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 4;
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(20, boxY, 432, boxHeight, 16);
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    ctx.fillRect(20, boxY, 432, boxHeight);
+    ctx.strokeRect(20, boxY, 432, boxHeight);
+  }
+
+  // Price
+  ctx.fillStyle = '#000000';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const priceText = item.price > 0 ? `${formatCurrency(item.price)} VNĐ` : 'Liên hệ';
+  
+  let priceFontSize = 80;
+  ctx.font = `bold ${priceFontSize}px "Inter", Arial, sans-serif`;
+  while (ctx.measureText(priceText).width > 382 && priceFontSize > 20) {
+    priceFontSize -= 2;
+    ctx.font = `bold ${priceFontSize}px "Inter", Arial, sans-serif`;
+  }
+  ctx.fillText(priceText, canvas.width / 2, boxY + boxHeight / 2);
+
+  // Bottom: Barcode
+  const barcodeCanvas = document.createElement('canvas');
+  const barcodeValue = item.barcode || generateBarcodeNumber(item.id);
+  JsBarcode(barcodeCanvas, barcodeValue, {
+    format: "CODE128",
+    width: 3,
+    height: 80,
+    displayValue: true,
+    fontSize: 24,
+    textMargin: 6,
+    margin: 0,
+    font: '"Inter", Arial, sans-serif'
+  });
+
+  const bcWidth = barcodeCanvas.width;
+  const bcHeight = barcodeCanvas.height;
+  
+  let scale = 1;
+  if (bcWidth > 412) {
+    scale = 412 / bcWidth;
+  }
+  
+  const drawWidth = bcWidth * scale;
+  const drawHeight = bcHeight * scale;
+  
+  const x = (canvas.width - drawWidth) / 2;
+  const y = 220;
+  
+  ctx.drawImage(barcodeCanvas, x, y, drawWidth, drawHeight);
+
+  return canvas;
+};
+
 export default function BarcodePrintModal({ initialItems, onClose }: BarcodePrintModalProps) {
   const [items, setItems] = useState<PrintItem[]>(initialItems);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -24,7 +128,6 @@ export default function BarcodePrintModal({ initialItems, onClose }: BarcodePrin
   const handleGeneratePDF = async () => {
     setIsGenerating(true);
     try {
-      // Fixed layout: 40x30 mm
       const width = 40;
       const height = 30;
       
@@ -37,84 +140,17 @@ export default function BarcodePrintModal({ initialItems, onClose }: BarcodePrin
       let isFirstPage = true;
 
       for (const item of items) {
+        if (item.quantity <= 0) continue;
+        
         for (let i = 0; i < item.quantity; i++) {
           if (!isFirstPage) {
             doc.addPage([width, height], 'l');
           }
           isFirstPage = false;
 
-          // Draw rounded border
-          doc.setDrawColor(220, 220, 220); // Light gray border like the image
-          doc.setLineWidth(0.3);
-          doc.roundedRect(1, 1, 38, 28, 2, 2);
-
-          // Draw Product Name
-          doc.setFontSize(9);
-          doc.setFont("helvetica", "bold");
-          doc.setTextColor(30, 41, 59); // slate-800
-          
-          // Truncate name if too long
-          const maxWidth = 36;
-          let nameText = item.name;
-          if (doc.getTextWidth(nameText) > maxWidth) {
-            while (nameText.length > 0 && doc.getTextWidth(nameText + '...') > maxWidth) {
-              nameText = nameText.slice(0, -1);
-            }
-            nameText += '...';
-          }
-          doc.text(nameText, 2.5, 4, { baseline: 'top' });
-
-          // Draw Price Box
-          const boxY = 8;
-          const boxHeight = 11;
-          doc.setDrawColor(0, 0, 0);
-          doc.setLineWidth(0.6);
-          doc.setFillColor(255, 255, 255);
-          doc.roundedRect(2.5, boxY, 35, boxHeight, 2, 2, 'FD');
-
-          // Draw Price Text
-          const priceText = item.price > 0 ? `${formatCurrency(item.price)} VNĐ` : "Liên hệ";
-          let fontSize = 20;
-          doc.setFontSize(fontSize);
-          doc.setFont("helvetica", "bold");
-          doc.setTextColor(0, 0, 0);
-          
-          // Scale down font size if text is too wide
-          while (doc.getTextWidth(priceText) > 33 && fontSize > 8) {
-            fontSize -= 1;
-            doc.setFontSize(fontSize);
-          }
-          
-          doc.text(priceText, 20, boxY + 5.5, { align: 'center', baseline: 'middle' });
-
-          // Draw Barcode
-          const barcodeValue = item.barcode || generateBarcodeNumber(item.id);
-          const bcCanvas = document.createElement('canvas');
-          try {
-            JsBarcode(bcCanvas, barcodeValue, {
-              format: "CODE128",
-              width: 2, // scale up
-              height: 35,
-              displayValue: true,
-              fontSize: 18,
-              textMargin: 2,
-              margin: 0,
-              fontOptions: "bold"
-            });
-            
-            const imgData = bcCanvas.toDataURL('image/png');
-            
-            const imgProps = doc.getImageProperties(imgData);
-            const pdfHeight = 9.5; // height in mm
-            const pdfWidth = (imgProps.width * pdfHeight) / imgProps.height;
-            
-            const x = 20 - (pdfWidth / 2);
-            const y = 20;
-            
-            doc.addImage(imgData, 'PNG', x, y, pdfWidth, pdfHeight);
-          } catch (e) {
-            console.error("Barcode generation error", e);
-          }
+          const canvas = generateLabelCanvas(item);
+          const imgData = canvas.toDataURL('image/png');
+          doc.addImage(imgData, 'PNG', 0, 0, width, height);
         }
       }
 
