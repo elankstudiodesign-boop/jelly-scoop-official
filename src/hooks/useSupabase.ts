@@ -403,7 +403,7 @@ function mapProductToDB(p: Partial<Product>, existing?: Product) {
   if (p.imageUrl !== undefined) { res.image_url = p.imageUrl; delete res.imageUrl; }
   if (p.priceGroup !== undefined) { res.price_group = p.priceGroup; delete res.priceGroup; }
   if (p.warehouseQuantity !== undefined) { res.warehouse_quantity = p.warehouseQuantity; delete res.warehouseQuantity; }
-  if (p.barcode !== undefined) { res.barcode = p.barcode; delete res.barcode; }
+  if (p.barcode !== undefined) { res.barcode = p.barcode; }
   
   const isCombo = p.isCombo !== undefined ? p.isCombo : existing?.isCombo;
   const comboItems = p.comboItems !== undefined ? p.comboItems : existing?.comboItems;

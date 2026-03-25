@@ -240,7 +240,7 @@ export default function EditProductModal({ product, onClose, onSave }: EditProdu
                   type="file"
                   ref={fileInputRef}
                   className="hidden"
-                  accept="image/*"
+                  accept="image/*, .heic, .heif"
                   onChange={handleImageChange}
                 />
                 

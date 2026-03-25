@@ -1,10 +1,115 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Product, PackagingItem, ComboItem, Transaction } from '../types';
-import { PackagePlus, Search, Plus, Trash2, X, Upload, Image as ImageIcon, CheckCircle2, AlertCircle, Edit2 } from 'lucide-react';
-import { formatCurrency, parseCurrency } from '../lib/format';
+import { PackagePlus, Search, Plus, Trash2, X, Upload, Image as ImageIcon, CheckCircle2, AlertCircle, Edit2, RefreshCw, Printer, Download } from 'lucide-react';
+import { formatCurrency, parseCurrency, generateBarcodeNumber } from '../lib/format';
 import { uploadProductImage, dataUrlToBlob, processImage } from '../lib/imageUpload';
 import { v4 as uuidv4 } from 'uuid';
 import { hasSupabaseConfig } from '../lib/supabase';
+import BarcodePrintModal, { PrintItem } from './BarcodePrintModal';
+import JsBarcode from 'jsbarcode';
+
+const downloadBarcode = (product: Product) => {
+  const barcodeValue = product.barcode ? product.barcode : generateBarcodeNumber(product.id);
+  const canvas = document.createElement('canvas');
+  
+  // Standard label size: 50x30mm at 300 DPI (590x354)
+  canvas.width = 590;
+  canvas.height = 354;
+  
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  // Background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Optional: Draw rounded border
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 2;
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(2, 2, canvas.width - 4, canvas.height - 4, 20);
+    ctx.stroke();
+  } else {
+    ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+  }
+
+  // Top Left: Product Name
+  ctx.fillStyle = '#1e293b';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  
+  let fontSize = 28;
+  ctx.font = `bold ${fontSize}px "Inter", Arial, sans-serif`;
+  let name = product.name;
+  
+  while (ctx.measureText(name + '...').width > 530 && name.length > 0) {
+    name = name.slice(0, -1);
+  }
+  if (name !== product.name) name += '...';
+  
+  ctx.fillText(name, 30, 25);
+
+  // Middle: Price Block
+  const yellowY = 70;
+  const yellowHeight = 130;
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 4;
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(20, yellowY, 550, yellowHeight, 16);
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    ctx.fillRect(20, yellowY, 550, yellowHeight);
+    ctx.strokeRect(20, yellowY, 550, yellowHeight);
+  }
+
+  // Price
+  ctx.fillStyle = '#000000';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const priceText = product.retailPrice ? `${formatCurrency(product.retailPrice)} VNĐ` : 'Liên hệ';
+  
+  let priceFontSize = 80;
+  ctx.font = `bold ${priceFontSize}px "Inter", Arial, sans-serif`;
+  while (ctx.measureText(priceText).width > 500 && priceFontSize > 20) {
+    priceFontSize -= 2;
+    ctx.font = `bold ${priceFontSize}px "Inter", Arial, sans-serif`;
+  }
+  ctx.fillText(priceText, canvas.width / 2, yellowY + yellowHeight / 2);
+
+  // Bottom: Barcode
+  const barcodeCanvas = document.createElement('canvas');
+  JsBarcode(barcodeCanvas, barcodeValue, {
+    format: "CODE128",
+    width: 3,
+    height: 80,
+    displayValue: true,
+    fontSize: 24,
+    textMargin: 6,
+    margin: 0,
+    font: '"Inter", Arial, sans-serif'
+  });
+
+  const bcWidth = barcodeCanvas.width;
+  const bcHeight = barcodeCanvas.height;
+  let scale = 1;
+  if (bcWidth > 530) scale = 530 / bcWidth;
+  const drawWidth = bcWidth * scale;
+  const drawHeight = bcHeight * scale;
+  const x = (canvas.width - drawWidth) / 2;
+  const y = 220;
+  ctx.drawImage(barcodeCanvas, x, y, drawWidth, drawHeight);
+
+  // Download
+  const url = canvas.toDataURL('image/png');
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `barcode-combo-${product.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.png`;
+  a.click();
+};
 
 interface ComboTabProps {
   products: Product[];
@@ -30,12 +135,18 @@ export default function ComboTab({
   const [comboItems, setComboItems] = useState<ComboItem[]>([]);
   const [comboMargin, setComboMargin] = useState('');
   const [comboPrice, setComboPrice] = useState('');
+  const [comboBarcode, setComboBarcode] = useState('');
   const [comboImageUrl, setComboImageUrl] = useState('');
   const [comboImageFile, setComboImageFile] = useState<File | null>(null);
   const [comboImageProcessing, setComboImageProcessing] = useState(false);
   
   const [showItemDropdown, setShowItemDropdown] = useState(false);
   const [itemSearchTerm, setItemSearchTerm] = useState('');
+
+  const [selectedCombos, setSelectedCombos] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [showBarcodeModal, setShowBarcodeModal] = useState(false);
+  const [printItems, setPrintItems] = useState<PrintItem[]>([]);
 
   const comboImageObjectUrlRef = useRef<string | null>(null);
   const comboFileInputRef = useRef<HTMLInputElement>(null);
@@ -94,6 +205,44 @@ export default function ComboTab({
 
   const filteredProducts = products.filter(p => !p.isCombo && p.name.toLowerCase().includes(itemSearchTerm.toLowerCase()));
   const filteredPackaging = packagingItems.filter(p => p.name.toLowerCase().includes(itemSearchTerm.toLowerCase()));
+  const comboProducts = products.filter(p => p.isCombo);
+
+  const toggleSelected = (id: string) => {
+    const newSelected = new Set(selectedCombos);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedCombos(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedCombos.size === comboProducts.length) {
+      setSelectedCombos(new Set());
+    } else {
+      setSelectedCombos(new Set(comboProducts.map(p => p.id)));
+    }
+  };
+
+  const handlePrintBarcodes = () => {
+    const itemsToPrint: PrintItem[] = Array.from(selectedCombos).map(id => {
+      const item = products.find(i => i.id === id);
+      if (!item) return null;
+      return {
+        id: item.id,
+        name: item.name,
+        price: item.retailPrice || item.cost || 0,
+        barcode: item.barcode || '',
+        quantity: item.warehouseQuantity && item.warehouseQuantity > 0 ? item.warehouseQuantity : 1
+      };
+    }).filter(Boolean) as PrintItem[];
+    
+    if (itemsToPrint.length > 0) {
+      setPrintItems(itemsToPrint);
+      setShowBarcodeModal(true);
+    }
+  };
 
   const addItem = (type: 'product' | 'packaging', id: string) => {
     setComboItems(prev => {
@@ -223,7 +372,8 @@ export default function ComboTab({
     }
 
     const marginNum = Number(comboMargin) || 0;
-    const barcode = generateComboBarcode(marginNum);
+    // Ưu tiên lấy barcode từ ô nhập liệu (comboBarcode), nếu trống mới tự tạo
+    const finalBarcode = comboBarcode.trim() || generateComboBarcode(marginNum);
 
     const newCombo: Product = {
       id: comboId,
@@ -236,7 +386,7 @@ export default function ComboTab({
       warehouseQuantity: numQuantity,
       isCombo: true,
       comboItems: comboItems,
-      barcode: barcode
+      barcode: finalBarcode
     };
 
     // Deduct inventory
@@ -276,6 +426,7 @@ export default function ComboTab({
     setComboItems([]);
     setComboMargin('');
     setComboPrice('');
+    setComboBarcode('');
     setComboImageUrl('');
     setComboImageFile(null);
     if (comboFileInputRef.current) comboFileInputRef.current.value = '';
@@ -437,7 +588,7 @@ export default function ComboTab({
                       type="file"
                       ref={comboFileInputRef}
                       onChange={handleImageUpload}
-                      accept="image/*"
+                      accept="image/*, .heic, .heif"
                       className="hidden"
                     />
                     <button
@@ -449,7 +600,7 @@ export default function ComboTab({
                       Chọn file ảnh
                     </button>
                     <p className="text-xs text-slate-500">
-                      Hỗ trợ JPG, PNG, WEBP. Kích thước tối đa 5MB.
+                      Hỗ trợ JPG, PNG, WEBP, HEIC. Kích thước tối đa 5MB.
                     </p>
                   </div>
                 </div>
@@ -480,6 +631,27 @@ export default function ComboTab({
                   />
                 </div>
               </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-700">Mã Barcode</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={comboBarcode}
+                    onChange={(e) => setComboBarcode(e.target.value)}
+                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Nhập hoặc tạo ngẫu nhiên..."
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setComboBarcode(generateComboBarcode(Number(comboMargin) || 0))}
+                    className="px-3 py-2 bg-slate-100 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-200 transition-colors"
+                    title="Tạo mã ngẫu nhiên"
+                  >
+                    <RefreshCw className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -497,16 +669,71 @@ export default function ComboTab({
       </div>
 
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mt-6">
-        <h2 className="text-lg font-semibold text-slate-800 mb-4">Danh sách Combo đã tạo</h2>
-        {products.filter(p => p.isCombo).length === 0 ? (
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+          <h2 className="text-lg font-semibold text-slate-800">Danh sách Combo đã tạo</h2>
+          <div className="flex items-center gap-3">
+            {isSelectionMode && selectedCombos.size > 0 && (
+              <button
+                type="button"
+                onClick={handlePrintBarcodes}
+                className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-indigo-200 text-indigo-700 hover:bg-indigo-50 flex items-center gap-2"
+              >
+                <Printer className="w-4 h-4" />
+                In mã vạch ({selectedCombos.size})
+              </button>
+            )}
+            {isSelectionMode ? (
+              <>
+                <label className="flex items-center gap-2 text-sm text-slate-600 select-none">
+                  <input
+                    type="checkbox"
+                    checked={selectedCombos.size === comboProducts.length && comboProducts.length > 0}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  Chọn tất cả
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSelectionMode(false);
+                    setSelectedCombos(new Set());
+                  }}
+                  className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-slate-200 text-slate-700 hover:bg-slate-50"
+                >
+                  Hủy chọn
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsSelectionMode(true)}
+                className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-slate-200 text-slate-700 hover:bg-slate-50"
+              >
+                Chọn
+              </button>
+            )}
+          </div>
+        </div>
+        {comboProducts.length === 0 ? (
           <div className="text-center py-8 text-slate-500">
             <PackagePlus className="w-12 h-12 mx-auto text-slate-300 mb-3" />
             <p>Chưa có Combo nào được tạo.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {products.filter(p => p.isCombo).map(combo => (
-              <div key={combo.id} className="border border-slate-200 rounded-xl p-4 flex gap-4 bg-slate-50">
+            {comboProducts.map(combo => (
+              <div key={combo.id} className="border border-slate-200 rounded-xl p-4 flex gap-4 bg-slate-50 relative">
+                {isSelectionMode && (
+                  <div className="absolute top-2 right-2 z-10">
+                    <input
+                      type="checkbox"
+                      checked={selectedCombos.has(combo.id)}
+                      onChange={() => toggleSelected(combo.id)}
+                      className="h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                  </div>
+                )}
                 <div className="w-20 h-20 rounded-lg overflow-hidden bg-white border border-slate-200 flex-shrink-0">
                   {combo.imageUrl ? (
                     <img src={combo.imageUrl} alt={combo.name} className="w-full h-full object-cover" />
@@ -527,12 +754,29 @@ export default function ComboTab({
                   <div className="text-xs text-slate-400 mt-1">
                     Mã: {combo.barcode || 'N/A'}
                   </div>
+                  <div className="mt-2">
+                    <button
+                      onClick={() => downloadBarcode(combo)}
+                      className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded transition-colors"
+                      title="Tải mã vạch về máy"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Tải mã vạch
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {showBarcodeModal && (
+        <BarcodePrintModal
+          initialItems={printItems}
+          onClose={() => setShowBarcodeModal(false)}
+        />
+      )}
     </div>
   );
 }

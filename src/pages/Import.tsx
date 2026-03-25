@@ -6,18 +6,17 @@ import { supabase, hasSupabaseConfig } from '../lib/supabase';
 import { uploadProductImage, dataUrlToBlob, processImage } from '../lib/imageUpload';
 import EditProductModal from '../components/EditProductModal';
 import ComboTab from '../components/ComboTab';
+import BarcodePrintModal, { PrintItem } from '../components/BarcodePrintModal';
 import { v4 as uuidv4 } from 'uuid';
 import JsBarcode from 'jsbarcode';
 
 const downloadBarcode = (product: Product) => {
-  const isCombo = product.isCombo;
-  const barcodeValue = isCombo && product.barcode ? product.barcode : generateBarcodeNumber(product.id);
+  const barcodeValue = product.barcode ? product.barcode : generateBarcodeNumber(product.id);
   const canvas = document.createElement('canvas');
   
-  // Combo: 40x30mm at 300 DPI (472x354)
-  // Normal: 35x22mm at 300 DPI (414x260)
-  canvas.width = isCombo ? 472 : 414;
-  canvas.height = isCombo ? 354 : 260;
+  // Standard label size: 50x30mm at 300 DPI (590x354)
+  canvas.width = 590;
+  canvas.height = 354;
   
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -26,56 +25,92 @@ const downloadBarcode = (product: Product) => {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Product Name
-  ctx.fillStyle = '#000000';
-  ctx.textAlign = 'center';
+  // Optional: Draw rounded border for the whole label
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 2;
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(2, 2, canvas.width - 4, canvas.height - 4, 20);
+    ctx.stroke();
+  } else {
+    ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+  }
+
+  // Top Left: Product Name
+  ctx.fillStyle = '#1e293b'; // slate-800
+  ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   
-  let fontSize = isCombo ? 40 : 36;
+  let fontSize = 28;
   ctx.font = `bold ${fontSize}px "Inter", Arial, sans-serif`;
-  let textWidth = ctx.measureText(product.name).width;
-  while (textWidth > canvas.width - 40 && fontSize > 16) {
-    fontSize -= 2;
-    ctx.font = `bold ${fontSize}px "Inter", Arial, sans-serif`;
-    textWidth = ctx.measureText(product.name).width;
-  }
+  let name = product.name;
   
-  ctx.fillText(product.name, canvas.width / 2, 20);
+  // Truncate product name if too long
+  while (ctx.measureText(name + '...').width > 530 && name.length > 0) {
+    name = name.slice(0, -1);
+  }
+  if (name !== product.name) name += '...';
+  
+  ctx.fillText(name, 30, 25);
 
-  // Generate Barcode
+  // Middle: White Block with Black Border
+  const yellowY = 70;
+  const yellowHeight = 130;
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 4;
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(20, yellowY, 550, yellowHeight, 16);
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    ctx.fillRect(20, yellowY, 550, yellowHeight);
+    ctx.strokeRect(20, yellowY, 550, yellowHeight);
+  }
+
+  // Price
+  ctx.fillStyle = '#000000';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const priceText = product.retailPrice ? `${formatCurrency(product.retailPrice)} VNĐ` : 'Liên hệ';
+  
+  let priceFontSize = 80;
+  ctx.font = `bold ${priceFontSize}px "Inter", Arial, sans-serif`;
+  while (ctx.measureText(priceText).width > 500 && priceFontSize > 20) {
+    priceFontSize -= 2;
+    ctx.font = `bold ${priceFontSize}px "Inter", Arial, sans-serif`;
+  }
+  ctx.fillText(priceText, canvas.width / 2, yellowY + yellowHeight / 2);
+
+  // Bottom: Barcode
   const barcodeCanvas = document.createElement('canvas');
   JsBarcode(barcodeCanvas, barcodeValue, {
     format: "CODE128",
-    width: isCombo ? 4 : 3,
-    height: isCombo ? 140 : 110,
+    width: 3,
+    height: 80,
     displayValue: true,
-    fontSize: isCombo ? 40 : 36,
-    textMargin: 8,
-    margin: 0
+    fontSize: 24,
+    textMargin: 6,
+    margin: 0,
+    font: '"Inter", Arial, sans-serif'
   });
 
-  // Draw Barcode
   const bcWidth = barcodeCanvas.width;
   const bcHeight = barcodeCanvas.height;
   
   let scale = 1;
-  if (bcWidth > canvas.width - 40) {
-    scale = (canvas.width - 40) / bcWidth;
+  if (bcWidth > 530) {
+    scale = 530 / bcWidth;
   }
   
   const drawWidth = bcWidth * scale;
   const drawHeight = bcHeight * scale;
   
   const x = (canvas.width - drawWidth) / 2;
-  const y = 20 + fontSize + 20;
+  const y = 220;
   
   ctx.drawImage(barcodeCanvas, x, y, drawWidth, drawHeight);
-
-  // For combos, we might want to display the price too
-  if (isCombo && product.retailPrice) {
-    ctx.font = `bold 32px "Inter", Arial, sans-serif`;
-    ctx.fillText(formatCurrency(product.retailPrice) + 'đ', canvas.width / 2, y + drawHeight + 15);
-  }
 
   // Download
   const url = canvas.toDataURL('image/png');
@@ -87,9 +122,10 @@ const downloadBarcode = (product: Product) => {
 
 const downloadPackagingBarcode = (item: PackagingItem) => {
   const canvas = document.createElement('canvas');
-  // 35x22mm at 300 DPI
-  canvas.width = 414;
-  canvas.height = 260;
+  // Standard label size: 50x30mm at 300 DPI (590x354)
+  canvas.width = 590;
+  canvas.height = 354;
+  
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
@@ -97,48 +133,90 @@ const downloadPackagingBarcode = (item: PackagingItem) => {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Name
-  ctx.fillStyle = '#000000';
-  ctx.textAlign = 'center';
+  // Optional: Draw rounded border for the whole label
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 2;
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(2, 2, canvas.width - 4, canvas.height - 4, 20);
+    ctx.stroke();
+  } else {
+    ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+  }
+
+  // Top Left: Product Name
+  ctx.fillStyle = '#1e293b'; // slate-800
+  ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   
-  let fontSize = 36;
-  ctx.font = `${fontSize}px "Inter", Arial, sans-serif`;
-  let textWidth = ctx.measureText(item.name).width;
-  while (textWidth > canvas.width - 40 && fontSize > 16) {
-    fontSize -= 2;
-    ctx.font = `${fontSize}px "Inter", Arial, sans-serif`;
-    textWidth = ctx.measureText(item.name).width;
-  }
+  let fontSize = 28;
+  ctx.font = `bold ${fontSize}px "Inter", Arial, sans-serif`;
+  let name = item.name;
   
-  ctx.fillText(item.name, canvas.width / 2, 20);
+  // Truncate product name if too long
+  while (ctx.measureText(name + '...').width > 530 && name.length > 0) {
+    name = name.slice(0, -1);
+  }
+  if (name !== item.name) name += '...';
+  
+  ctx.fillText(name, 30, 25);
 
-  // Generate Barcode
+  // Middle: White Block with Black Border
+  const yellowY = 70;
+  const yellowHeight = 130;
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 4;
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(20, yellowY, 550, yellowHeight, 16);
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    ctx.fillRect(20, yellowY, 550, yellowHeight);
+    ctx.strokeRect(20, yellowY, 550, yellowHeight);
+  }
+
+  // Price
+  ctx.fillStyle = '#000000';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const priceText = item.price ? `${formatCurrency(item.price)} VNĐ` : 'Liên hệ';
+  
+  let priceFontSize = 80;
+  ctx.font = `bold ${priceFontSize}px "Inter", Arial, sans-serif`;
+  while (ctx.measureText(priceText).width > 500 && priceFontSize > 20) {
+    priceFontSize -= 2;
+    ctx.font = `bold ${priceFontSize}px "Inter", Arial, sans-serif`;
+  }
+  ctx.fillText(priceText, canvas.width / 2, yellowY + yellowHeight / 2);
+
+  // Bottom: Barcode
   const barcodeCanvas = document.createElement('canvas');
   JsBarcode(barcodeCanvas, item.barcode, {
     format: "CODE128",
     width: 3,
-    height: 110,
+    height: 80,
     displayValue: true,
-    fontSize: 36,
-    textMargin: 8,
-    margin: 0
+    fontSize: 24,
+    textMargin: 6,
+    margin: 0,
+    font: '"Inter", Arial, sans-serif'
   });
 
-  // Draw Barcode
   const bcWidth = barcodeCanvas.width;
   const bcHeight = barcodeCanvas.height;
   
   let scale = 1;
-  if (bcWidth > canvas.width - 40) {
-    scale = (canvas.width - 40) / bcWidth;
+  if (bcWidth > 530) {
+    scale = 530 / bcWidth;
   }
   
   const drawWidth = bcWidth * scale;
   const drawHeight = bcHeight * scale;
   
   const x = (canvas.width - drawWidth) / 2;
-  const y = 20 + fontSize + 20;
+  const y = 220;
   
   ctx.drawImage(barcodeCanvas, x, y, drawWidth, drawHeight);
 
@@ -205,6 +283,27 @@ export default function Import({
   const imageObjectUrlRef = useRef<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [showBarcodeModal, setShowBarcodeModal] = useState(false);
+  const [printItems, setPrintItems] = useState<PrintItem[]>([]);
+
+  const handlePrintBarcodes = () => {
+    const itemsToPrint: PrintItem[] = Array.from(selectedIds).map(id => {
+      const item = products.find(i => i.id === id);
+      if (!item) return null;
+      return {
+        id: item.id,
+        name: item.name,
+        price: item.retailPrice || item.cost || 0,
+        barcode: item.barcode || '',
+        quantity: item.warehouseQuantity && item.warehouseQuantity > 0 ? item.warehouseQuantity : 1
+      };
+    }).filter(Boolean) as PrintItem[];
+    
+    if (itemsToPrint.length > 0) {
+      setPrintItems(itemsToPrint);
+      setShowBarcodeModal(true);
+    }
+  };
 
   // Supplier Form State
   const [supplierName, setSupplierName] = useState('');
@@ -929,11 +1028,11 @@ export default function Import({
                         className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500 px-2 py-1"
                       >
                         <span>Tải ảnh lên</span>
-                        <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="image/*" onChange={handleImageUpload} ref={fileInputRef} />
+                        <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="image/*, .heic, .heif" onChange={handleImageUpload} ref={fileInputRef} />
                       </label>
                       <p className="pl-1 py-1">hoặc Paste (Ctrl+V) ảnh vào đây</p>
                     </div>
-                    <p className="text-xs text-slate-500">Dán (Ctrl+V) ảnh hoặc tải ảnh bất kỳ lên (Hỗ trợ HEIC)</p>
+                    <p className="text-xs text-slate-500">Dán (Ctrl+V) ảnh hoặc tải ảnh bất kỳ lên (Hỗ trợ JPG, PNG, WEBP, HEIC)</p>
                   </div>
                 )}
               </div>
@@ -1022,6 +1121,16 @@ export default function Import({
           <div className="flex items-center gap-3">
             {isSelectionMode ? (
               <>
+                {selectedIds.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={handlePrintBarcodes}
+                    className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-indigo-200 text-indigo-700 hover:bg-indigo-50 flex items-center gap-2"
+                  >
+                    <Barcode className="w-4 h-4" />
+                    In mã vạch ({selectedIds.size})
+                  </button>
+                )}
                 <label className="flex items-center gap-2 text-sm text-slate-600 select-none">
                   <input
                     ref={selectAllRef}
@@ -1834,6 +1943,13 @@ export default function Import({
             </div>
           </div>
         </div>
+      )}
+
+      {showBarcodeModal && (
+        <BarcodePrintModal
+          initialItems={printItems}
+          onClose={() => setShowBarcodeModal(false)}
+        />
       )}
     </div>
   );
