@@ -45,6 +45,8 @@ export default function Live({
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
+  const [shippingCost, setShippingCost] = useState<string>('0');
+  const [discount, setDiscount] = useState<string>('0');
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
@@ -57,6 +59,8 @@ export default function Live({
     if (newState.customerPhone !== undefined) setCustomerPhone(newState.customerPhone);
     if (newState.customerAddress !== undefined) setCustomerAddress(newState.customerAddress);
     if (newState.scannedPackagingItems !== undefined) setScannedPackagingItems(newState.scannedPackagingItems);
+    if (newState.shippingCost !== undefined) setShippingCost(newState.shippingCost);
+    if (newState.discount !== undefined) setDiscount(newState.discount);
   }, []);
 
   const handleOrderCompleted = useCallback(() => {
@@ -68,6 +72,8 @@ export default function Live({
     setScannedPackagingItems([]);
     setSelectedProductId('');
     setItemRetailPrice('');
+    setShippingCost('0');
+    setDiscount('0');
     setScanResult(null);
     setIsScanning(false);
   }, []);
@@ -88,6 +94,8 @@ export default function Live({
         customerPhone,
         customerAddress,
         scannedPackagingItems,
+        shippingCost,
+        discount,
       });
     }
   }, [
@@ -99,6 +107,8 @@ export default function Live({
     customerPhone,
     customerAddress,
     scannedPackagingItems,
+    shippingCost,
+    discount,
     broadcastStateUpdate,
   ]);
 
@@ -202,10 +212,9 @@ export default function Live({
   // Calculate packaging cost from scanned items
   const scannedPackagingCost = scannedPackagingItems.reduce((sum, p) => sum + (p.item.price * p.quantity), 0);
   
-  const packagingCost = orderType === 'SCOOP' ? 10000 : 0;
-  const currentPackagingCost = orderType === 'SCOOP' 
-    ? (scannedPackagingItems.length > 0 ? scannedPackagingCost : packagingCost) 
-    : (scannedPackagingItems.length > 0 ? scannedPackagingCost : parseCurrency(retailPackagingCost));
+  const currentPackagingCost = scannedPackagingCost + (orderType === 'RETAIL' ? parseCurrency(retailPackagingCost) : 0);
+  
+  const totalAmount = currentRevenue + parseCurrency(shippingCost) - parseCurrency(discount);
   
   const netProfit = currentRevenue - totalCost - currentPackagingCost;
   const profitMargin = currentRevenue > 0 ? (netProfit / currentRevenue) * 100 : 0;
@@ -264,7 +273,7 @@ export default function Live({
         id: uuidv4(),
         type: 'IN',
         category: 'ORDER',
-        amount: scoopPrice,
+        amount: totalAmount,
         description: `Đơn hàng ${selectedConfig?.name} (${totalItemsCount} món)`,
         date: now,
         items: orderItems.map(item => ({ productId: item.product.id, quantity: item.quantity, retailPrice: item.retailPrice })),
@@ -274,12 +283,12 @@ export default function Live({
       });
 
       // 3. Add Expense Transaction (Packaging)
-      if (currentPackagingCost > 0) {
+      if (scannedPackagingCost > 0) {
         await addTransaction({
           id: uuidv4(),
           type: 'OUT',
           category: 'PACKAGING',
-          amount: currentPackagingCost,
+          amount: scannedPackagingCost,
           description: `Chi phí bao bì đơn hàng ${selectedConfig?.name}`,
           date: now
         });
@@ -301,7 +310,7 @@ export default function Live({
         id: uuidv4(),
         type: 'IN',
         category: 'ORDER',
-        amount: currentRevenue,
+        amount: totalAmount,
         description: `Đơn hàng lẻ (${totalItemsCount} món)`,
         date: now,
         items: orderItems.map(item => ({ productId: item.product.id, quantity: item.quantity, retailPrice: item.retailPrice })),
@@ -311,12 +320,12 @@ export default function Live({
       });
 
       // 3. Add Expense Transaction (Packaging)
-      if (currentPackagingCost > 0) {
+      if (scannedPackagingCost > 0) {
         await addTransaction({
           id: uuidv4(),
           type: 'OUT',
           category: 'PACKAGING',
-          amount: currentPackagingCost,
+          amount: scannedPackagingCost,
           description: `Chi phí bao bì đơn hàng lẻ`,
           date: now
         });
@@ -393,21 +402,43 @@ export default function Live({
             <div className="space-y-5">
               {orderType === 'SCOOP' ? (
                 /* Select Scoop Size */
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">Chọn Size Scoop</label>
-                  <div className="relative">
-                    <select 
-                      value={selectedConfigId}
-                      onChange={e => setSelectedConfigId(e.target.value)}
-                      className="w-full appearance-none border border-slate-300 rounded-lg px-4 pr-10 py-2.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
-                    >
-                      {configs.map(config => (
-                        <option key={config.id} value={config.id}>
-                          {config.name} - {formatCurrency(config.price)}đ
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-2 sm:col-span-1">
+                    <label className="text-sm font-semibold text-slate-700">Chọn Size Scoop</label>
+                    <div className="relative">
+                      <select 
+                        value={selectedConfigId}
+                        onChange={e => setSelectedConfigId(e.target.value)}
+                        className="w-full appearance-none border border-slate-300 rounded-lg px-4 pr-10 py-2.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
+                      >
+                        {configs.map(config => (
+                          <option key={config.id} value={config.id}>
+                            {config.name} - {formatCurrency(config.price)}đ
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    </div>
+                  </div>
+                  <div className="space-y-2 sm:col-span-1">
+                    <label className="text-sm font-semibold text-slate-700">Vận chuyển (đ)</label>
+                    <input
+                      type="text"
+                      value={shippingCost}
+                      onChange={e => setShippingCost(formatCurrency(parseCurrency(e.target.value)))}
+                      placeholder="0"
+                      className="w-full border border-slate-300 rounded-lg px-4 py-2.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
+                    />
+                  </div>
+                  <div className="space-y-2 sm:col-span-1">
+                    <label className="text-sm font-semibold text-slate-700">Giảm giá (đ)</label>
+                    <input
+                      type="text"
+                      value={discount}
+                      onChange={e => setDiscount(formatCurrency(parseCurrency(e.target.value)))}
+                      placeholder="0"
+                      className="w-full border border-slate-300 rounded-lg px-4 py-2.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
+                    />
                   </div>
                 </div>
               ) : (
@@ -420,6 +451,26 @@ export default function Live({
                       value={retailPackagingCost}
                       onChange={e => setRetailPackagingCost(formatCurrency(parseCurrency(e.target.value)))}
                       placeholder="VD: 5,000 (Tùy chọn)"
+                      className="w-full border border-slate-300 rounded-lg px-4 py-2.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-slate-700">Vận chuyển (đ)</label>
+                    <input
+                      type="text"
+                      value={shippingCost}
+                      onChange={e => setShippingCost(formatCurrency(parseCurrency(e.target.value)))}
+                      placeholder="0"
+                      className="w-full border border-slate-300 rounded-lg px-4 py-2.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-slate-700">Giảm giá (đ)</label>
+                    <input
+                      type="text"
+                      value={discount}
+                      onChange={e => setDiscount(formatCurrency(parseCurrency(e.target.value)))}
+                      placeholder="0"
                       className="w-full border border-slate-300 rounded-lg px-4 py-2.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
                     />
                   </div>
@@ -623,8 +674,12 @@ export default function Live({
                 <span className="font-bold text-slate-900">{formatCurrency(currentRevenue)}đ</span>
               </div>
               <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                <span className="text-slate-600 font-medium text-sm">Tổng giá bán lẻ</span>
-                <span className="font-bold text-slate-900">{formatCurrency(totalRetail)}đ</span>
+                <span className="text-slate-600 font-medium text-sm">Vận chuyển</span>
+                <span className="font-bold text-slate-900">+{formatCurrency(parseCurrency(shippingCost))}đ</span>
+              </div>
+              <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                <span className="text-slate-600 font-medium text-sm">Giảm giá</span>
+                <span className="font-bold text-slate-900">-{formatCurrency(parseCurrency(discount))}đ</span>
               </div>
               <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
                 <span className="text-slate-600 font-medium text-sm">Tổng giá vốn (COGS)</span>
@@ -643,10 +698,10 @@ export default function Live({
                   </span>
                 </div>
                 <div className={`flex justify-between items-center p-4 rounded-xl border ${netProfit > 0 ? 'bg-indigo-50 border-indigo-100' : 'bg-red-50 border-red-100'}`}>
-                  <span className={`font-bold text-lg ${netProfit > 0 ? 'text-indigo-900' : 'text-red-900'}`}>Lợi nhuận</span>
+                  <span className={`font-bold text-lg ${netProfit > 0 ? 'text-indigo-900' : 'text-red-900'}`}>Tổng cộng</span>
                   <div className="text-right">
                     <span className={`font-black text-2xl ${netProfit > 0 ? 'text-indigo-600' : 'text-red-600'}`}>
-                      {formatCurrency(netProfit)}đ
+                      {formatCurrency(totalAmount)}đ
                     </span>
                   </div>
                 </div>

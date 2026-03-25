@@ -11,6 +11,8 @@ export interface DraftOrderState {
   customerPhone: string;
   customerAddress: string;
   scannedPackagingItems: { item: PackagingItem, quantity: number }[];
+  shippingCost: string;
+  discount: string;
 }
 
 export function useDraftOrderSync(
