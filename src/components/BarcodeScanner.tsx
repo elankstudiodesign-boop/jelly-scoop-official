@@ -343,7 +343,13 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
                 <>
                   <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
                     {/* Viewfinder - Optimized for Barcodes */}
-                    <div className="w-[85%] aspect-[2.5/1] relative">
+                    <div className="w-[85%] aspect-[2.5/1] relative overflow-hidden">
+                      {/* Scanning Line */}
+                      <motion.div
+                        className="absolute left-0 right-0 h-0.5 bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.8)] z-10"
+                        animate={{ top: ['0%', '100%', '0%'] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                      />
                       {/* Corner Brackets */}
                       <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-lg" />
                       <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-lg" />
