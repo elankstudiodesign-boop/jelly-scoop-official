@@ -326,7 +326,56 @@ export default function OrderList({ transactions, products, deleteTransaction }:
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+      {/* Mobile Card Layout */}
+      <div className="md:hidden space-y-4">
+        {orders.length === 0 ? (
+          <div className="p-8 text-center text-slate-500 bg-white rounded-xl border border-slate-200 shadow-sm">
+            Chưa có đơn hàng nào
+          </div>
+        ) : (
+          orders.map(order => (
+            <div key={order.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+              <div className="flex justify-between items-start">
+                <div className="font-mono text-xs text-slate-500">{order.id.slice(0, 8).toUpperCase()}</div>
+                <div className="font-semibold text-indigo-600">{formatCurrency(order.amount)}đ</div>
+              </div>
+              <div>
+                <div className="font-medium text-slate-900">{order.customerName || 'Khách lẻ'}</div>
+                <div className="text-sm text-slate-600">{order.description}</div>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+                <div className="text-xs text-slate-500">{new Date(order.date).toLocaleString('vi-VN')}</div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setSelectedOrder(order)}
+                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                    title="Xem chi tiết"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handlePrint(order)}
+                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                    title="In hoá đơn"
+                  >
+                    <Printer className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(order.id)}
+                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Xoá đơn hàng"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop Table Layout */}
+      <div className="hidden md:block bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-600 font-semibold">

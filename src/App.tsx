@@ -1,7 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
-import BottomNav from './components/BottomNav';
 import Analytics from './pages/Analytics';
 import Products from './pages/Products';
 import PoolDistribution from './pages/PoolDistribution';
@@ -70,7 +69,7 @@ export default function App() {
     <BrowserRouter>
       <div className="flex min-h-screen min-h-[100dvh] bg-slate-50 font-sans text-slate-900 selection:bg-indigo-100 selection:text-indigo-900">
         <Sidebar />
-        <main className="flex-1 p-4 md:p-8 lg:p-10 overflow-y-auto mt-16 md:mt-0 pb-24 md:pb-8">
+        <main className="flex-1 p-4 md:p-8 lg:p-10 overflow-y-auto mt-16 md:mt-0 pb-8">
           <div className="max-w-7xl mx-auto">
             {!hasSupabaseConfig && (
               <div className="mb-8 bg-amber-50 border border-amber-200 rounded-xl p-5 shadow-sm">
@@ -97,7 +96,6 @@ export default function App() {
             </Routes>
           </div>
         </main>
-        <BottomNav />
       </div>
     </BrowserRouter>
   );
