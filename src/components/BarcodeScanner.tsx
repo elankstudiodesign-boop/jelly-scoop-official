@@ -349,15 +349,6 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
                       <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-lg" />
                       <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-lg" />
                       <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-lg" />
-                      
-                      {/* Scanning line animation - Dual line for "high-tech" look */}
-                      <motion.div 
-                        animate={{ top: ['0%', '100%', '0%'] }}
-                        transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-                        className="absolute left-0 w-full h-[3px] bg-gradient-to-r from-transparent via-indigo-400 to-transparent shadow-[0_0_20px_rgba(99,102,241,1)] z-10" 
-                      >
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-full bg-white/40 blur-sm" />
-                      </motion.div>
                     </div>
 
                     <div className="mt-16 text-center">
