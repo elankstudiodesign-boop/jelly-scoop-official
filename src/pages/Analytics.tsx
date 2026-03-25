@@ -117,24 +117,24 @@ export default function Analytics({ sessions, addSession, deleteSession, product
         </div>
         
         {/* Mobile Tabs */}
-        <div className="flex md:hidden bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex md:hidden bg-white p-1 rounded-xl border border-slate-200 shadow-sm overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveTab('stats')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all ${activeTab === 'stats' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'stats' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
           >
             <BarChart3 className="w-4 h-4" />
             Thống kê
           </button>
           <button
             onClick={() => setActiveTab('pool')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all ${activeTab === 'pool' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'pool' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
           >
             <Droplets className="w-4 h-4" />
             Phân bổ
           </button>
           <button
             onClick={() => setActiveTab('simulator')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all ${activeTab === 'simulator' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'simulator' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
           >
             <Calculator className="w-4 h-4" />
             Mô phỏng
@@ -193,7 +193,7 @@ export default function Analytics({ sessions, addSession, deleteSession, product
             </div>
 
             <div className="lg:col-span-1">
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+              <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm">
                 <h3 className="text-base font-semibold text-slate-800 mb-5">Thêm phiên Live</h3>
                 <form onSubmit={handleAdd} className="space-y-4">
                   <div className="space-y-1.5">

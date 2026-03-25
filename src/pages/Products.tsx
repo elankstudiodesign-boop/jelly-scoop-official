@@ -239,7 +239,7 @@ export default function Products({ products, updateProduct, deleteProduct, suppl
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+      <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-800 mb-4">
           Đổ hàng vào bể
         </h2>
@@ -323,12 +323,12 @@ export default function Products({ products, updateProduct, deleteProduct, suppl
 
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm w-fit">
+          <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm w-full sm:w-fit overflow-x-auto no-scrollbar">
             {(['Tất cả', 'Thấp', 'Trung', 'Cao', 'Cao cấp'] as const).map((group) => (
               <button
                 key={group}
                 onClick={() => setFilterGroup(group)}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                className={`flex-1 sm:flex-none px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${
                   filterGroup === group
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'

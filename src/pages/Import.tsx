@@ -290,6 +290,7 @@ export default function Import({
   const imageObjectUrlRef = useRef<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [inventorySearchTerm, setInventorySearchTerm] = useState('');
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [printItems, setPrintItems] = useState<PrintItem[]>([]);
 
@@ -861,48 +862,56 @@ export default function Import({
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Nhập kho</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Nhập kho</h1>
           <p className="text-slate-500 mt-1 text-sm">Thêm số lượng sản phẩm vào kho và ghi nhận chi phí.</p>
         </div>
 
-        {/* Tabs */}
-        <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm w-full md:w-auto">
+        {/* Tabs - Redesigned for Mobile & Aesthetic */}
+        <div className="bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm w-full md:w-auto flex items-center gap-1 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveTab('import')}
-            className={`flex-1 md:flex-none flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-xs font-bold transition-all ${
-              activeTab === 'import' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
+            className={`flex-1 md:flex-none flex flex-col md:flex-row items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-[11px] md:text-xs font-bold transition-all whitespace-nowrap ${
+              activeTab === 'import' 
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
+                : 'text-slate-500 hover:bg-slate-50'
             }`}
           >
-            <PackagePlus className="w-4 h-4" />
+            <PackagePlus className={`${activeTab === 'import' ? 'w-4 h-4' : 'w-5 h-5 md:w-4 md:h-4 opacity-70'}`} />
             Nhập kho
           </button>
           <button
             onClick={() => setActiveTab('suppliers')}
-            className={`flex-1 md:flex-none flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-xs font-bold transition-all ${
-              activeTab === 'suppliers' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
+            className={`flex-1 md:flex-none flex flex-col md:flex-row items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-[11px] md:text-xs font-bold transition-all whitespace-nowrap ${
+              activeTab === 'suppliers' 
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
+                : 'text-slate-500 hover:bg-slate-50'
             }`}
           >
-            <Truck className="w-4 h-4" />
+            <Truck className={`${activeTab === 'suppliers' ? 'w-4 h-4' : 'w-5 h-5 md:w-4 md:h-4 opacity-70'}`} />
             Nhà cung cấp
           </button>
           <button
             onClick={() => setActiveTab('packaging')}
-            className={`flex-1 md:flex-none flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-xs font-bold transition-all ${
-              activeTab === 'packaging' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
+            className={`flex-1 md:flex-none flex flex-col md:flex-row items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-[11px] md:text-xs font-bold transition-all whitespace-nowrap ${
+              activeTab === 'packaging' 
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
+                : 'text-slate-500 hover:bg-slate-50'
             }`}
           >
-            <Archive className="w-4 h-4" />
+            <Archive className={`${activeTab === 'packaging' ? 'w-4 h-4' : 'w-5 h-5 md:w-4 md:h-4 opacity-70'}`} />
             Bao bì
           </button>
           <button
             onClick={() => setActiveTab('combo')}
-            className={`flex-1 md:flex-none flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-xs font-bold transition-all ${
-              activeTab === 'combo' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
+            className={`flex-1 md:flex-none flex flex-col md:flex-row items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-[11px] md:text-xs font-bold transition-all whitespace-nowrap ${
+              activeTab === 'combo' 
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
+                : 'text-slate-500 hover:bg-slate-50'
             }`}
           >
-            <PackagePlus className="w-4 h-4" />
+            <PackagePlus className={`${activeTab === 'combo' ? 'w-4 h-4' : 'w-5 h-5 md:w-4 md:h-4 opacity-70'}`} />
             Tạo Combo
           </button>
         </div>
@@ -1123,57 +1132,91 @@ export default function Import({
 
       {/* Warehouse Inventory List */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mt-8">
-        <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <h2 className="text-lg font-bold text-slate-900">Tồn kho hiện tại</h2>
-          <div className="flex items-center gap-3">
-            {isSelectionMode ? (
-              <>
-                {selectedIds.size > 0 && (
+        <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col gap-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <h2 className="text-lg font-bold text-slate-900">Tồn kho hiện tại</h2>
+            
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 md:pb-0">
+              {isSelectionMode ? (
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                  {selectedIds.size > 0 && (
+                    <button
+                      type="button"
+                      onClick={handlePrintBarcodes}
+                      className="flex-none flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-xl transition-all bg-indigo-50 text-indigo-700 border border-indigo-100 hover:bg-indigo-100 shadow-sm"
+                    >
+                      <Barcode className="w-4 h-4" />
+                      <span>In ({selectedIds.size})</span>
+                    </button>
+                  )}
+                  
                   <button
                     type="button"
-                    onClick={handlePrintBarcodes}
-                    className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-indigo-200 text-indigo-700 hover:bg-indigo-50 flex items-center gap-2"
+                    onClick={toggleSelectAll}
+                    className={`flex-none flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-xl transition-all border ${
+                      allSelected 
+                        ? 'bg-slate-900 text-white border-slate-900' 
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    } shadow-sm`}
                   >
-                    <Barcode className="w-4 h-4" />
-                    In mã vạch ({selectedIds.size})
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${allSelected ? 'bg-white border-white' : 'border-slate-300'}`}>
+                      {allSelected && <div className="w-2 h-2 bg-slate-900 rounded-sm" />}
+                    </div>
+                    <span>Tất cả</span>
                   </button>
-                )}
-                <label className="flex items-center gap-2 text-sm text-slate-600 select-none">
-                  <input
-                    ref={selectAllRef}
-                    type="checkbox"
-                    checked={allSelected}
-                    onChange={toggleSelectAll}
-                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  Chọn tất cả
-                </label>
+
+                  {selectedIds.size > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmIds(Array.from(selectedIds))}
+                      className="flex-none flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-xl transition-all bg-red-50 text-red-700 border border-red-100 hover:bg-red-100 shadow-sm"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Xoá ({selectedIds.size})</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSelectionMode(false);
+                      setSelectedIds(new Set());
+                    }}
+                    className="flex-none flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-xl transition-all bg-white text-slate-500 border border-slate-200 hover:bg-slate-50 shadow-sm"
+                  >
+                    <X className="w-4 h-4" />
+                    <span>Hủy</span>
+                  </button>
+                </div>
+              ) : (
                 <button
                   type="button"
-                  onClick={() => setDeleteConfirmIds(Array.from(selectedIds))}
-                  disabled={selectedIds.size === 0}
-                  className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setIsSelectionMode(true)}
+                  className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-sm"
                 >
-                  Xoá đã chọn {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+                  <Edit2 className="w-4 h-4 text-slate-400" />
+                  Quản lý kho
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsSelectionMode(false);
-                    setSelectedIds(new Set());
-                  }}
-                  className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-slate-200 text-slate-700 hover:bg-slate-50"
-                >
-                  Hủy chọn
-                </button>
-              </>
-            ) : (
+              )}
+            </div>
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              value={inventorySearchTerm}
+              onChange={(e) => setInventorySearchTerm(e.target.value)}
+              placeholder="Tìm kiếm sản phẩm theo tên hoặc ghi chú..."
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+            />
+            {inventorySearchTerm && (
               <button
-                type="button"
-                onClick={() => setIsSelectionMode(true)}
-                className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-slate-200 text-slate-700 hover:bg-slate-50"
+                onClick={() => setInventorySearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
-                Chọn
+                <X className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -1193,14 +1236,22 @@ export default function Import({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {products.length === 0 ? (
+              {products.filter(p => 
+                p.name.toLowerCase().includes(inventorySearchTerm.toLowerCase()) ||
+                (p.note && p.note.toLowerCase().includes(inventorySearchTerm.toLowerCase()))
+              ).length === 0 ? (
                 <tr>
                   <td colSpan={isSelectionMode ? 8 : 7} className="px-6 py-8 text-center text-slate-500">
-                    Kho hàng trống
+                    {inventorySearchTerm ? 'Không tìm thấy sản phẩm phù hợp' : 'Kho hàng trống'}
                   </td>
                 </tr>
               ) : (
-                products.map(p => {
+                products
+                  .filter(p => 
+                    p.name.toLowerCase().includes(inventorySearchTerm.toLowerCase()) ||
+                    (p.note && p.note.toLowerCase().includes(inventorySearchTerm.toLowerCase()))
+                  )
+                  .map(p => {
                   const wq = p.warehouseQuantity || 0;
                   const checked = selectedIds.has(p.id);
                   const supplier = suppliers.find(s => s.id === p.supplierId);
@@ -1300,10 +1351,20 @@ export default function Import({
 
         {/* Mobile View */}
         <div className="md:hidden divide-y divide-slate-100">
-          {products.length === 0 ? (
-            <div className="p-8 text-center text-slate-500">Kho hàng trống</div>
+          {products.filter(p => 
+            p.name.toLowerCase().includes(inventorySearchTerm.toLowerCase()) ||
+            (p.note && p.note.toLowerCase().includes(inventorySearchTerm.toLowerCase()))
+          ).length === 0 ? (
+            <div className="p-8 text-center text-slate-500">
+              {inventorySearchTerm ? 'Không tìm thấy sản phẩm phù hợp' : 'Kho hàng trống'}
+            </div>
           ) : (
-            products.map(p => {
+            products
+              .filter(p => 
+                p.name.toLowerCase().includes(inventorySearchTerm.toLowerCase()) ||
+                (p.note && p.note.toLowerCase().includes(inventorySearchTerm.toLowerCase()))
+              )
+              .map(p => {
               const wq = p.warehouseQuantity || 0;
               const checked = selectedIds.has(p.id);
               return (

@@ -3,6 +3,7 @@ import { Product, PriceGroup } from '../types';
 import { X, Upload, Image as ImageIcon } from 'lucide-react';
 import { uploadProductImage, dataUrlToBlob, processImage } from '../lib/imageUpload';
 import { hasSupabaseConfig } from '../lib/supabase';
+import { formatCurrency, parseCurrency } from '../lib/format';
 
 interface EditProductModalProps {
   product: Product;
@@ -12,8 +13,8 @@ interface EditProductModalProps {
 
 export default function EditProductModal({ product, onClose, onSave }: EditProductModalProps) {
   const [name, setName] = useState(product.name);
-  const [cost, setCost] = useState(product.cost.toString());
-  const [retailPrice, setRetailPrice] = useState(product.retailPrice?.toString() || '');
+  const [cost, setCost] = useState(formatCurrency(product.cost));
+  const [retailPrice, setRetailPrice] = useState(formatCurrency(product.retailPrice || ''));
   const [warehouseQuantity, setWarehouseQuantity] = useState(product.warehouseQuantity?.toString() || '0');
   const [quantity, setQuantity] = useState(product.quantity.toString());
   const [priceGroup, setPriceGroup] = useState<PriceGroup>(product.priceGroup);
@@ -115,8 +116,8 @@ export default function EditProductModal({ product, onClose, onSave }: EditProdu
 
       onSave(product.id, {
         name,
-        cost: Number(cost),
-        retailPrice: retailPrice ? Number(retailPrice) : undefined,
+        cost: parseCurrency(cost),
+        retailPrice: retailPrice ? parseCurrency(retailPrice) : undefined,
         warehouseQuantity: Number(warehouseQuantity),
         quantity: Number(quantity),
         priceGroup,
@@ -165,18 +166,18 @@ export default function EditProductModal({ product, onClose, onSave }: EditProdu
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Giá vốn</label>
                   <input
-                    type="number"
+                    type="text"
                     value={cost}
-                    onChange={(e) => setCost(e.target.value)}
+                    onChange={(e) => setCost(formatCurrency(e.target.value))}
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Giá bán lẻ</label>
                   <input
-                    type="number"
+                    type="text"
                     value={retailPrice}
-                    onChange={(e) => setRetailPrice(e.target.value)}
+                    onChange={(e) => setRetailPrice(formatCurrency(e.target.value))}
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>

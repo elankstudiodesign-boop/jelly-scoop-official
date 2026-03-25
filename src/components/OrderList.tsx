@@ -233,7 +233,7 @@ export default function OrderList({ transactions, products, deleteTransaction }:
           </div>
           <div class="info-block">
             <h3>NGÀY</h3>
-            <p>${new Date(order.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+            <p>${new Date(order.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-')}</p>
           </div>
           <div class="info-block">
             <h3>MÃ ĐƠN HÀNG</h3>
@@ -327,7 +327,8 @@ export default function OrderList({ transactions, products, deleteTransaction }:
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-600 font-semibold">
               <tr>
@@ -394,6 +395,74 @@ export default function OrderList({ transactions, products, deleteTransaction }:
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {orders.length === 0 ? (
+            <div className="p-8 text-center text-slate-500">
+              Chưa có đơn hàng nào
+            </div>
+          ) : (
+            orders.map(order => (
+              <div key={order.id} className="p-4 space-y-4 active:bg-slate-50 transition-colors">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                        #{order.id.slice(0, 8).toUpperCase()}
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        {new Date(order.date).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
+                      </span>
+                    </div>
+                    <div className="font-semibold text-slate-900">
+                      {order.customerName || 'Khách lẻ'}
+                    </div>
+                    {order.customerPhone && (
+                      <div className="text-xs text-slate-500">{order.customerPhone}</div>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-indigo-600">
+                      {formatCurrency(order.amount)}đ
+                    </div>
+                    <div className="text-[10px] uppercase tracking-wider font-bold text-slate-400">
+                      {order.description.includes('Scoop') ? 'Đơn Scoop' : 'Đơn lẻ'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-50">
+                  <div className="text-xs text-slate-500 truncate max-w-[180px]">
+                    {order.description}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setSelectedOrder(order)}
+                      className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-1.5"
+                    >
+                      <Eye className="w-4 h-4" />
+                      <span className="text-xs font-medium">Xem</span>
+                    </button>
+                    <button
+                      onClick={() => handlePrint(order)}
+                      className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors flex items-center gap-1.5"
+                    >
+                      <Printer className="w-4 h-4" />
+                      <span className="text-xs font-medium">In</span>
+                    </button>
+                    <button
+                      onClick={() => handleDelete(order.id)}
+                      className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {/* Order Details Modal */}
@@ -410,35 +479,59 @@ export default function OrderList({ transactions, products, deleteTransaction }:
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto">
-              <div className="grid grid-cols-2 gap-6 mb-6">
-                <div>
-                  <h3 className="text-sm font-medium text-slate-500 mb-1">Thông tin chung</h3>
-                  <div className="space-y-1 text-sm">
-                    <p><span className="text-slate-500">Mã ĐH:</span> <span className="font-mono">{selectedOrder.id.slice(0, 8).toUpperCase()}</span></p>
-                    <p><span className="text-slate-500">Ngày:</span> {new Date(selectedOrder.date).toLocaleString('vi-VN')}</p>
-                    <p><span className="text-slate-500">Mô tả:</span> {selectedOrder.description}</p>
+            <div className="p-4 md:p-6 overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Thông tin chung</h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between md:block">
+                      <span className="text-slate-500 md:mr-2">Mã ĐH:</span>
+                      <span className="font-mono font-bold text-slate-700">{selectedOrder.id.slice(0, 8).toUpperCase()}</span>
+                    </div>
+                    <div className="flex justify-between md:block">
+                      <span className="text-slate-500 md:mr-2">Ngày:</span>
+                      <span className="text-slate-700">{new Date(selectedOrder.date).toLocaleString('vi-VN')}</span>
+                    </div>
+                    <div className="flex justify-between md:block">
+                      <span className="text-slate-500 md:mr-2">Mô tả:</span>
+                      <span className="text-slate-700">{selectedOrder.description}</span>
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-medium text-slate-500 mb-1">Khách hàng</h3>
-                  <div className="space-y-1 text-sm">
-                    <p><span className="text-slate-500">Tên:</span> {selectedOrder.customerName || 'Khách lẻ'}</p>
-                    {selectedOrder.customerPhone && <p><span className="text-slate-500">SĐT:</span> {selectedOrder.customerPhone}</p>}
-                    {selectedOrder.customerAddress && <p><span className="text-slate-500">Địa chỉ:</span> {selectedOrder.customerAddress}</p>}
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Khách hàng</h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between md:block">
+                      <span className="text-slate-500 md:mr-2">Tên:</span>
+                      <span className="font-bold text-slate-700">{selectedOrder.customerName || 'Khách lẻ'}</span>
+                    </div>
+                    {selectedOrder.customerPhone && (
+                      <div className="flex justify-between md:block">
+                        <span className="text-slate-500 md:mr-2">SĐT:</span>
+                        <span className="text-slate-700">{selectedOrder.customerPhone}</span>
+                      </div>
+                    )}
+                    {selectedOrder.customerAddress && (
+                      <div className="flex justify-between md:block">
+                        <span className="text-slate-500 md:mr-2">Địa chỉ:</span>
+                        <span className="text-slate-700">{selectedOrder.customerAddress}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
-              <h3 className="text-sm font-medium text-slate-500 mb-3">Sản phẩm</h3>
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1">Sản phẩm ({selectedOrder.items?.length || 0})</h3>
+              
+              {/* Desktop Table View */}
+              <div className="hidden md:block border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-600">
                     <tr>
-                      <th className="p-3">Sản phẩm</th>
-                      <th className="p-3 text-center">Số lượng</th>
-                      <th className="p-3 text-right">Đơn giá</th>
-                      <th className="p-3 text-right">Thành tiền</th>
+                      <th className="p-4">Sản phẩm</th>
+                      <th className="p-4 text-center">Số lượng</th>
+                      <th className="p-4 text-right">Đơn giá</th>
+                      <th className="p-4 text-right">Thành tiền</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -446,45 +539,77 @@ export default function OrderList({ transactions, products, deleteTransaction }:
                       const product = products.find(p => p.id === item.productId);
                       const price = item.retailPrice ?? (product?.retailPrice ?? product?.cost ?? 0);
                       return (
-                        <tr key={index}>
-                          <td className="p-3">
+                        <tr key={index} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-4">
                             <div className="flex items-center gap-3">
                               {product?.imageUrl ? (
-                                <img src={product.imageUrl} alt={product.name} className="w-8 h-8 rounded object-cover" />
+                                <img src={product.imageUrl} alt={product.name} className="w-10 h-10 rounded-lg object-cover border border-slate-200" />
                               ) : (
-                                <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-xs text-slate-400">No img</div>
+                                <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] text-slate-400 border border-slate-200">No img</div>
                               )}
-                              <span className="font-medium text-slate-900">{product?.name || 'Sản phẩm không xác định'}</span>
+                              <span className="font-semibold text-slate-900">{product?.name || 'Sản phẩm không xác định'}</span>
                             </div>
                           </td>
-                          <td className="p-3 text-center">{item.quantity}</td>
-                          <td className="p-3 text-right">{formatCurrency(price)}đ</td>
-                          <td className="p-3 text-right font-medium">{formatCurrency(price * item.quantity)}đ</td>
+                          <td className="p-4 text-center font-medium">{item.quantity}</td>
+                          <td className="p-4 text-right text-slate-600">{formatCurrency(price)}đ</td>
+                          <td className="p-4 text-right font-bold text-slate-900">{formatCurrency(price * item.quantity)}đ</td>
                         </tr>
                       );
                     })}
                   </tbody>
                   <tfoot className="bg-slate-50 border-t border-slate-200">
                     <tr>
-                      <td colSpan={3} className="p-3 text-right font-medium text-slate-600">Tổng cộng:</td>
-                      <td className="p-3 text-right font-bold text-indigo-600">{formatCurrency(selectedOrder.amount)}đ</td>
+                      <td colSpan={3} className="p-4 text-right font-bold text-slate-600 uppercase tracking-wider text-xs">Tổng cộng:</td>
+                      <td className="p-4 text-right font-black text-lg text-indigo-600">{formatCurrency(selectedOrder.amount)}đ</td>
                     </tr>
                   </tfoot>
                 </table>
               </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3">
+                {selectedOrder.items?.map((item, index) => {
+                  const product = products.find(p => p.id === item.productId);
+                  const price = item.retailPrice ?? (product?.retailPrice ?? product?.cost ?? 0);
+                  return (
+                    <div key={index} className="bg-white border border-slate-200 rounded-xl p-3 flex gap-3 shadow-sm">
+                      {product?.imageUrl ? (
+                        <img src={product.imageUrl} alt={product.name} className="w-16 h-16 rounded-lg object-cover border border-slate-100 flex-shrink-0" />
+                      ) : (
+                        <div className="w-16 h-16 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] text-slate-400 border border-slate-100 flex-shrink-0">No img</div>
+                      )}
+                      <div className="flex-1 min-w-0 flex flex-col justify-between">
+                        <div className="font-bold text-slate-900 text-sm truncate">{product?.name || 'Sản phẩm không xác định'}</div>
+                        <div className="flex justify-between items-end">
+                          <div className="text-xs text-slate-500">
+                            {formatCurrency(price)}đ x {item.quantity}
+                          </div>
+                          <div className="font-bold text-indigo-600 text-sm">
+                            {formatCurrency(price * item.quantity)}đ
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div className="bg-indigo-600 rounded-xl p-4 flex justify-between items-center shadow-lg shadow-indigo-200">
+                  <span className="text-white/80 font-bold text-xs uppercase tracking-widest">Tổng cộng</span>
+                  <span className="text-white font-black text-xl">{formatCurrency(selectedOrder.amount)}đ</span>
+                </div>
+              </div>
             </div>
             
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+            <div className="p-4 md:p-6 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-end gap-3">
               <button
                 onClick={() => handlePrint(selectedOrder)}
-                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors flex items-center gap-2"
+                className="w-full sm:w-auto px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
               >
-                <Printer className="w-4 h-4" />
+                <Printer className="w-5 h-5" />
                 In hoá đơn
               </button>
               <button
                 onClick={() => setSelectedOrder(null)}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+                className="w-full sm:w-auto px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 active:scale-95"
               >
                 Đóng
               </button>
