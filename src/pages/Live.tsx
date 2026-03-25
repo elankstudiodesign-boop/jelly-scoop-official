@@ -153,8 +153,12 @@ export default function Live({
   }, [orderType]);
 
   const handleScan = useCallback((decodedText: string) => {
-    // Check if it's a product
-    const product = products.find(p => generateBarcodeNumber(p.id) === decodedText);
+    // Check if it's a product or combo
+    const product = products.find(p => 
+      (p.barcode === decodedText) || 
+      (generateBarcodeNumber(p.id) === decodedText)
+    );
+    
     if (product) {
       let scannedPrice: number | undefined;
       if (orderType === 'RETAIL') {
@@ -162,7 +166,10 @@ export default function Live({
         setItemRetailPrice(formatCurrency(scannedPrice));
       }
       addProductToOrder(product, scannedPrice);
-      setScanResult({ type: 'success', message: `Đã thêm sản phẩm: ${product.name}` });
+      setScanResult({ 
+        type: 'success', 
+        message: `Đã thêm ${product.isCombo ? 'combo' : 'sản phẩm'}: ${product.name}` 
+      });
       return;
     }
 

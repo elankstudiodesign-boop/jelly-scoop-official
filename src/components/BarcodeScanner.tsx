@@ -96,13 +96,10 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
           {
             fps: 25, // Increased FPS for faster scanning
             qrbox: (viewfinderWidth, viewfinderHeight) => {
-              const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-              // Larger box for easier alignment
-              const qrboxSize = Math.floor(minEdge * 0.8);
-              return {
-                width: qrboxSize,
-                height: qrboxSize * 0.5 // Rectangular for barcodes
-              };
+              // Match the UI aspect ratio (2.5:1) and width (85%)
+              const width = Math.floor(viewfinderWidth * 0.85);
+              const height = Math.floor(width / 2.5);
+              return { width, height };
             },
             aspectRatio: 1.0,
             disableFlip: true,

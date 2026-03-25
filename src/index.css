@@ -46,8 +46,18 @@ body {
   display: none;
 }
 
-/* Hide scrollbar for IE, Edge and Firefox */
-* {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+/* Hide html5-qrcode default UI */
+#reader__scan_region {
+  border: none !important;
+}
+#reader__scan_region > div {
+  border: none !important;
+}
+#reader__dashboard {
+  display: none !important;
+}
+#reader video {
+  object-fit: cover !important;
+  width: 100% !important;
+  height: 100% !important;
 }
