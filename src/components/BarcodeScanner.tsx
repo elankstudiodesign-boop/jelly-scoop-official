@@ -319,12 +319,20 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
               </div>
               <h4 className="text-white font-black text-2xl mb-4 tracking-tight">Lỗi Camera</h4>
               <p className="text-white/40 text-sm mb-12 leading-relaxed font-medium">{error}</p>
-              <button 
-                onClick={onClose} 
-                className="w-full py-5 bg-white/10 text-white rounded-2xl font-black hover:bg-white/20 transition-all active:scale-95 border border-white/10"
-              >
-                Quay lại
-              </button>
+              <div className="flex flex-col gap-4 w-full">
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black hover:bg-indigo-500 transition-all active:scale-95 border border-indigo-400/30 shadow-xl shadow-indigo-600/20"
+                >
+                  Thử lại
+                </button>
+                <button 
+                  onClick={onClose} 
+                  className="w-full py-5 bg-white/10 text-white rounded-2xl font-black hover:bg-white/20 transition-all active:scale-95 border border-white/10"
+                >
+                  Quay lại
+                </button>
+              </div>
             </div>
           ) : (
             <div className="w-full h-full relative flex items-center justify-center">
@@ -335,12 +343,7 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
                 <>
                   <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
                     {/* Viewfinder - Optimized for Barcodes */}
-                    <div className="w-[85%] aspect-[2.5/1] relative">
-                      {/* Corner accents - Ultra-sophisticated */}
-                      <div className="absolute -top-1 -left-1 w-12 h-12 border-t-[5px] border-l-[5px] border-indigo-500 rounded-tl-3xl" />
-                      <div className="absolute -top-1 -right-1 w-12 h-12 border-t-[5px] border-r-[5px] border-indigo-500 rounded-tr-3xl" />
-                      <div className="absolute -bottom-1 -left-1 w-12 h-12 border-b-[5px] border-l-[5px] border-indigo-500 rounded-bl-3xl" />
-                      <div className="absolute -bottom-1 -right-1 w-12 h-12 border-b-[5px] border-r-[5px] border-indigo-500 rounded-br-3xl" />
+                    <div className="w-[85%] aspect-[2.5/1] relative border-2 border-white rounded-2xl">
                       
                       {/* Scanning line animation - Dual line for "high-tech" look */}
                       <motion.div 

@@ -1,5 +1,5 @@
 {
   "name": "Jelly Scoop",
   "description": "Quản lý sản phẩm, mô phỏng Scoop và theo dõi lợi nhuận cho phiên Live",
-  "requestFramePermissions": []
+  "requestFramePermissions": ["camera"]
 }
