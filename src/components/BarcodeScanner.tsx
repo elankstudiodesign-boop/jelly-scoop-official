@@ -19,10 +19,6 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
   const [cameraInfo, setCameraInfo] = useState<string>('');
   const [cameras, setCameras] = useState<any[]>([]);
   const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
-  const [zoom, setZoom] = useState(1);
-  const [maxZoom, setMaxZoom] = useState(1);
-  const [minZoom, setMinZoom] = useState(1);
-  const [hasZoom, setHasZoom] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isProcessingRef = useRef(false);
   const isMountedRef = useRef(true);
@@ -108,11 +104,10 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
 
       // Optimized configuration for barcodes
       const config = {
-        fps: 30,
+        fps: 20,
         qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-          // Optimized for 1D Barcodes: Wide and relatively short
           const width = Math.floor(viewfinderWidth * 0.85);
-          const height = Math.floor(width * 0.35);
+          const height = Math.floor(width / 2.2);
           return { width, height };
         },
         aspectRatio: 1.7777777778,
@@ -133,20 +128,12 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
       };
 
       const targetIndex = cameraIndex !== undefined ? cameraIndex : currentCameraIndex;
-      
-      // Request high resolution for better small barcode detection
       const cameraSource = availableCameras.length > 0 
-        ? { deviceId: { exact: availableCameras[targetIndex].id } } 
+        ? { deviceId: availableCameras[targetIndex].id } 
         : { facingMode: "environment" };
 
-      const videoConstraints = {
-        ...cameraSource,
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
-      };
-
       await html5QrCode.start(
-        videoConstraints,
+        cameraSource,
         config,
         (decodedText) => {
           if (!isProcessingRef.current && isMountedRef.current) {
@@ -167,24 +154,11 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
           const track = (html5QrCode as any).getRunningTrack();
           if (track) {
             const capabilities = track.getCapabilities() as any;
-            const settings = track.getSettings();
-
-            // Flash support
             if (capabilities.torch) setHasFlash(true);
-
-            // Zoom support
-            if (capabilities.zoom) {
-              setHasZoom(true);
-              setMinZoom(capabilities.zoom.min);
-              setMaxZoom(capabilities.zoom.max);
-              setZoom(settings.zoom || capabilities.zoom.min);
-            }
-
-            // Continuous focus
             if (capabilities.focusMode?.includes('continuous')) {
               await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
             }
-
+            const settings = track.getSettings();
             setCameraInfo(`${settings.width}x${settings.height}`);
           }
         } catch (e) {
@@ -199,19 +173,6 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
       }
     }
   }, [playBeep, cameras, currentCameraIndex]);
-
-  const handleZoomChange = async (value: number) => {
-    if (!scannerRef.current) return;
-    try {
-      const track = (scannerRef.current as any).getRunningTrack();
-      if (track) {
-        await track.applyConstraints({ advanced: [{ zoom: value }] });
-        setZoom(value);
-      }
-    } catch (err) {
-      console.error("Error applying zoom", err);
-    }
-  };
 
   const switchCamera = () => {
     if (cameras.length <= 1) return;
@@ -410,30 +371,14 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
             </div>
           ) : (
             <div className="w-full h-full relative flex items-center justify-center">
-              <div 
-                id="reader" 
-                className="w-full h-full"
-                onClick={async () => {
-                  // Manual focus trigger attempt
-                  if (scannerRef.current) {
-                    try {
-                      const track = (scannerRef.current as any).getRunningTrack();
-                      if (track && track.getCapabilities().focusMode?.includes('continuous')) {
-                        await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
-                      }
-                    } catch (e) {
-                      console.warn("Focus trigger failed", e);
-                    }
-                  }
-                }}
-              />
+              <div id="reader" className="w-full h-full"></div>
               
               {/* Professional Scanner Overlay */}
               {!scanResult && !isStarting && (
                 <>
                   <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
                     {/* Viewfinder - Optimized for Barcodes */}
-                    <div className="w-[85%] aspect-[2.8/1] relative overflow-hidden">
+                    <div className="w-[85%] aspect-[2.2/1] relative overflow-hidden">
                       {/* Scanning Line */}
                       <motion.div
                         className="absolute left-0 right-0 h-0.5 bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.8)] z-10"
@@ -446,30 +391,8 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
                       <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-lg" />
                       <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-lg" />
                     </div>
-                    <div className="mt-8 flex flex-col items-center gap-2">
-                      <p className="text-white font-bold text-[10px] uppercase tracking-[0.3em]">Đưa mã vạch vào khung hình</p>
-                      <p className="text-white/40 text-[9px] font-medium">Chạm vào màn hình để lấy nét</p>
-                    </div>
+                    <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.3em] mt-8">Đưa mã vạch vào khung hình</p>
                   </div>
-
-                  {/* Zoom Slider - Floating above controls */}
-                  {hasZoom && maxZoom > minZoom && (
-                    <div className="absolute bottom-40 left-1/2 -translate-x-1/2 w-64 px-6 py-4 bg-black/40 backdrop-blur-xl rounded-3xl border border-white/10 pointer-events-auto">
-                      <div className="flex items-center gap-4">
-                        <span className="text-[10px] font-bold text-white/40">1x</span>
-                        <input
-                          type="range"
-                          min={minZoom}
-                          max={maxZoom}
-                          step={0.1}
-                          value={zoom}
-                          onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
-                          className="flex-1 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                        />
-                        <span className="text-[10px] font-bold text-white/40">{Math.round(maxZoom)}x</span>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Controls - Bottom Floating */}
                   <div className="absolute bottom-14 left-0 right-0 flex justify-center gap-6 px-8 pointer-events-none">
