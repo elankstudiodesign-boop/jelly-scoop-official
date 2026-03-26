@@ -661,14 +661,25 @@ export default function Import({
   };
 
   const allIds = products.map(p => p.id);
-  const allSelected = allIds.length > 0 && selectedIds.size === allIds.length;
-  const someSelected = selectedIds.size > 0 && !allSelected;
+  const visibleInventoryIds = products
+    .filter(p => 
+      p.name.toLowerCase().includes(inventorySearchTerm.toLowerCase()) ||
+      (p.note && p.note.toLowerCase().includes(inventorySearchTerm.toLowerCase()))
+    )
+    .map(p => p.id);
+
+  const selectedVisibleCount = visibleInventoryIds.filter(id => selectedIds.has(id)).length;
+  const allSelected = visibleInventoryIds.length > 0 && selectedVisibleCount === visibleInventoryIds.length;
+  const someSelected = selectedVisibleCount > 0 && !allSelected;
 
   const toggleSelectAll = () => {
     setSelectedIds(prev => {
-      if (allSelected) return new Set();
       const next = new Set(prev);
-      allIds.forEach(id => next.add(id));
+      if (allSelected) {
+        visibleInventoryIds.forEach(id => next.delete(id));
+      } else {
+        visibleInventoryIds.forEach(id => next.add(id));
+      }
       return next;
     });
   };
