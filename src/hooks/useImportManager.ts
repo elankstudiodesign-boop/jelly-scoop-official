@@ -249,7 +249,9 @@ export function useImportManager({
         cost: numUnitCost,
         priceGroup: derivedPriceGroup,
         note: note,
-        supplierId: finalSupplierId
+        supplierId: finalSupplierId,
+        isCombo: productToUpdate.isCombo,
+        comboItems: productToUpdate.comboItems
       };
       if (finalImageUrl) updates.imageUrl = finalImageUrl;
       updateProduct(productToUpdate.id, updates);

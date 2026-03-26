@@ -122,7 +122,9 @@ export default function EditProductModal({ product, onClose, onSave }: EditProdu
         quantity: Number(quantity),
         priceGroup,
         note,
-        imageUrl: finalImageUrl
+        imageUrl: finalImageUrl,
+        isCombo: product.isCombo,
+        comboItems: product.comboItems
       });
       onClose();
     } catch (err) {

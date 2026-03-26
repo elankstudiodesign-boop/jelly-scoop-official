@@ -40,14 +40,6 @@ function createSupabaseHook<T extends { id: string }>(
         if (error) throw error;
         const mapped = data.map(mapFromDB);
         return sortFn ? mapped.sort(sortFn) : mapped;
-      },
-      initialData: () => {
-        try {
-          const parsed = JSON.parse(localStorage.getItem(`scoop_${queryKey}`) || '[]');
-          return Array.isArray(parsed) && parsed.length > 0 ? parsed : EMPTY_ARRAY;
-        } catch {
-          return EMPTY_ARRAY;
-        }
       }
     });
 
@@ -175,15 +167,20 @@ export function mapProductToDB(p: Partial<Product>, existing?: Product) {
   if (p.warehouseQuantity !== undefined) { res.warehouse_quantity = p.warehouseQuantity; delete res.warehouseQuantity; }
   if (p.barcode !== undefined) { res.barcode = p.barcode; }
   
+  // Use explicit values if provided, otherwise fallback to existing
   const isCombo = p.isCombo !== undefined ? p.isCombo : existing?.isCombo;
   const comboItems = p.comboItems !== undefined ? p.comboItems : existing?.comboItems;
   
-  if (p.note !== undefined || p.isCombo !== undefined || p.comboItems !== undefined) {
-    let note = p.note !== undefined ? p.note : (existing?.note || '');
-    if (isCombo && comboItems) {
-      note = `${note}|||__COMBO__|||${JSON.stringify(comboItems)}`;
+  // If we are updating note, or if we have combo info, we need to construct the note field
+  if (p.note !== undefined || isCombo !== undefined) {
+    let noteText = p.note !== undefined ? p.note : (existing?.note || '');
+    
+    // If it's a combo, append the items to the note
+    if (isCombo && comboItems && comboItems.length > 0) {
+      res.note = `${noteText}|||__COMBO__|||${JSON.stringify(comboItems)}`;
+    } else {
+      res.note = noteText;
     }
-    res.note = note;
   }
   
   if ('supplierId' in p) { res.supplier_id = p.supplierId; delete res.supplierId; }
