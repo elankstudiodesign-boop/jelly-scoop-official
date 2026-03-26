@@ -291,6 +291,7 @@ export default function Import({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [inventorySearchTerm, setInventorySearchTerm] = useState('');
+  const [inventoryTab, setInventoryTab] = useState<'all' | 'single' | 'combo'>('all');
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [printItems, setPrintItems] = useState<PrintItem[]>([]);
 
@@ -661,12 +662,21 @@ export default function Import({
   };
 
   const allIds = products.map(p => p.id);
-  const visibleInventoryIds = products
-    .filter(p => 
-      p.name.toLowerCase().includes(inventorySearchTerm.toLowerCase()) ||
-      (p.note && p.note.toLowerCase().includes(inventorySearchTerm.toLowerCase()))
-    )
-    .map(p => p.id);
+  
+  const filteredInventoryProducts = products.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(inventorySearchTerm.toLowerCase()) ||
+      (p.note && p.note.toLowerCase().includes(inventorySearchTerm.toLowerCase()));
+    
+    const matchesTab = inventoryTab === 'all' 
+      ? true 
+      : inventoryTab === 'combo' 
+        ? p.isCombo 
+        : !p.isCombo;
+        
+    return matchesSearch && matchesTab;
+  });
+
+  const visibleInventoryIds = filteredInventoryProducts.map(p => p.id);
 
   const selectedVisibleCount = visibleInventoryIds.filter(id => selectedIds.has(id)).length;
   const allSelected = visibleInventoryIds.length > 0 && selectedVisibleCount === visibleInventoryIds.length;
@@ -1231,6 +1241,40 @@ export default function Import({
               </button>
             )}
           </div>
+
+          {/* Inventory Tabs */}
+          <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+            <button
+              onClick={() => setInventoryTab('all')}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                inventoryTab === 'all' 
+                  ? 'bg-indigo-50 text-indigo-700' 
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              Tất cả
+            </button>
+            <button
+              onClick={() => setInventoryTab('single')}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                inventoryTab === 'single' 
+                  ? 'bg-indigo-50 text-indigo-700' 
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              Sản phẩm lẻ
+            </button>
+            <button
+              onClick={() => setInventoryTab('combo')}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                inventoryTab === 'combo' 
+                  ? 'bg-indigo-50 text-indigo-700' 
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              Combo
+            </button>
+          </div>
         </div>
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-600">
@@ -1247,22 +1291,14 @@ export default function Import({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {products.filter(p => 
-                p.name.toLowerCase().includes(inventorySearchTerm.toLowerCase()) ||
-                (p.note && p.note.toLowerCase().includes(inventorySearchTerm.toLowerCase()))
-              ).length === 0 ? (
+              {filteredInventoryProducts.length === 0 ? (
                 <tr>
                   <td colSpan={isSelectionMode ? 8 : 7} className="px-6 py-8 text-center text-slate-500">
                     {inventorySearchTerm ? 'Không tìm thấy sản phẩm phù hợp' : 'Kho hàng trống'}
                   </td>
                 </tr>
               ) : (
-                products
-                  .filter(p => 
-                    p.name.toLowerCase().includes(inventorySearchTerm.toLowerCase()) ||
-                    (p.note && p.note.toLowerCase().includes(inventorySearchTerm.toLowerCase()))
-                  )
-                  .map(p => {
+                filteredInventoryProducts.map(p => {
                   const wq = p.warehouseQuantity || 0;
                   const checked = selectedIds.has(p.id);
                   const supplier = suppliers.find(s => s.id === p.supplierId);
@@ -1362,20 +1398,12 @@ export default function Import({
 
         {/* Mobile View */}
         <div className="md:hidden divide-y divide-slate-100">
-          {products.filter(p => 
-            p.name.toLowerCase().includes(inventorySearchTerm.toLowerCase()) ||
-            (p.note && p.note.toLowerCase().includes(inventorySearchTerm.toLowerCase()))
-          ).length === 0 ? (
+          {filteredInventoryProducts.length === 0 ? (
             <div className="p-8 text-center text-slate-500">
               {inventorySearchTerm ? 'Không tìm thấy sản phẩm phù hợp' : 'Kho hàng trống'}
             </div>
           ) : (
-            products
-              .filter(p => 
-                p.name.toLowerCase().includes(inventorySearchTerm.toLowerCase()) ||
-                (p.note && p.note.toLowerCase().includes(inventorySearchTerm.toLowerCase()))
-              )
-              .map(p => {
+            filteredInventoryProducts.map(p => {
               const wq = p.warehouseQuantity || 0;
               const checked = selectedIds.has(p.id);
               return (
