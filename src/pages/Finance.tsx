@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Transaction, Product } from '../types';
-import { Wallet, TrendingUp, TrendingDown, Trash2, AlertTriangle, X, Plus, ChevronDown } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, Trash2, AlertTriangle, X, Plus, ChevronDown, Calendar, BarChart3 } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '../lib/format';
 import { v4 as uuidv4 } from 'uuid';
+import { useSupabaseFinancialSummaries } from '../hooks/useSupabase';
 
 interface FinanceProps {
   transactions: Transaction[];
@@ -13,6 +14,7 @@ interface FinanceProps {
 }
 
 export default function Finance({ transactions, deleteTransaction, addTransaction, products, updateProduct }: FinanceProps) {
+  const { dailySummaries, monthlySummaries, loading: summariesLoading } = useSupabaseFinancialSummaries();
   const [deleteConfirmIds, setDeleteConfirmIds] = useState<string[] | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -55,16 +57,16 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
   const { totalRevenue, totalExpense, netProfit } = useMemo(() => {
     let rev = 0;
     let exp = 0;
-    transactions.forEach(t => {
-      if (t.type === 'IN') rev += t.amount;
-      else if (t.type === 'OUT') exp += t.amount;
+    monthlySummaries.forEach(m => {
+      rev += m.total_revenue;
+      exp += m.total_expense;
     });
     return {
       totalRevenue: rev,
       totalExpense: exp,
       netProfit: rev - exp
     };
-  }, [transactions]);
+  }, [monthlySummaries]);
 
   const expenseByCategory = useMemo(() => {
     const totals = new Map<Transaction['category'], number>();
@@ -153,8 +155,8 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-500 mb-1">Tổng doanh thu</p>
-            <p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalRevenue)}đ</p>
+            <p className="text-sm font-medium text-slate-500 mb-1">Tổng doanh thu (Toàn thời gian)</p>
+            <p className="text-2xl font-bold text-emerald-600">{summariesLoading ? '...' : formatCurrency(totalRevenue)}đ</p>
           </div>
           <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
             <TrendingUp className="w-6 h-6" />
@@ -163,8 +165,8 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
         
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-500 mb-1">Tổng chi phí</p>
-            <p className="text-2xl font-bold text-rose-600">{formatCurrency(totalExpense)}đ</p>
+            <p className="text-sm font-medium text-slate-500 mb-1">Tổng chi phí (Toàn thời gian)</p>
+            <p className="text-2xl font-bold text-rose-600">{summariesLoading ? '...' : formatCurrency(totalExpense)}đ</p>
           </div>
           <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-600">
             <TrendingDown className="w-6 h-6" />
@@ -173,9 +175,9 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
 
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-500 mb-1">Lợi nhuận ròng</p>
+            <p className="text-sm font-medium text-slate-500 mb-1">Lợi nhuận ròng (Toàn thời gian)</p>
             <p className={`text-2xl font-bold ${netProfit >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
-              {formatCurrency(netProfit)}đ
+              {summariesLoading ? '...' : formatCurrency(netProfit)}đ
             </p>
           </div>
           <div className={`w-12 h-12 rounded-full flex items-center justify-center ${netProfit >= 0 ? 'bg-indigo-50 text-indigo-600' : 'bg-rose-50 text-rose-600'}`}>
@@ -184,9 +186,97 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
         </div>
       </div>
 
+      {/* Summary Tables */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
+            <Calendar className="w-5 h-5 text-indigo-600" />
+            <h2 className="text-lg font-bold text-slate-900">Doanh thu theo ngày (30 ngày)</h2>
+          </div>
+          <div className="overflow-x-auto flex-1">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-sm">
+                  <th className="p-3 font-medium text-slate-600">Ngày</th>
+                  <th className="p-3 font-medium text-slate-600 text-right">Doanh thu</th>
+                  <th className="p-3 font-medium text-slate-600 text-right">Chi phí</th>
+                  <th className="p-3 font-medium text-slate-600 text-right">Lợi nhuận</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm divide-y divide-slate-100">
+                {dailySummaries.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="p-4 text-center text-slate-500">
+                      {summariesLoading ? 'Đang tải...' : 'Chưa có dữ liệu'}
+                    </td>
+                  </tr>
+                ) : (
+                  dailySummaries.map((day) => (
+                    <tr key={day.summary_date} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-3 text-slate-900 font-medium">
+                        {new Date(day.summary_date).toLocaleDateString('vi-VN')}
+                      </td>
+                      <td className="p-3 text-right text-emerald-600 font-medium">{formatCurrency(day.total_revenue)}đ</td>
+                      <td className="p-3 text-right text-rose-600 font-medium">{formatCurrency(day.total_expense)}đ</td>
+                      <td className={`p-3 text-right font-bold ${day.net_profit >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
+                        {formatCurrency(day.net_profit)}đ
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
+            <BarChart3 className="w-5 h-5 text-indigo-600" />
+            <h2 className="text-lg font-bold text-slate-900">Doanh thu theo tháng</h2>
+          </div>
+          <div className="overflow-x-auto flex-1">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-sm">
+                  <th className="p-3 font-medium text-slate-600">Tháng</th>
+                  <th className="p-3 font-medium text-slate-600 text-right">Doanh thu</th>
+                  <th className="p-3 font-medium text-slate-600 text-right">Chi phí</th>
+                  <th className="p-3 font-medium text-slate-600 text-right">Lợi nhuận</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm divide-y divide-slate-100">
+                {monthlySummaries.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="p-4 text-center text-slate-500">
+                      {summariesLoading ? 'Đang tải...' : 'Chưa có dữ liệu'}
+                    </td>
+                  </tr>
+                ) : (
+                  monthlySummaries.map((month) => {
+                    const date = new Date(month.summary_month);
+                    return (
+                      <tr key={month.summary_month} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-3 text-slate-900 font-medium">
+                          Tháng {date.getMonth() + 1}/{date.getFullYear()}
+                        </td>
+                        <td className="p-3 text-right text-emerald-600 font-medium">{formatCurrency(month.total_revenue)}đ</td>
+                        <td className="p-3 text-right text-rose-600 font-medium">{formatCurrency(month.total_expense)}đ</td>
+                        <td className={`p-3 text-right font-bold ${month.net_profit >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
+                          {formatCurrency(month.net_profit)}đ
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-          <h2 className="text-lg font-bold text-slate-900">Chi phí theo danh mục</h2>
+          <h2 className="text-lg font-bold text-slate-900">Chi phí theo danh mục (30 ngày gần nhất)</h2>
           <div className="text-sm text-slate-500">Tổng: {formatCurrency(expenseByCategory.total)}đ</div>
         </div>
         {expenseByCategory.items.length === 0 ? (

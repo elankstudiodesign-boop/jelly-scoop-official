@@ -101,14 +101,14 @@ export function useSupabaseProducts() {
     }
   };
 
-  const updateProduct = async (id: string, updates: Partial<Product>) => {
+  const updateProduct = async (id: string, updates: Partial<Product>, localOnly = false) => {
     const existing = products.find(p => p.id === id);
     setProducts(prev => {
       const ex = prev.find(p => p.id === id);
       if (!ex) return prev;
       return upsertById(prev, { ...ex, ...updates }, (a, b) => a.name.localeCompare(b.name));
     });
-    if (!hasSupabaseConfig) return;
+    if (localOnly || !hasSupabaseConfig) return;
     try {
       const { error } = await supabase.from('products').update(mapProductToDB(updates, existing)).eq('id', id);
       if (error) throw error;
@@ -255,7 +255,9 @@ export function useSupabaseSessions() {
   }, []);
 
   const fetchSessions = async () => {
-    const { data, error } = await supabase.from('sessions').select('*').order('date', { ascending: true });
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const { data, error } = await supabase.from('sessions').select('*').gte('date', thirtyDaysAgo.toISOString()).order('date', { ascending: true });
     if (error) {
       console.error('Error fetching sessions:', error);
     } else if (data) {
@@ -264,9 +266,9 @@ export function useSupabaseSessions() {
     setLoading(false);
   };
 
-  const addSession = async (session: LiveSession) => {
+  const addSession = async (session: LiveSession, localOnly = false) => {
     setSessions(prev => upsertById(prev, session, (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-    if (!hasSupabaseConfig) return;
+    if (localOnly || !hasSupabaseConfig) return;
     const { error } = await supabase.from('sessions').upsert([mapSessionToDB(session)]);
     if (error) {
       console.error('Error adding session:', error);
@@ -571,7 +573,9 @@ export function useSupabaseTransactions() {
   }, []);
 
   const fetchTransactions = async () => {
-    const { data, error } = await supabase.from('transactions').select('*').order('date', { ascending: false });
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const { data, error } = await supabase.from('transactions').select('*').gte('date', thirtyDaysAgo.toISOString()).order('date', { ascending: false }).limit(2000);
     if (error) {
       console.error('Error fetching transactions:', error);
     } else if (data) {
@@ -580,9 +584,9 @@ export function useSupabaseTransactions() {
     setLoading(false);
   };
 
-  const addTransaction = async (transaction: Transaction) => {
+  const addTransaction = async (transaction: Transaction, localOnly = false) => {
     setTransactions(prev => upsertById(prev, transaction, (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-    if (!hasSupabaseConfig) return;
+    if (localOnly || !hasSupabaseConfig) return;
     try {
       const { error } = await supabase.from('transactions').upsert([mapTransactionToDB(transaction)]);
       if (error) throw error;
@@ -677,14 +681,14 @@ export function useSupabasePackagingItems() {
     return { error: null };
   };
 
-  const updatePackagingItem = async (id: string, updates: Partial<PackagingItem>) => {
+  const updatePackagingItem = async (id: string, updates: Partial<PackagingItem>, localOnly = false) => {
     setPackagingItems(prev => {
       const existing = prev.find(p => p.id === id);
       if (!existing) return prev;
       return upsertById(prev, { ...existing, ...updates }, (a, b) => a.name.localeCompare(b.name));
     });
     
-    if (!hasSupabaseConfig) return { error: null };
+    if (localOnly || !hasSupabaseConfig) return { error: null };
     
     const { error } = await supabase.from('packaging_items').update(mapPackagingItemToDB(updates)).eq('id', id);
     if (error) {
@@ -708,6 +712,77 @@ export function useSupabasePackagingItems() {
   };
 
   return { packagingItems, addPackagingItem, updatePackagingItem, deletePackagingItem, loading };
+}
+
+export interface DailyFinancialSummary {
+  summary_date: string;
+  total_revenue: number;
+  total_expense: number;
+  net_profit: number;
+  transaction_count: number;
+}
+
+export interface MonthlyFinancialSummary {
+  summary_month: string;
+  total_revenue: number;
+  total_expense: number;
+  net_profit: number;
+  transaction_count: number;
+}
+
+export function useSupabaseFinancialSummaries() {
+  const [dailySummaries, setDailySummaries] = useState<DailyFinancialSummary[]>([]);
+  const [monthlySummaries, setMonthlySummaries] = useState<MonthlyFinancialSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!hasSupabaseConfig) {
+      setLoading(false);
+      return;
+    }
+
+    fetchSummaries();
+
+    // Listen for changes on transactions table to refresh summaries
+    const channel = supabase
+      .channel('realtime:financial_summaries')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'transactions' },
+        () => {
+          fetchSummaries();
+        }
+      )
+      .subscribe();
+
+    const stopAutoRefresh = bindAutoRefresh(fetchSummaries, 60000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      stopAutoRefresh();
+    };
+  }, []);
+
+  const fetchSummaries = async () => {
+    try {
+      const [dailyRes, monthlyRes] = await Promise.all([
+        supabase.from('daily_financial_summary').select('*').order('summary_date', { ascending: false }).limit(30),
+        supabase.from('monthly_financial_summary').select('*').order('summary_month', { ascending: false })
+      ]);
+
+      if (dailyRes.error) throw dailyRes.error;
+      if (monthlyRes.error) throw monthlyRes.error;
+
+      setDailySummaries(dailyRes.data || []);
+      setMonthlySummaries(monthlyRes.data || []);
+    } catch (error) {
+      console.error('Error fetching financial summaries:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { dailySummaries, monthlySummaries, loading, refetch: fetchSummaries };
 }
 
 export function mapTransactionToDB(t: Partial<Transaction>) {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Product, ScoopConfig, Transaction, LiveSession, OrderItem, PackagingItem } from '../types';
 import { useSupabaseConfigs, executeOrderTransaction, mapTransactionToDB, mapSessionToDB } from '../hooks/useSupabase';
+import { addOfflineOrder } from '../lib/syncQueue';
 import { useDraftOrderSync, DraftOrderState } from '../hooks/useDraftOrderSync';
 import { defaultConfigs } from './Simulator';
 import { v4 as uuidv4 } from 'uuid';
@@ -14,13 +15,13 @@ import BarcodeScanner from '../components/BarcodeScanner';
 
 interface LiveProps {
   products: Product[];
-  updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
-  addTransaction: (transaction: Transaction) => Promise<void>;
-  addSession: (session: LiveSession) => Promise<void>;
+  updateProduct: (id: string, updates: Partial<Product>, localOnly?: boolean) => Promise<void>;
+  addTransaction: (transaction: Transaction, localOnly?: boolean) => Promise<void>;
+  addSession: (session: LiveSession, localOnly?: boolean) => Promise<void>;
   transactions: Transaction[];
   deleteTransaction: (id: string) => Promise<void>;
   packagingItems: PackagingItem[];
-  updatePackagingItem: (id: string, updates: Partial<PackagingItem>) => Promise<{ error: any } | { error: null }>;
+  updatePackagingItem: (id: string, updates: Partial<PackagingItem>, localOnly?: boolean) => Promise<{ error: any } | { error: null }>;
 }
 
 export default function Live({ 
@@ -284,62 +285,78 @@ export default function Live({
       averageScoopCost: totalCost
     } : null;
 
-    const fallbackSequential = async () => {
-      try {
-        // 1. Deduct inventory
-        for (const item of orderItems) {
-          if (orderType === 'RETAIL') {
-            const currentWarehouseQty = item.product.warehouseQuantity || 0;
-            await updateProduct(item.product.id, { warehouseQuantity: Math.max(0, currentWarehouseQty - item.quantity) });
-          } else {
-            const currentQty = item.product.quantity || 0;
-            await updateProduct(item.product.id, { quantity: Math.max(0, currentQty - item.quantity) });
-          }
-        }
-
-        // Deduct packaging inventory
-        for (const p of scannedPackagingItems) {
-          const currentQty = p.item.quantity || 0;
-          await updatePackagingItem(p.item.id, { quantity: Math.max(0, currentQty - p.quantity) });
-        }
-
-        await addTransaction(incomeTx);
-        if (expenseTx) await addTransaction(expenseTx);
-        if (sessionObj) await addSession(sessionObj);
-
-        toast.success('Hoàn tất đơn hàng thành công!');
-        broadcastOrderCompleted();
-        handleClearOrder();
-      } catch (error) {
-        toast.error('Lỗi khi lưu đơn hàng!');
+    // 1. Cập nhật giao diện ngay lập tức (Optimistic UI)
+    for (const item of orderItems) {
+      if (orderType === 'RETAIL') {
+        const currentWarehouseQty = item.product.warehouseQuantity || 0;
+        await updateProduct(item.product.id, { warehouseQuantity: Math.max(0, currentWarehouseQty - item.quantity) }, true);
+      } else {
+        const currentQty = item.product.quantity || 0;
+        await updateProduct(item.product.id, { quantity: Math.max(0, currentQty - item.quantity) }, true);
       }
+    }
+
+    for (const p of scannedPackagingItems) {
+      const currentQty = p.item.quantity || 0;
+      await updatePackagingItem(p.item.id, { quantity: Math.max(0, currentQty - p.quantity) }, true);
+    }
+
+    await addTransaction(incomeTx, true);
+    if (expenseTx) await addTransaction(expenseTx, true);
+    if (sessionObj) await addSession(sessionObj, true);
+
+    const rpcPayload = {
+      p_order_type: orderType,
+      p_items: orderItems.map(item => ({ id: item.product.id, quantity: item.quantity })),
+      p_packaging_items: scannedPackagingItems.map(p => ({ id: p.item.id, quantity: p.quantity })),
+      p_income_transaction: mapTransactionToDB(incomeTx),
+      p_expense_transaction: expenseTx ? mapTransactionToDB(expenseTx) : null,
+      p_session: sessionObj ? mapSessionToDB(sessionObj) : null
     };
 
     if (hasSupabaseConfig) {
-      try {
-        await executeOrderTransaction({
-          p_order_type: orderType,
-          p_items: orderItems.map(item => ({ id: item.product.id, quantity: item.quantity })),
-          p_packaging_items: scannedPackagingItems.map(p => ({ id: p.item.id, quantity: p.quantity })),
-          p_income_transaction: mapTransactionToDB(incomeTx),
-          p_expense_transaction: expenseTx ? mapTransactionToDB(expenseTx) : null,
-          p_session: sessionObj ? mapSessionToDB(sessionObj) : null
-        });
-        toast.success('Hoàn tất đơn hàng thành công!');
-        broadcastOrderCompleted();
-        handleClearOrder();
-      } catch (error: any) {
-        console.error('RPC Error:', error);
-        if (error.message?.includes('Could not find the function') || error.code === 'PGRST202') {
-          toast.warning('Chưa cài đặt Database Transaction. Đang dùng phương thức tuần tự...');
-          await fallbackSequential();
-        } else {
-          toast.error('Lỗi khi hoàn tất đơn hàng: ' + error.message);
+      if (!navigator.onLine) {
+        addOfflineOrder(rpcPayload);
+        toast.success('Đã lưu đơn hàng offline. Sẽ đồng bộ khi có mạng!');
+      } else {
+        try {
+          await executeOrderTransaction(rpcPayload);
+          toast.success('Hoàn tất đơn hàng thành công!');
+        } catch (error: any) {
+          console.error('RPC Error:', error);
+          if (error.message === 'Failed to fetch' || error.message?.includes('network')) {
+            addOfflineOrder(rpcPayload);
+            toast.success('Lỗi mạng. Đã lưu đơn hàng offline!');
+          } else if (error.message?.includes('Could not find the function') || error.code === 'PGRST202') {
+            toast.warning('Chưa cài đặt Database Transaction. Đang dùng phương thức tuần tự...');
+            // Fallback: Gọi lại các hàm không có localOnly để lưu lên Supabase
+            for (const item of orderItems) {
+              if (orderType === 'RETAIL') {
+                const currentWarehouseQty = item.product.warehouseQuantity || 0;
+                await updateProduct(item.product.id, { warehouseQuantity: Math.max(0, currentWarehouseQty - item.quantity) });
+              } else {
+                const currentQty = item.product.quantity || 0;
+                await updateProduct(item.product.id, { quantity: Math.max(0, currentQty - item.quantity) });
+              }
+            }
+            for (const p of scannedPackagingItems) {
+              const currentQty = p.item.quantity || 0;
+              await updatePackagingItem(p.item.id, { quantity: Math.max(0, currentQty - p.quantity) });
+            }
+            await addTransaction(incomeTx);
+            if (expenseTx) await addTransaction(expenseTx);
+            if (sessionObj) await addSession(sessionObj);
+          } else {
+            toast.error('Lỗi khi hoàn tất đơn hàng: ' + error.message);
+          }
         }
       }
     } else {
-      await fallbackSequential();
+      toast.success('Hoàn tất đơn hàng (Chế độ Local)!');
     }
+
+    broadcastOrderCompleted();
+    handleClearOrder();
   };
 
   if (loading) {

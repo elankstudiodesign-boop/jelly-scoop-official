@@ -11,6 +11,7 @@ import Import from './pages/Import';
 import Finance from './pages/Finance';
 import Settings from './pages/Settings';
 import { useSupabaseProducts, useSupabaseSessions, useSupabaseTransactions, useSupabaseSuppliers, useSupabasePackagingItems } from './hooks/useSupabase';
+import { processOfflineOrders } from './lib/syncQueue';
 import { hasSupabaseConfig } from './lib/supabase';
 import { Product, Supplier, Transaction, LiveSession, PackagingItem } from './types';
 
@@ -21,6 +22,13 @@ export default function App() {
   const { suppliers, addSupplier, updateSupplier, deleteSupplier, loading: suppliersLoading } = useSupabaseSuppliers();
 
   const { packagingItems, addPackagingItem, updatePackagingItem, deletePackagingItem, loading: packagingLoading } = useSupabasePackagingItems();
+
+  React.useEffect(() => {
+    // Process offline orders on initial load if online
+    if (navigator.onLine) {
+      processOfflineOrders();
+    }
+  }, []);
 
   const handleImportData = async (data: {
     products?: Product[];
