@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Transaction, Product } from '../types';
-import { Wallet, TrendingUp, TrendingDown, Trash2, AlertTriangle, X, Plus, ChevronDown, Calendar, BarChart3 } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, Trash2, AlertTriangle, X, Plus, ChevronDown, Calendar, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '../lib/format';
 import { v4 as uuidv4 } from 'uuid';
-import { useSupabaseFinancialSummaries } from '../hooks/useSupabase';
+import { useSupabaseFinancialSummaries, usePaginatedTransactions } from '../hooks/useSupabase';
 
 interface FinanceProps {
   transactions: Transaction[];
@@ -21,7 +21,17 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [activeTab, setActiveTab] = useState<'ALL' | 'IN' | 'OUT'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
+  const limit = 50;
+  
+  const { data: paginatedTransactions, totalCount, loading: txLoading } = usePaginatedTransactions(page, limit, searchTerm, activeTab);
+
   const selectAllRef = useRef<HTMLInputElement>(null);
+  
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, searchTerm]);
   
   // Form state for new transaction
   const [newTxType, setNewTxType] = useState<'IN' | 'OUT'>('OUT');
@@ -89,14 +99,7 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
     return { total, items };
   }, [transactions]);
 
-  const sortedTransactions = [...transactions]
-    .filter(t => {
-      const matchesTab = activeTab === 'ALL' || t.type === activeTab;
-      const matchesSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesTab && matchesSearch;
-    })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  const allIds = sortedTransactions.map(t => t.id);
+  const allIds = paginatedTransactions.map(t => t.id);
   const allSelected = allIds.length > 0 && selectedIds.size === allIds.length;
   const someSelected = selectedIds.size > 0 && !allSelected;
 
@@ -121,7 +124,7 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
   useEffect(() => {
     const allowed = new Set(allIds);
     setSelectedIds(prev => new Set([...prev].filter(id => allowed.has(id))));
-  }, [transactions]);
+  }, [paginatedTransactions]);
 
   useEffect(() => {
     if (selectAllRef.current) {
@@ -402,12 +405,14 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
         
         {/* Mobile View */}
         <div className="block md:hidden divide-y divide-slate-100">
-          {sortedTransactions.length === 0 ? (
+          {txLoading ? (
+            <div className="p-6 text-center text-slate-500">Đang tải dữ liệu...</div>
+          ) : paginatedTransactions.length === 0 ? (
             <div className="p-6 text-center text-slate-500">
               Chưa có giao dịch nào
             </div>
           ) : (
-            sortedTransactions.map((t) => (
+            paginatedTransactions.map((t) => (
               <div key={t.id} className="p-4 hover:bg-slate-50 transition-colors">
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-2">
@@ -465,14 +470,20 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {sortedTransactions.length === 0 ? (
+              {txLoading ? (
+                <tr>
+                  <td colSpan={isSelectionMode ? 7 : 6} className="px-6 py-8 text-center text-slate-500">
+                    Đang tải dữ liệu...
+                  </td>
+                </tr>
+              ) : paginatedTransactions.length === 0 ? (
                 <tr>
                   <td colSpan={isSelectionMode ? 7 : 6} className="px-6 py-8 text-center text-slate-500">
                     Chưa có giao dịch nào
                   </td>
                 </tr>
               ) : (
-                sortedTransactions.map((t) => (
+                paginatedTransactions.map((t) => (
                   <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
                     {isSelectionMode && (
                       <td className="px-6 py-4">
@@ -520,6 +531,32 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalCount > limit && (
+          <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50">
+            <div className="text-sm text-slate-500">
+              Hiển thị <span className="font-medium text-slate-900">{(page - 1) * limit + 1}</span> đến <span className="font-medium text-slate-900">{Math.min(page * limit, totalCount)}</span> trong số <span className="font-medium text-slate-900">{totalCount}</span> giao dịch
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-sm font-medium text-slate-700 px-2">Trang {page}</span>
+              <button
+                onClick={() => setPage(p => p + 1)}
+                disabled={page * limit >= totalCount}
+                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Delete Confirmation Modal */}
@@ -558,7 +595,7 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
                     const productUpdates: Record<string, number> = {};
                     
                     ids.forEach(id => {
-                      const tx = transactions.find(t => t.id === id);
+                      const tx = paginatedTransactions.find(t => t.id === id);
                       if (tx && tx.items && tx.items.length > 0) {
                         tx.items.forEach(item => {
                           // If it's an IN transaction (e.g., ORDER), we sold items, so deleting it means we add them back.

@@ -247,9 +247,9 @@ interface ImportProps {
   updateSupplier: (id: string, updates: Partial<Supplier>) => Promise<void>;
   deleteSupplier: (id: string) => Promise<void>;
   packagingItems: PackagingItem[];
-  addPackagingItem: (item: PackagingItem) => Promise<{ error: any } | { error: null }>;
-  updatePackagingItem: (id: string, updates: Partial<PackagingItem>) => Promise<{ error: any } | { error: null }>;
-  deletePackagingItem: (id: string) => Promise<{ error: any } | { error: null }>;
+  addPackagingItem: (item: PackagingItem) => Promise<void>;
+  updatePackagingItem: (id: string, updates: Partial<PackagingItem>) => Promise<void>;
+  deletePackagingItem: (id: string) => Promise<void>;
 }
 
 export default function Import({ 
@@ -760,30 +760,30 @@ export default function Import({
     const barcode = packagingBarcode || generateBarcodeNumber(id);
 
     if (editingPackagingId) {
-      const { error } = await updatePackagingItem(editingPackagingId, {
-        name: packagingName,
-        price,
-        quantity,
-        barcode,
-      });
-      if (error) {
-        setNotification({ type: 'error', message: 'Lỗi khi cập nhật bao bì: ' + error.message });
-      } else {
+      try {
+        await updatePackagingItem(editingPackagingId, {
+          name: packagingName,
+          price,
+          quantity,
+          barcode,
+        });
         setNotification({ type: 'success', message: 'Cập nhật bao bì thành công!' });
+      } catch (error: any) {
+        setNotification({ type: 'error', message: 'Lỗi khi cập nhật bao bì: ' + error.message });
       }
     } else {
-      const { error } = await addPackagingItem({
-        id,
-        name: packagingName,
-        price,
-        quantity,
-        barcode,
-        createdAt: new Date().toISOString(),
-      });
-      if (error) {
-        setNotification({ type: 'error', message: 'Lỗi khi thêm bao bì: ' + error.message });
-      } else {
+      try {
+        await addPackagingItem({
+          id,
+          name: packagingName,
+          price,
+          quantity,
+          barcode,
+          createdAt: new Date().toISOString(),
+        });
         setNotification({ type: 'success', message: 'Thêm bao bì mới thành công!' });
+      } catch (error: any) {
+        setNotification({ type: 'error', message: 'Lỗi khi thêm bao bì: ' + error.message });
       }
     }
 
@@ -808,11 +808,11 @@ export default function Import({
 
   const handleDeletePackaging = async (id: string) => {
     if (window.confirm('Bạn có chắc chắn muốn xoá bao bì này?')) {
-      const { error } = await deletePackagingItem(id);
-      if (error) {
-        setNotification({ type: 'error', message: 'Lỗi khi xoá bao bì: ' + error.message });
-      } else {
+      try {
+        await deletePackagingItem(id);
         setNotification({ type: 'success', message: 'Đã xoá bao bì.' });
+      } catch (error: any) {
+        setNotification({ type: 'error', message: 'Lỗi khi xoá bao bì: ' + error.message });
       }
       setTimeout(() => setNotification(null), 3000);
     }

@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase, hasSupabaseConfig } from '../lib/supabase';
 import { Product, LiveSession, ScoopConfig, Transaction, Supplier, PackagingItem } from '../types';
-import { useLocalStorage } from './useLocalStorage';
+import { addToOfflineQueue } from '../lib/syncQueue';
+
+const EMPTY_ARRAY: any[] = [];
 
 function upsertById<T extends { id: string }>(items: T[], next: T, sortFn?: (a: T, b: T) => number) {
   const idx = items.findIndex(x => x.id === next.id);
@@ -14,392 +17,157 @@ function removeById<T extends { id: string }>(items: T[], id: string) {
   return items.filter(x => x.id !== id);
 }
 
-function bindAutoRefresh(refetch: () => Promise<void> | void, intervalMs: number) {
-  let running = false;
-  const run = () => {
-    if (running) return;
-    running = true;
-    Promise.resolve(refetch()).finally(() => {
-      running = false;
+function createSupabaseHook<T extends { id: string }>(
+  tableName: string,
+  queryKey: string,
+  mapFromDB: (row: any) => T,
+  mapToDB: (item: Partial<T>, existing?: T) => any,
+  sortFn?: (a: T, b: T) => number,
+  fetchQuery?: (query: any) => any
+) {
+  return function useHook() {
+    const queryClient = useQueryClient();
+
+    const { data = EMPTY_ARRAY, isLoading: loading } = useQuery({
+      queryKey: [queryKey],
+      queryFn: async () => {
+        if (!hasSupabaseConfig) return EMPTY_ARRAY;
+        let query = supabase.from(tableName).select('*');
+        if (fetchQuery) {
+          query = fetchQuery(query);
+        }
+        const { data, error } = await query;
+        if (error) throw error;
+        const mapped = data.map(mapFromDB);
+        return sortFn ? mapped.sort(sortFn) : mapped;
+      },
+      initialData: () => {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(`scoop_${queryKey}`) || '[]');
+          return Array.isArray(parsed) && parsed.length > 0 ? parsed : EMPTY_ARRAY;
+        } catch {
+          return EMPTY_ARRAY;
+        }
+      }
     });
-  };
 
-  const onFocus = () => run();
-  const onVisibility = () => {
-    if (document.visibilityState === 'visible') run();
-  };
+    useEffect(() => {
+      localStorage.setItem(`scoop_${queryKey}`, JSON.stringify(data));
+    }, [data]);
 
-  window.addEventListener('focus', onFocus);
-  document.addEventListener('visibilitychange', onVisibility);
-  const timer = intervalMs > 0 ? window.setInterval(run, intervalMs) : null;
-
-  return () => {
-    window.removeEventListener('focus', onFocus);
-    document.removeEventListener('visibilitychange', onVisibility);
-    if (timer) window.clearInterval(timer);
-  };
-}
-
-export function useSupabaseProducts() {
-  const [products, setProducts] = useLocalStorage<Product[]>('scoop_products', []);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!hasSupabaseConfig) {
-      setLoading(false);
-      return;
-    }
-    fetchProducts();
-
-    const channel = supabase
-      .channel('realtime:products')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'products' },
-        (payload: any) => {
-          if (payload.eventType === 'DELETE') {
-            const id = payload.old?.id;
-            if (typeof id === 'string') setProducts(prev => removeById(prev, id));
-            return;
+    useEffect(() => {
+      if (!hasSupabaseConfig) return;
+      const channel = supabase
+        .channel(`realtime:${tableName}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: tableName },
+          () => {
+            queryClient.invalidateQueries({ queryKey: [queryKey] });
           }
-          const row = payload.new;
-          if (!row) return;
-          const mapped = mapProductFromDB(row);
-          setProducts(prev => upsertById(prev, mapped, (a, b) => a.name.localeCompare(b.name)));
+        )
+        .subscribe();
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }, [queryClient]);
+
+    const addMutation = useMutation({
+      mutationFn: async ({ item, localOnly }: { item: T, localOnly?: boolean }) => {
+        if (localOnly || !hasSupabaseConfig) return;
+        const { error } = await supabase.from(tableName).upsert([mapToDB(item)]);
+        if (error) throw error;
+      },
+      onMutate: async ({ item }) => {
+        await queryClient.cancelQueries({ queryKey: [queryKey] });
+        const previous = queryClient.getQueryData<T[]>([queryKey]);
+        queryClient.setQueryData<T[]>([queryKey], old => upsertById(old || [], item, sortFn));
+        return { previous };
+      },
+      onError: (err, { item }, context) => {
+        if (!navigator.onLine) {
+          addToOfflineQueue({ type: 'INSERT', table: tableName, payload: mapToDB(item) });
+        } else {
+          queryClient.setQueryData([queryKey], context?.previous);
+          console.error(`Error adding ${tableName}:`, err);
+          toast.error('Có lỗi xảy ra. Vui lòng thử lại.');
         }
-      )
-      .subscribe();
-
-    const stopAutoRefresh = bindAutoRefresh(fetchProducts, 60000);
-
-    return () => {
-      supabase.removeChannel(channel);
-      stopAutoRefresh();
-    };
-  }, []);
-
-  const fetchProducts = async () => {
-    const { data, error } = await supabase.from('products').select('*').order('name', { ascending: true });
-    if (error) {
-      console.error('Error fetching products:', error);
-    } else if (data) {
-      setProducts(data.map(mapProductFromDB).sort((a, b) => a.name.localeCompare(b.name)));
-    }
-    setLoading(false);
-  };
-
-  const addProduct = async (product: Product) => {
-    setProducts(prev => upsertById(prev, product, (a, b) => a.name.localeCompare(b.name)));
-    if (!hasSupabaseConfig) return;
-    try {
-      const { error } = await supabase.from('products').upsert([mapProductToDB(product)]);
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error adding product:', error);
-      toast.error('Không thể thêm sản phẩm. Vui lòng thử lại.');
-      fetchProducts();
-    }
-  };
-
-  const updateProduct = async (id: string, updates: Partial<Product>, localOnly = false) => {
-    const existing = products.find(p => p.id === id);
-    setProducts(prev => {
-      const ex = prev.find(p => p.id === id);
-      if (!ex) return prev;
-      return upsertById(prev, { ...ex, ...updates }, (a, b) => a.name.localeCompare(b.name));
+      },
+      onSettled: () => {
+        if (navigator.onLine) queryClient.invalidateQueries({ queryKey: [queryKey] });
+      }
     });
-    if (localOnly || !hasSupabaseConfig) return;
-    try {
-      const { error } = await supabase.from('products').update(mapProductToDB(updates, existing)).eq('id', id);
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error updating product:', error);
-      toast.error('Không thể cập nhật sản phẩm. Vui lòng thử lại.');
-      fetchProducts();
-    }
-  };
 
-  const deleteProduct = async (id: string) => {
-    setProducts(prev => prev.filter(p => p.id !== id));
-    if (!hasSupabaseConfig) return;
-    try {
-      const { error } = await supabase.from('products').delete().eq('id', id);
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error deleting product:', error);
-      toast.error('Không thể xoá sản phẩm. Vui lòng thử lại.');
-      fetchProducts();
-    }
-  };
-
-  return { products, addProduct, updateProduct, deleteProduct, loading };
-}
-
-export function useSupabaseSuppliers() {
-  const [suppliers, setSuppliers] = useLocalStorage<Supplier[]>('scoop_suppliers', []);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!hasSupabaseConfig) {
-      setLoading(false);
-      return;
-    }
-    fetchSuppliers();
-
-    const channel = supabase
-      .channel('realtime:suppliers')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'suppliers' },
-        (payload: any) => {
-          if (payload.eventType === 'DELETE') {
-            const id = payload.old?.id;
-            if (typeof id === 'string') setSuppliers(prev => removeById(prev, id));
-            return;
-          }
-          const row = payload.new;
-          if (!row) return;
-          const mapped = mapSupplierFromDB(row);
-          setSuppliers(prev => upsertById(prev, mapped, (a, b) => a.name.localeCompare(b.name)));
-        }
-      )
-      .subscribe();
-
-    const stopAutoRefresh = bindAutoRefresh(fetchSuppliers, 60000);
-
-    return () => {
-      supabase.removeChannel(channel);
-      stopAutoRefresh();
-    };
-  }, []);
-
-  const fetchSuppliers = async () => {
-    const { data, error } = await supabase.from('suppliers').select('*').order('name', { ascending: true });
-    if (error) {
-      console.error('Error fetching suppliers:', error);
-    } else if (data) {
-      setSuppliers(data.map(mapSupplierFromDB));
-    }
-    setLoading(false);
-  };
-
-  const addSupplier = async (supplier: Supplier) => {
-    setSuppliers(prev => upsertById(prev, supplier, (a, b) => a.name.localeCompare(b.name)));
-    if (!hasSupabaseConfig) return;
-    const { error } = await supabase.from('suppliers').upsert([mapSupplierToDB(supplier)]);
-    if (error) {
-      console.error('Error adding supplier:', error);
-      fetchSuppliers();
-    }
-  };
-
-  const updateSupplier = async (id: string, updates: Partial<Supplier>) => {
-    setSuppliers(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
-    if (!hasSupabaseConfig) return;
-    const { error } = await supabase.from('suppliers').update(mapSupplierToDB(updates)).eq('id', id);
-    if (error) {
-      console.error('Error updating supplier:', error);
-      fetchSuppliers();
-    }
-  };
-
-  const deleteSupplier = async (id: string) => {
-    setSuppliers(prev => prev.filter(s => s.id !== id));
-    if (!hasSupabaseConfig) return;
-    const { error } = await supabase.from('suppliers').delete().eq('id', id);
-    if (error) {
-      console.error('Error deleting supplier:', error);
-      fetchSuppliers();
-    }
-  };
-
-  return { suppliers, addSupplier, updateSupplier, deleteSupplier, loading };
-}
-
-export function useSupabaseSessions() {
-  const [sessions, setSessions] = useLocalStorage<LiveSession[]>('scoop_sessions', []);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!hasSupabaseConfig) {
-      setLoading(false);
-      return;
-    }
-    fetchSessions();
-
-    const channel = supabase
-      .channel('realtime:sessions')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'sessions' },
-        (payload: any) => {
-          if (payload.eventType === 'DELETE') {
-            const id = payload.old?.id;
-            if (typeof id === 'string') setSessions(prev => removeById(prev, id));
-            return;
-          }
-          const row = payload.new;
-          if (!row) return;
-          const mapped = mapSessionFromDB(row);
-          setSessions(prev => upsertById(prev, mapped, (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-        }
-      )
-      .subscribe();
-
-    const stopAutoRefresh = bindAutoRefresh(fetchSessions, 60000);
-
-    return () => {
-      supabase.removeChannel(channel);
-      stopAutoRefresh();
-    };
-  }, []);
-
-  const fetchSessions = async () => {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const { data, error } = await supabase.from('sessions').select('*').gte('date', thirtyDaysAgo.toISOString()).order('date', { ascending: true });
-    if (error) {
-      console.error('Error fetching sessions:', error);
-    } else if (data) {
-      setSessions(data.map(mapSessionFromDB).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-    }
-    setLoading(false);
-  };
-
-  const addSession = async (session: LiveSession, localOnly = false) => {
-    setSessions(prev => upsertById(prev, session, (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-    if (localOnly || !hasSupabaseConfig) return;
-    const { error } = await supabase.from('sessions').upsert([mapSessionToDB(session)]);
-    if (error) {
-      console.error('Error adding session:', error);
-      fetchSessions();
-    }
-  };
-
-  const deleteSession = async (id: string) => {
-    setSessions(prev => prev.filter(s => s.id !== id));
-    if (!hasSupabaseConfig) return;
-    const { error } = await supabase.from('sessions').delete().eq('id', id);
-    if (error) {
-      console.error('Error deleting session:', error);
-      fetchSessions();
-    }
-  };
-
-  return { sessions, addSession, deleteSession, loading };
-}
-
-export function useSupabaseConfigs(defaultConfigs: ScoopConfig[]) {
-  const [configs, setConfigs] = useLocalStorage<ScoopConfig[]>('scoop_configs', defaultConfigs);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!hasSupabaseConfig) {
-      if (defaultConfigs.length === 1) {
-        const wantedId = defaultConfigs[0]?.id;
-        const wantedNameLower = (defaultConfigs[0]?.name || '').toLowerCase();
-        setConfigs(prev => {
-          const preferred = prev.find(c => c.id === wantedId) || prev.find(c => c.name.toLowerCase() === wantedNameLower) || prev.find(c => c.name.toLowerCase().includes('lớn')) || prev[0];
-          return preferred ? [preferred] : defaultConfigs;
+    const updateMutation = useMutation({
+      mutationFn: async ({ id, updates, localOnly }: { id: string, updates: Partial<T>, localOnly?: boolean }) => {
+        if (localOnly || !hasSupabaseConfig) return;
+        const existing = data.find(p => p.id === id);
+        const { error } = await supabase.from(tableName).update(mapToDB(updates, existing)).eq('id', id);
+        if (error) throw error;
+      },
+      onMutate: async ({ id, updates }) => {
+        await queryClient.cancelQueries({ queryKey: [queryKey] });
+        const previous = queryClient.getQueryData<T[]>([queryKey]);
+        queryClient.setQueryData<T[]>([queryKey], old => {
+          const ex = old?.find(p => p.id === id);
+          if (!ex) return old || [];
+          return upsertById(old || [], { ...ex, ...updates }, sortFn);
         });
-      }
-      setLoading(false);
-      return;
-    }
-    fetchConfigs();
-
-    const channel = supabase
-      .channel('realtime:scoop_configs')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'scoop_configs' },
-        (payload: any) => {
-          if (payload.eventType === 'DELETE') {
-            const id = payload.old?.id;
-            if (typeof id === 'string') {
-              setConfigs(prev => {
-                const next = removeById(prev, id);
-                if (defaultConfigs.length === 1) {
-                  const wantedId = defaultConfigs[0]?.id;
-                  const preferred = next.find(c => c.id === wantedId) || next.find(c => (c.name || '').toLowerCase().includes('lớn')) || next[0];
-                  return preferred ? [preferred] : defaultConfigs;
-                }
-                return next;
-              });
-            }
-            return;
-          }
-          const row = payload.new;
-          if (!row) return;
-          const mapped = mapConfigFromDB(row);
-          setConfigs(prev => {
-            const next = upsertById(prev, mapped, (a, b) => a.id.localeCompare(b.id));
-            if (defaultConfigs.length === 1) {
-              const wantedId = defaultConfigs[0]?.id;
-              const preferred = next.find(c => c.id === wantedId) || next.find(c => (c.name || '').toLowerCase().includes('lớn')) || next[0];
-              return preferred ? [preferred] : defaultConfigs;
-            }
-            return next;
-          });
+        return { previous };
+      },
+      onError: (err, { id, updates }, context) => {
+        if (!navigator.onLine) {
+          const existing = context?.previous?.find(p => p.id === id);
+          addToOfflineQueue({ type: 'UPDATE', table: tableName, id, payload: mapToDB(updates, existing) });
+        } else {
+          queryClient.setQueryData([queryKey], context?.previous);
+          console.error(`Error updating ${tableName}:`, err);
+          toast.error('Có lỗi xảy ra. Vui lòng thử lại.');
         }
-      )
-      .subscribe();
+      },
+      onSettled: () => {
+        if (navigator.onLine) queryClient.invalidateQueries({ queryKey: [queryKey] });
+      }
+    });
 
-    const stopAutoRefresh = bindAutoRefresh(fetchConfigs, 60000);
+    const deleteMutation = useMutation({
+      mutationFn: async (id: string) => {
+        if (!hasSupabaseConfig) return;
+        const { error } = await supabase.from(tableName).delete().eq('id', id);
+        if (error) throw error;
+      },
+      onMutate: async (id) => {
+        await queryClient.cancelQueries({ queryKey: [queryKey] });
+        const previous = queryClient.getQueryData<T[]>([queryKey]);
+        queryClient.setQueryData<T[]>([queryKey], old => removeById(old || [], id));
+        return { previous };
+      },
+      onError: (err, id, context) => {
+        if (!navigator.onLine) {
+          addToOfflineQueue({ type: 'DELETE', table: tableName, id });
+        } else {
+          queryClient.setQueryData([queryKey], context?.previous);
+          console.error(`Error deleting ${tableName}:`, err);
+          toast.error('Có lỗi xảy ra. Vui lòng thử lại.');
+        }
+      },
+      onSettled: () => {
+        if (navigator.onLine) queryClient.invalidateQueries({ queryKey: [queryKey] });
+      }
+    });
 
-    return () => {
-      supabase.removeChannel(channel);
-      stopAutoRefresh();
+    return {
+      data,
+      loading,
+      add: async (item: T, localOnly = false) => addMutation.mutateAsync({ item, localOnly }),
+      update: async (id: string, updates: Partial<T>, localOnly = false) => updateMutation.mutateAsync({ id, updates, localOnly }),
+      delete: async (id: string) => deleteMutation.mutateAsync(id)
     };
-  }, []);
-
-  const fetchConfigs = async () => {
-    const { data, error } = await supabase.from('scoop_configs').select('*').order('created_at', { ascending: true });
-    if (error) {
-      console.error('Error fetching configs:', error);
-    } else if (data && data.length > 0) {
-      const mapped = data.map(mapConfigFromDB);
-      if (defaultConfigs.length === 1) {
-        const wantedId = defaultConfigs[0]?.id;
-        const wantedNameLower = (defaultConfigs[0]?.name || '').toLowerCase();
-        const preferred = mapped.find(c => c.id === wantedId) || mapped.find(c => c.name.toLowerCase() === wantedNameLower) || mapped.find(c => c.name.toLowerCase().includes('lớn')) || mapped[0];
-        const keep = preferred ? [preferred] : [];
-        setConfigs(keep.length > 0 ? keep : defaultConfigs);
-        const keepId = preferred?.id;
-        if (keepId) {
-          for (const cfg of mapped) {
-            if (cfg.id !== keepId) {
-              await supabase.from('scoop_configs').delete().eq('id', cfg.id);
-            }
-          }
-        }
-      } else {
-        setConfigs(mapped);
-      }
-    } else {
-      // Insert defaults if empty
-      for (const config of defaultConfigs) {
-        await supabase.from('scoop_configs').insert([mapConfigToDB(config)]);
-      }
-    }
-    setLoading(false);
   };
-
-  const updateConfig = async (id: string, updates: Partial<ScoopConfig>) => {
-    setConfigs(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-    if (!hasSupabaseConfig) return;
-    const { error } = await supabase.from('scoop_configs').update(mapConfigToDB(updates)).eq('id', id);
-    if (error) {
-      console.error('Error updating config:', error);
-      fetchConfigs();
-    }
-  };
-
-  return { configs, updateConfig, loading };
 }
 
-// Mappers to handle camelCase to snake_case
-function mapProductToDB(p: Partial<Product>, existing?: Product) {
+// Mappers
+export function mapProductToDB(p: Partial<Product>, existing?: Product) {
   const res: any = { ...p };
   if (p.retailPrice !== undefined) { res.retail_price = p.retailPrice; delete res.retailPrice; }
   if (p.imageUrl !== undefined) { res.image_url = p.imageUrl; delete res.imageUrl; }
@@ -424,7 +192,7 @@ function mapProductToDB(p: Partial<Product>, existing?: Product) {
   return res;
 }
 
-function mapProductFromDB(p: any): Product {
+export function mapProductFromDB(p: any): Product {
   let note = p.note || '';
   let isCombo = false;
   let comboItems: any[] | undefined = undefined;
@@ -467,7 +235,7 @@ export function mapSessionToDB(s: Partial<LiveSession>) {
   return res;
 }
 
-function mapSessionFromDB(s: any): LiveSession {
+export function mapSessionFromDB(s: any): LiveSession {
   return {
     id: s.id,
     date: s.date,
@@ -479,7 +247,7 @@ function mapSessionFromDB(s: any): LiveSession {
   };
 }
 
-function mapConfigToDB(c: Partial<ScoopConfig>) {
+export function mapConfigToDB(c: Partial<ScoopConfig>) {
   const res: any = { ...c };
   if (c.totalItems !== undefined) { res.total_items = c.totalItems; delete res.totalItems; }
   if (c.ratioLow !== undefined) { res.ratio_low = c.ratioLow; delete res.ratioLow; }
@@ -488,7 +256,7 @@ function mapConfigToDB(c: Partial<ScoopConfig>) {
   return res;
 }
 
-function mapConfigFromDB(c: any): ScoopConfig {
+export function mapConfigFromDB(c: any): ScoopConfig {
   return {
     id: c.id,
     name: c.name,
@@ -500,13 +268,13 @@ function mapConfigFromDB(c: any): ScoopConfig {
   };
 }
 
-function mapSupplierToDB(s: Partial<Supplier>) {
+export function mapSupplierToDB(s: Partial<Supplier>) {
   const res: any = { ...s };
   if (s.createdAt !== undefined) { res.created_at = s.createdAt; delete res.createdAt; }
   return res;
 }
 
-function mapSupplierFromDB(s: any): Supplier {
+export function mapSupplierFromDB(s: any): Supplier {
   return {
     id: s.id,
     name: s.name,
@@ -517,13 +285,13 @@ function mapSupplierFromDB(s: any): Supplier {
   };
 }
 
-function mapPackagingItemToDB(p: Partial<PackagingItem>) {
+export function mapPackagingItemToDB(p: Partial<PackagingItem>) {
   const res: any = { ...p };
   if (p.createdAt !== undefined) { res.created_at = p.createdAt; delete res.createdAt; }
   return res;
 }
 
-function mapPackagingItemFromDB(p: any): PackagingItem {
+export function mapPackagingItemFromDB(p: any): PackagingItem {
   return {
     id: p.id,
     name: p.name,
@@ -532,257 +300,6 @@ function mapPackagingItemFromDB(p: any): PackagingItem {
     barcode: p.barcode,
     createdAt: p.created_at
   };
-}
-
-export function useSupabaseTransactions() {
-  const [transactions, setTransactions] = useLocalStorage<Transaction[]>('scoop_transactions', []);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!hasSupabaseConfig) {
-      setLoading(false);
-      return;
-    }
-    fetchTransactions();
-
-    const channel = supabase
-      .channel('realtime:transactions')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'transactions' },
-        (payload: any) => {
-          if (payload.eventType === 'DELETE') {
-            const id = payload.old?.id;
-            if (typeof id === 'string') setTransactions(prev => removeById(prev, id));
-            return;
-          }
-          const row = payload.new;
-          if (!row) return;
-          const mapped = mapTransactionFromDB(row);
-          setTransactions(prev => upsertById(prev, mapped, (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-        }
-      )
-      .subscribe();
-
-    const stopAutoRefresh = bindAutoRefresh(fetchTransactions, 60000);
-
-    return () => {
-      supabase.removeChannel(channel);
-      stopAutoRefresh();
-    };
-  }, []);
-
-  const fetchTransactions = async () => {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const { data, error } = await supabase.from('transactions').select('*').gte('date', thirtyDaysAgo.toISOString()).order('date', { ascending: false }).limit(2000);
-    if (error) {
-      console.error('Error fetching transactions:', error);
-    } else if (data) {
-      setTransactions(data.map(mapTransactionFromDB).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-    }
-    setLoading(false);
-  };
-
-  const addTransaction = async (transaction: Transaction, localOnly = false) => {
-    setTransactions(prev => upsertById(prev, transaction, (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-    if (localOnly || !hasSupabaseConfig) return;
-    try {
-      const { error } = await supabase.from('transactions').upsert([mapTransactionToDB(transaction)]);
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error adding transaction:', error);
-      toast.error('Không thể thêm giao dịch. Vui lòng thử lại.');
-      fetchTransactions();
-    }
-  };
-
-  const deleteTransaction = async (id: string) => {
-    setTransactions(prev => prev.filter(t => t.id !== id));
-    if (!hasSupabaseConfig) return;
-    try {
-      const { error } = await supabase.from('transactions').delete().eq('id', id);
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error deleting transaction:', error);
-      toast.error('Không thể xoá giao dịch. Vui lòng thử lại.');
-      fetchTransactions();
-    }
-  };
-
-  return { transactions, addTransaction, deleteTransaction, loading };
-}
-
-export async function executeOrderTransaction(payload: any) {
-  if (!hasSupabaseConfig) throw new Error('No Supabase config');
-  const { data, error } = await supabase.rpc('complete_order', payload);
-  if (error) throw error;
-  return data;
-}
-
-export function useSupabasePackagingItems() {
-  const [packagingItems, setPackagingItems] = useLocalStorage<PackagingItem[]>('scoop_packaging_items', []);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!hasSupabaseConfig) {
-      setLoading(false);
-      return;
-    }
-    fetchPackagingItems();
-
-    const channel = supabase
-      .channel('realtime:packaging_items')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'packaging_items' },
-        (payload: any) => {
-          if (payload.eventType === 'DELETE') {
-            const id = payload.old?.id;
-            if (typeof id === 'string') setPackagingItems(prev => removeById(prev, id));
-            return;
-          }
-          const row = payload.new;
-          if (!row) return;
-          const mapped = mapPackagingItemFromDB(row);
-          setPackagingItems(prev => upsertById(prev, mapped, (a, b) => a.name.localeCompare(b.name)));
-        }
-      )
-      .subscribe();
-
-    const stopAutoRefresh = bindAutoRefresh(fetchPackagingItems, 60000);
-
-    return () => {
-      supabase.removeChannel(channel);
-      stopAutoRefresh();
-    };
-  }, []);
-
-  const fetchPackagingItems = async () => {
-    const { data, error } = await supabase.from('packaging_items').select('*').order('name', { ascending: true });
-    if (error) {
-      console.error('Error fetching packaging items:', error);
-    } else if (data) {
-      setPackagingItems(data.map(mapPackagingItemFromDB).sort((a, b) => a.name.localeCompare(b.name)));
-    }
-    setLoading(false);
-  };
-
-  const addPackagingItem = async (item: PackagingItem) => {
-    setPackagingItems(prev => upsertById(prev, item, (a, b) => a.name.localeCompare(b.name)));
-    if (!hasSupabaseConfig) return { error: null };
-    
-    const { error } = await supabase.from('packaging_items').upsert([mapPackagingItemToDB(item)]);
-    if (error) {
-      console.error('Error adding packaging item:', error);
-      fetchPackagingItems();
-      return { error };
-    }
-    return { error: null };
-  };
-
-  const updatePackagingItem = async (id: string, updates: Partial<PackagingItem>, localOnly = false) => {
-    setPackagingItems(prev => {
-      const existing = prev.find(p => p.id === id);
-      if (!existing) return prev;
-      return upsertById(prev, { ...existing, ...updates }, (a, b) => a.name.localeCompare(b.name));
-    });
-    
-    if (localOnly || !hasSupabaseConfig) return { error: null };
-    
-    const { error } = await supabase.from('packaging_items').update(mapPackagingItemToDB(updates)).eq('id', id);
-    if (error) {
-      console.error('Error updating packaging item:', error);
-      fetchPackagingItems();
-      return { error };
-    }
-    return { error: null };
-  };
-
-  const deletePackagingItem = async (id: string) => {
-    setPackagingItems(prev => prev.filter(p => p.id !== id));
-    if (!hasSupabaseConfig) return { error: null };
-    const { error } = await supabase.from('packaging_items').delete().eq('id', id);
-    if (error) {
-      console.error('Error deleting packaging item:', error);
-      fetchPackagingItems();
-      return { error };
-    }
-    return { error: null };
-  };
-
-  return { packagingItems, addPackagingItem, updatePackagingItem, deletePackagingItem, loading };
-}
-
-export interface DailyFinancialSummary {
-  summary_date: string;
-  total_revenue: number;
-  total_expense: number;
-  net_profit: number;
-  transaction_count: number;
-}
-
-export interface MonthlyFinancialSummary {
-  summary_month: string;
-  total_revenue: number;
-  total_expense: number;
-  net_profit: number;
-  transaction_count: number;
-}
-
-export function useSupabaseFinancialSummaries() {
-  const [dailySummaries, setDailySummaries] = useState<DailyFinancialSummary[]>([]);
-  const [monthlySummaries, setMonthlySummaries] = useState<MonthlyFinancialSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!hasSupabaseConfig) {
-      setLoading(false);
-      return;
-    }
-
-    fetchSummaries();
-
-    // Listen for changes on transactions table to refresh summaries
-    const channel = supabase
-      .channel('realtime:financial_summaries')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'transactions' },
-        () => {
-          fetchSummaries();
-        }
-      )
-      .subscribe();
-
-    const stopAutoRefresh = bindAutoRefresh(fetchSummaries, 60000);
-
-    return () => {
-      supabase.removeChannel(channel);
-      stopAutoRefresh();
-    };
-  }, []);
-
-  const fetchSummaries = async () => {
-    try {
-      const [dailyRes, monthlyRes] = await Promise.all([
-        supabase.from('daily_financial_summary').select('*').order('summary_date', { ascending: false }).limit(30),
-        supabase.from('monthly_financial_summary').select('*').order('summary_month', { ascending: false })
-      ]);
-
-      if (dailyRes.error) throw dailyRes.error;
-      if (monthlyRes.error) throw monthlyRes.error;
-
-      setDailySummaries(dailyRes.data || []);
-      setMonthlySummaries(monthlyRes.data || []);
-    } catch (error) {
-      console.error('Error fetching financial summaries:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return { dailySummaries, monthlySummaries, loading, refetch: fetchSummaries };
 }
 
 export function mapTransactionToDB(t: Partial<Transaction>) {
@@ -800,7 +317,7 @@ export function mapTransactionToDB(t: Partial<Transaction>) {
   return res;
 }
 
-function mapTransactionFromDB(t: any): Transaction {
+export function mapTransactionFromDB(t: any): Transaction {
   let description = t.description || '';
   let items: { productId: string; quantity: number, retailPrice?: number }[] | undefined = undefined;
 
@@ -824,11 +341,11 @@ function mapTransactionFromDB(t: any): Transaction {
 
   return {
     id: t.id,
+    date: t.date,
     type: t.type,
-    category: t.category,
     amount: Number(t.amount),
     description,
-    date: t.date,
+    category: t.category,
     items,
     customerName: t.customer_name,
     customerPhone: t.customer_phone,
@@ -836,3 +353,315 @@ function mapTransactionFromDB(t: any): Transaction {
     supplierId: t.supplier_id
   };
 }
+
+const useProductsBase = createSupabaseHook<Product>(
+  'products',
+  'products',
+  mapProductFromDB,
+  mapProductToDB,
+  (a, b) => a.name.localeCompare(b.name),
+  (query) => query.order('name', { ascending: true })
+);
+
+export function useSupabaseProducts() {
+  const { data: products, loading, add, update, delete: del } = useProductsBase();
+  return { products, loading, addProduct: add, updateProduct: update, deleteProduct: del };
+}
+
+const useSuppliersBase = createSupabaseHook<Supplier>(
+  'suppliers',
+  'suppliers',
+  mapSupplierFromDB,
+  mapSupplierToDB,
+  (a, b) => a.name.localeCompare(b.name),
+  (query) => query.order('name', { ascending: true })
+);
+
+export function useSupabaseSuppliers() {
+  const { data: suppliers, loading, add, update, delete: del } = useSuppliersBase();
+  return { suppliers, loading, addSupplier: add, updateSupplier: update, deleteSupplier: del };
+}
+
+const useSessionsBase = createSupabaseHook<LiveSession>(
+  'sessions',
+  'sessions',
+  mapSessionFromDB,
+  mapSessionToDB,
+  (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+  (query) => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    return query.gte('date', thirtyDaysAgo.toISOString()).order('date', { ascending: false });
+  }
+);
+
+export function useSupabaseSessions() {
+  const { data: sessions, loading, add, update, delete: del } = useSessionsBase();
+  return { sessions, loading, addSession: add, updateSession: update, deleteSession: del };
+}
+
+export function useSupabaseConfigs(defaultConfigs: ScoopConfig[]) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!hasSupabaseConfig) return;
+
+    const channel = supabase
+      .channel('realtime:scoop_configs')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'scoop_configs' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['scoop_configs'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  const { data: configs, isLoading } = useQuery({
+    queryKey: ['scoop_configs'],
+    queryFn: async () => {
+      if (!hasSupabaseConfig) return defaultConfigs;
+
+      const { data, error } = await supabase.from('scoop_configs').select('*').order('created_at', { ascending: true });
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const mapped = data.map(mapConfigFromDB);
+        if (defaultConfigs.length === 1) {
+          const wantedId = defaultConfigs[0]?.id;
+          const wantedNameLower = (defaultConfigs[0]?.name || '').toLowerCase();
+          const preferred = mapped.find(c => c.id === wantedId) || mapped.find(c => c.name.toLowerCase() === wantedNameLower) || mapped.find(c => c.name.toLowerCase().includes('lớn')) || mapped[0];
+          
+          if (preferred) {
+            // Cleanup other configs if needed
+            for (const cfg of mapped) {
+              if (cfg.id !== preferred.id) {
+                supabase.from('scoop_configs').delete().eq('id', cfg.id).then();
+              }
+            }
+            return [preferred];
+          }
+          return defaultConfigs;
+        }
+        return mapped;
+      } else {
+        // Insert defaults if empty
+        for (const config of defaultConfigs) {
+          await supabase.from('scoop_configs').insert([mapConfigToDB(config)]);
+        }
+        return defaultConfigs;
+      }
+    },
+    initialData: defaultConfigs,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string, updates: Partial<ScoopConfig> }) => {
+      if (!hasSupabaseConfig) return;
+      const { error } = await supabase.from('scoop_configs').update(mapConfigToDB(updates)).eq('id', id);
+      if (error) throw error;
+    },
+    onMutate: async ({ id, updates }) => {
+      await queryClient.cancelQueries({ queryKey: ['scoop_configs'] });
+      const previous = queryClient.getQueryData<ScoopConfig[]>(['scoop_configs']);
+      if (previous) {
+        queryClient.setQueryData<ScoopConfig[]>(['scoop_configs'], prev => 
+          (prev || []).map(c => c.id === id ? { ...c, ...updates } : c)
+        );
+      }
+      return { previous };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['scoop_configs'], context.previous);
+      }
+      console.error('Error updating config:', err);
+    },
+    onSettled: () => {
+      if (navigator.onLine) queryClient.invalidateQueries({ queryKey: ['scoop_configs'] });
+    }
+  });
+
+  const updateConfig = async (id: string, updates: Partial<ScoopConfig>) => {
+    return updateMutation.mutateAsync({ id, updates });
+  };
+
+  return { configs: configs || defaultConfigs, updateConfig, loading: isLoading };
+}
+
+
+
+const useTransactionsBase = createSupabaseHook<Transaction>(
+  'transactions',
+  'transactions',
+  mapTransactionFromDB,
+  mapTransactionToDB,
+  (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+  (query) => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    return query.gte('date', thirtyDaysAgo.toISOString()).order('date', { ascending: false }).limit(2000);
+  }
+);
+
+export function useSupabaseTransactions() {
+  const { data: transactions, loading, add, update, delete: del } = useTransactionsBase();
+  return { transactions, loading, addTransaction: add, updateTransaction: update, deleteTransaction: del };
+}
+
+export async function executeOrderTransaction(payload: any) {
+  if (!hasSupabaseConfig) throw new Error('No Supabase config');
+  const { data, error } = await supabase.rpc('complete_order', payload);
+  if (error) throw error;
+  return data;
+}
+
+const usePackagingItemsBase = createSupabaseHook<PackagingItem>(
+  'packaging_items',
+  'packaging_items',
+  mapPackagingItemFromDB,
+  mapPackagingItemToDB,
+  (a, b) => a.name.localeCompare(b.name),
+  (query) => query.order('name', { ascending: true })
+);
+
+export function useSupabasePackagingItems() {
+  const { data: packagingItems, loading, add, update, delete: del } = usePackagingItemsBase();
+  return { packagingItems, loading, addPackagingItem: add, updatePackagingItem: update, deletePackagingItem: del };
+}
+
+export interface DailyFinancialSummary {
+  summary_date: string;
+  total_revenue: number;
+  total_expense: number;
+  net_profit: number;
+  transaction_count: number;
+}
+
+export interface MonthlyFinancialSummary {
+  summary_month: string;
+  total_revenue: number;
+  total_expense: number;
+  net_profit: number;
+  transaction_count: number;
+}
+
+export function useSupabaseFinancialSummaries() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!hasSupabaseConfig) return;
+
+    const channel = supabase
+      .channel('realtime:financial_summaries')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'transactions' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['financial_summaries'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['financial_summaries'],
+    queryFn: async () => {
+      if (!hasSupabaseConfig) return { daily: EMPTY_ARRAY, monthly: EMPTY_ARRAY };
+      const [dailyRes, monthlyRes] = await Promise.all([
+        supabase.from('daily_financial_summary').select('*').order('summary_date', { ascending: false }).limit(30),
+        supabase.from('monthly_financial_summary').select('*').order('summary_month', { ascending: false })
+      ]);
+
+      if (dailyRes.error) throw dailyRes.error;
+      if (monthlyRes.error) throw monthlyRes.error;
+
+      return {
+        daily: dailyRes.data as DailyFinancialSummary[],
+        monthly: monthlyRes.data as MonthlyFinancialSummary[]
+      };
+    }
+  });
+
+  return { 
+    dailySummaries: data?.daily || EMPTY_ARRAY, 
+    monthlySummaries: data?.monthly || EMPTY_ARRAY, 
+    loading: isLoading, 
+    refetch 
+  };
+}
+
+export function usePaginatedTransactions(page: number, limit: number, searchTerm: string, typeFilter: 'ALL' | 'IN' | 'OUT') {
+  const queryClient = useQueryClient();
+  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    if (!hasSupabaseConfig) return;
+    const channel = supabase
+      .channel('realtime:paginated_transactions')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'transactions' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['paginated_transactions'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['paginated_transactions', page, limit, debouncedSearch, typeFilter],
+    queryFn: async () => {
+      if (!hasSupabaseConfig) return { data: EMPTY_ARRAY, count: 0 };
+      
+      let query = supabase.from('transactions').select('*', { count: 'exact' });
+      
+      if (typeFilter !== 'ALL') {
+        query = query.eq('type', typeFilter);
+      }
+      if (debouncedSearch) {
+        query = query.ilike('description', `%${debouncedSearch}%`);
+      }
+      
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      
+      const { data: resData, count, error } = await query.order('date', { ascending: false }).range(from, to);
+      
+      if (error) throw error;
+      
+      return {
+        data: resData && resData.length > 0 ? resData.map(mapTransactionFromDB) : EMPTY_ARRAY,
+        count: count || 0
+      };
+    }
+  });
+
+  return { 
+    data: data?.data || EMPTY_ARRAY, 
+    totalCount: data?.count || 0, 
+    loading: isLoading, 
+    refetch 
+  };
+}
+

@@ -120,7 +120,7 @@ interface ComboTabProps {
   packagingItems: PackagingItem[];
   addProduct: (product: Product) => Promise<void>;
   updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
-  updatePackagingItem: (id: string, updates: Partial<PackagingItem>) => Promise<{ error: any } | { error: null }>;
+  updatePackagingItem: (id: string, updates: Partial<PackagingItem>) => Promise<void>;
   addTransaction: (transaction: Transaction) => Promise<void>;
   setNotification: (notif: { type: 'success' | 'error', message: string } | null) => void;
 }

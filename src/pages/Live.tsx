@@ -21,7 +21,7 @@ interface LiveProps {
   transactions: Transaction[];
   deleteTransaction: (id: string) => Promise<void>;
   packagingItems: PackagingItem[];
-  updatePackagingItem: (id: string, updates: Partial<PackagingItem>, localOnly?: boolean) => Promise<{ error: any } | { error: null }>;
+  updatePackagingItem: (id: string, updates: Partial<PackagingItem>, localOnly?: boolean) => Promise<void>;
 }
 
 export default function Live({ 
