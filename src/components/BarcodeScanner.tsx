@@ -85,8 +85,13 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
 
   const restartScanner = useCallback(async (cameraIndex?: number) => {
     if (scannerRef.current && scannerRef.current.isScanning) {
-      await scannerRef.current.stop();
+      try {
+        await scannerRef.current.stop();
+      } catch (e) {
+        console.warn("Stop error during restart:", e);
+      }
     }
+    
     setIsStarting(true);
     setError('');
     setIsFlashOn(false);
@@ -96,21 +101,32 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
     scannerRef.current = html5QrCode;
 
     try {
-      let availableCameras = cameras;
+      let backCameras = cameras;
       if (cameras.length === 0) {
-        availableCameras = await Html5Qrcode.getCameras();
-        setCameras(availableCameras);
+        const allCameras = await Html5Qrcode.getCameras();
+        // Filter for back/rear cameras only
+        backCameras = allCameras.filter(c => 
+          c.label.toLowerCase().includes('back') || 
+          c.label.toLowerCase().includes('rear') ||
+          c.label.toLowerCase().includes('camera 0') ||
+          c.label.toLowerCase().includes('environment')
+        );
+        
+        // Fallback to all cameras if no "back" label found (some browsers don't provide labels until permission)
+        if (backCameras.length === 0) backCameras = allCameras;
+        setCameras(backCameras);
       }
 
-      // Optimized configuration for barcodes
+      // Optimized configuration for barcodes - focus on performance
       const config = {
-        fps: 20,
+        fps: 15, // Lower FPS reduces CPU load and lag on mobile
         qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-          const width = Math.floor(viewfinderWidth * 0.85);
-          const height = Math.floor(width / 2.2);
+          // Narrower box for barcodes to focus processing power
+          const width = Math.floor(viewfinderWidth * 0.8);
+          const height = Math.floor(width / 2.5);
           return { width, height };
         },
-        aspectRatio: 1.7777777778,
+        aspectRatio: 1.7777777778, // 16:9
         disableFlip: true,
         formatsToSupport: [
           Html5QrcodeSupportedFormats.CODE_128,
@@ -119,17 +135,21 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
           Html5QrcodeSupportedFormats.CODE_39,
           Html5QrcodeSupportedFormats.UPC_A,
           Html5QrcodeSupportedFormats.UPC_E,
-          Html5QrcodeSupportedFormats.ITF,
-          Html5QrcodeSupportedFormats.QR_CODE,
         ],
         experimentalFeatures: {
           useBarCodeDetectorIfSupported: true
+        },
+        // Request a reasonable resolution to avoid lag from high-res processing
+        videoConstraints: {
+          width: { min: 640, ideal: 1280, max: 1920 },
+          height: { min: 480, ideal: 720, max: 1080 },
+          facingMode: "environment"
         }
       };
 
       const targetIndex = cameraIndex !== undefined ? cameraIndex : currentCameraIndex;
-      const cameraSource = availableCameras.length > 0 
-        ? { deviceId: availableCameras[targetIndex].id } 
+      const cameraSource = backCameras.length > 0 
+        ? { deviceId: backCameras[targetIndex].id } 
         : { facingMode: "environment" };
 
       await html5QrCode.start(
@@ -155,9 +175,12 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
           if (track) {
             const capabilities = track.getCapabilities() as any;
             if (capabilities.torch) setHasFlash(true);
+            
+            // Critical for barcode: Continuous focus
             if (capabilities.focusMode?.includes('continuous')) {
               await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
             }
+            
             const settings = track.getSettings();
             setCameraInfo(`${settings.width}x${settings.height}`);
           }
@@ -168,7 +191,7 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
     } catch (err) {
       if (isMountedRef.current) {
         console.error("Error starting camera", err);
-        setError("Không thể khởi động camera. Vui lòng kiểm tra quyền truy cập.");
+        setError("Không thể khởi động camera sau. Vui lòng kiểm tra quyền truy cập.");
         setIsStarting(false);
       }
     }
@@ -382,6 +405,7 @@ export default function BarcodeScanner({ onScan, onClose, scanResult, onClearRes
                       {/* Scanning Line */}
                       <motion.div
                         className="absolute left-0 right-0 h-0.5 bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.8)] z-10"
+                        style={{ willChange: 'top' }}
                         animate={{ top: ['0%', '100%', '0%'] }}
                         transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                       />
