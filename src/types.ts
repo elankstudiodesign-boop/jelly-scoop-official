@@ -70,6 +70,7 @@ export interface Supplier {
   address: string;
   note?: string;
   createdAt: string;
+  productsCount?: number;
 }
 
 export interface PackagingItem {

@@ -57,9 +57,9 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mt-8">
-      <div className="p-3 md:p-6 border-b border-slate-100 flex flex-col gap-4">
+      <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <h2 className="text-lg font-bold text-slate-900">Tồn kho hiện tại</h2>
+          <h2 className="text-lg font-black text-slate-900 tracking-tight">Tồn kho hiện tại</h2>
           
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0">
             {isSelectionMode ? (
@@ -293,10 +293,10 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
             const supplier = suppliers.find(s => s.id === p.supplierId);
             
             return (
-              <div key={p.id} className={`p-3 transition-all ${checked ? 'bg-indigo-50/50' : 'hover:bg-slate-50'}`}>
-                <div className="flex items-start gap-4">
+              <div key={p.id} className={`p-4 transition-all ${checked ? 'bg-indigo-50/50' : 'hover:bg-slate-50'}`}>
+                <div className="flex items-start gap-3">
                   {isSelectionMode && (
-                    <div className="pt-1">
+                    <div className="pt-2">
                       <input
                         type="checkbox"
                         checked={checked}
@@ -306,35 +306,35 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                     </div>
                   )}
                   
-                  <div className="relative group flex-shrink-0">
-                    <div className="w-20 h-20 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shadow-sm">
+                  <div className="relative flex-shrink-0">
+                    <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-sm">
                       {p.imageUrl ? (
                         <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <ImageIcon className="w-8 h-8 text-slate-300" />
+                          <ImageIcon className="w-6 h-6 text-slate-300" />
                         </div>
                       )}
                     </div>
                     {wq < 4 && (
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white shadow-sm" />
+                      <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white shadow-sm" />
                     )}
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start gap-2">
-                      <h3 className="font-bold text-slate-900 leading-tight truncate pr-2">{p.name}</h3>
+                      <h3 className="font-bold text-slate-900 text-sm leading-tight truncate pr-1">{p.name}</h3>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <button
                           onClick={() => downloadBarcode(p)}
-                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm border border-transparent hover:border-slate-100"
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-lg transition-all border border-transparent hover:border-slate-100"
                         >
                           <Barcode className="w-4 h-4" />
                         </button>
                         {!isSelectionMode && (
                           <button
                             onClick={() => setDeleteConfirmIds([p.id])}
-                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all shadow-sm border border-transparent hover:border-slate-100"
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-white rounded-lg transition-all border border-transparent hover:border-slate-100"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -342,12 +342,12 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                       </div>
                     </div>
 
-                    <div className="mt-1 flex items-center gap-2">
+                    <div className="mt-1 flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-black text-indigo-600">{formatCurrency(p.cost)}đ</span>
                       <span className="text-slate-300">•</span>
                       <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                        <Truck className="w-3 h-3" />
-                        <span className="truncate max-w-[100px]">{supplier?.name || 'Chưa gán'}</span>
+                        <Truck className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate max-w-[80px]">{supplier?.name || 'Chưa gán'}</span>
                         <button 
                           onClick={() => openAssignModal(p.id)}
                           className="text-indigo-600 hover:text-indigo-700 ml-0.5"
@@ -358,14 +358,14 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                     </div>
 
                     {p.note && (
-                      <p className="mt-2 text-[11px] text-slate-500 line-clamp-2 bg-slate-50 p-2 rounded-lg border border-slate-100 italic">
+                      <p className="mt-1.5 text-[10px] text-slate-500 line-clamp-1 bg-slate-50 px-2 py-1 rounded-md border border-slate-100 italic">
                         {p.note}
                       </p>
                     )}
 
-                    <div className="mt-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-500">Tồn kho:</span>
+                    <div className="mt-2 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tồn kho:</span>
                         <span className={`text-sm font-black ${wq === 0 ? 'text-red-600' : wq < 4 ? 'text-orange-600' : 'text-slate-900'}`}>
                           {wq}
                         </span>
@@ -373,15 +373,15 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                       
                       <div>
                         {wq === 0 ? (
-                          <span className="px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-50 text-red-600 border border-red-100">
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-50 text-red-600 border border-red-100">
                             Hết hàng
                           </span>
                         ) : wq < 4 ? (
-                          <span className="px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-orange-50 text-orange-600 border border-orange-100">
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-orange-50 text-orange-600 border border-orange-100">
                             Sắp hết
                           </span>
                         ) : (
-                          <span className="px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-600 border border-emerald-100">
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-600 border border-emerald-100">
                             Còn hàng
                           </span>
                         )}

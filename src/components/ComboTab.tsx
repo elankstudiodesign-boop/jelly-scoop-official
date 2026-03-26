@@ -120,6 +120,7 @@ interface ComboTabProps {
   packagingItems: PackagingItem[];
   addProduct: (product: Product) => Promise<void>;
   updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
   updatePackagingItem: (id: string, updates: Partial<PackagingItem>) => Promise<void>;
   addTransaction: (transaction: Transaction) => Promise<void>;
   setNotification: (notif: { type: 'success' | 'error', message: string } | null) => void;
@@ -130,6 +131,7 @@ export default function ComboTab({
   packagingItems,
   addProduct,
   updateProduct,
+  deleteProduct,
   updatePackagingItem,
   addTransaction,
   setNotification
@@ -758,14 +760,46 @@ export default function ComboTab({
                   <div className="text-xs text-slate-400 mt-1">
                     Mã: {combo.barcode || 'N/A'}
                   </div>
-                  <div className="mt-2">
+                  
+                  {/* Display Combo Items */}
+                  {combo.comboItems && combo.comboItems.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Thành phần:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {combo.comboItems.map((item, idx) => {
+                          const isProd = item.type === 'product';
+                          const detail = isProd ? products.find(p => p.id === item.id) : packagingItems.find(p => p.id === item.id);
+                          if (!detail) return null;
+                          return (
+                            <span key={idx} className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded flex items-center gap-1">
+                              <span className="truncate max-w-[60px]">{detail.name}</span>
+                              <span className="font-bold">x{item.quantity}</span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-3 flex flex-wrap gap-2">
                     <button
                       onClick={() => downloadBarcode(combo)}
-                      className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded transition-colors"
+                      className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg transition-colors"
                       title="Tải mã vạch về máy"
                     >
                       <Download className="w-3.5 h-3.5" />
-                      Tải mã vạch
+                      Mã vạch
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm('Bạn có chắc chắn muốn xóa Combo này?')) {
+                          deleteProduct(combo.id);
+                        }
+                      }}
+                      className="flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Xóa
                     </button>
                   </div>
                 </div>

@@ -79,8 +79,8 @@ export default function App() {
       <div className="flex min-h-screen min-h-[100dvh] bg-slate-50 font-sans text-slate-900 selection:bg-indigo-100 selection:text-indigo-900">
         <Toaster position="top-right" richColors />
         <Sidebar />
-        <main className="flex-1 p-1 sm:p-8 lg:p-10 overflow-y-auto mt-16 md:mt-0 pb-8">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 p-3 sm:p-8 lg:p-10 overflow-y-auto mt-16 md:mt-0 pb-8">
+          <div className="w-full">
             {!hasSupabaseConfig && (
               <div className="mb-8 bg-amber-50 border border-amber-200 rounded-xl p-5 shadow-sm">
                 <h2 className="text-amber-800 font-bold text-lg mb-2">Chưa kết nối Supabase!</h2>

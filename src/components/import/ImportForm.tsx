@@ -29,12 +29,12 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
   } = manager;
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="p-3 md:p-6 border-b border-slate-100 bg-slate-50/50">
-        <h2 className="text-xl font-black text-slate-900 tracking-tight">Nhập hàng vào kho</h2>
-        <p className="text-slate-500 text-sm font-medium mt-1">Tìm sản phẩm hoặc nhập tên mới để bắt đầu.</p>
+      <div className="p-4 md:p-6 border-b border-slate-100 bg-slate-50/50">
+        <h2 className="text-lg md:text-xl font-black text-slate-900 tracking-tight">Nhập hàng vào kho</h2>
+        <p className="text-slate-500 text-xs md:text-sm font-medium mt-1">Tìm sản phẩm hoặc nhập tên mới để bắt đầu.</p>
       </div>
-      <div className="p-3 md:p-8">
-        <form onSubmit={handleImport} className="space-y-6">
+      <div className="p-4 md:p-8">
+        <form onSubmit={handleImport} className="space-y-4 md:space-y-6">
           {/* Product Search/Name */}
           <div className="space-y-2 relative">
             <label className="block text-sm font-bold text-slate-700 ml-1">Tên sản phẩm</label>
@@ -88,14 +88,14 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
             {/* Supplier Selection */}
             <div className="space-y-2">
               <label className="block text-sm font-bold text-slate-700 ml-1">Nhà cung cấp (Tùy chọn)</label>
               <select
                 value={selectedSupplierId}
                 onChange={(e) => setSelectedSupplierId(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium text-slate-900 appearance-none cursor-pointer"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium text-slate-900 appearance-none cursor-pointer text-sm sm:text-base"
               >
                 <option value="">-- Chọn nhà cung cấp --</option>
                 {suppliers.map(s => (
@@ -115,7 +115,7 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
                 tabIndex={0}
                 onClick={() => imageDropzoneRef.current?.focus()}
                 onPaste={handlePaste}
-                className="flex items-center gap-4 p-3 bg-slate-50 border-2 border-slate-200 border-dashed rounded-xl hover:border-indigo-500 hover:bg-indigo-50/30 transition-all cursor-pointer group focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
+                className="flex items-center gap-4 p-3 bg-slate-50 border-2 border-slate-200 border-dashed rounded-xl hover:border-indigo-500 hover:bg-indigo-50/30 transition-all cursor-pointer group focus:outline-none focus:ring-4 focus:ring-indigo-500/10 min-h-[64px]"
               >
                 {imageProcessing ? (
                   <div className="flex items-center gap-3 w-full justify-center py-1">
@@ -160,7 +160,7 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
           </div>
 
           {/* Quantity & Cost */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             <div className="space-y-2">
               <label className="block text-sm font-bold text-slate-700 ml-1">Số lượng nhập</label>
               <input
@@ -169,7 +169,7 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
                 required
                 value={quantity}
                 onChange={handleQuantityChange}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-900"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-900 text-sm sm:text-base"
                 placeholder="0"
               />
             </div>
@@ -181,31 +181,31 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
                 required
                 value={unitCost}
                 onChange={handleUnitCostChange}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-900"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-900 text-sm sm:text-base"
                 placeholder="0"
               />
             </div>
             
-            <div className="space-y-2">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-1">
               <label className="block text-sm font-bold text-slate-700 ml-1">Tổng chi phí (VNĐ)</label>
               <input
                 type="text"
                 required
                 value={totalCost}
                 onChange={handleTotalCostChange}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-900"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-900 text-sm sm:text-base"
                 placeholder="0"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
             <div className="space-y-2">
               <label className="block text-sm font-bold text-slate-700 ml-1">Ghi chú sản phẩm</label>
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium text-slate-900"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium text-slate-900 text-sm sm:text-base"
                 placeholder="Ghi chú về sản phẩm này..."
                 rows={2}
               />
@@ -216,17 +216,17 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium text-slate-900"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium text-slate-900 text-sm sm:text-base"
                 placeholder="Ghi chú thêm về lô hàng này..."
                 rows={2}
               />
             </div>
           </div>
 
-          <div className="pt-6 border-t border-slate-100">
+          <div className="pt-4 md:pt-6 border-t border-slate-100">
             <button
               type="submit"
-              className="w-full px-8 py-4 bg-indigo-600 text-white font-black uppercase tracking-widest text-sm rounded-2xl hover:bg-indigo-700 active:scale-[0.98] focus:ring-4 focus:ring-indigo-500/20 transition-all flex items-center justify-center gap-3 shadow-lg shadow-indigo-200"
+              className="w-full px-8 py-3.5 md:py-4 bg-indigo-600 text-white font-black uppercase tracking-widest text-xs md:text-sm rounded-2xl hover:bg-indigo-700 active:scale-[0.98] focus:ring-4 focus:ring-indigo-500/20 transition-all flex items-center justify-center gap-3 shadow-lg shadow-indigo-200"
             >
               <PackagePlus className="w-5 h-5" />
               Xác nhận nhập kho

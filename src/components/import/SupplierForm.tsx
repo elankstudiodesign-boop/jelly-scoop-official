@@ -228,13 +228,15 @@ export function SupplierForm({ manager, products, suppliers, deleteSupplier }: {
               suppliers.map(s => (
                 <div key={s.id} className="p-4 hover:bg-slate-50 transition-colors">
                   <div className="flex justify-between items-start mb-3">
-                    <button 
-                      onClick={() => setSelectedSupplierForDetail(s)}
-                      className="font-bold text-slate-900 text-lg hover:text-indigo-600 transition-colors text-left"
-                    >
-                      {s.name}
-                    </button>
-                    <div className="flex items-center gap-1">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-slate-900 text-lg truncate pr-2">{s.name}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[10px] font-bold uppercase tracking-wider">
+                          {s.id.slice(0, 8)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       <button
                         onClick={() => handleEdit(s)}
                         className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm border border-slate-100"
@@ -254,26 +256,39 @@ export function SupplierForm({ manager, products, suppliers, deleteSupplier }: {
                     </div>
                   </div>
                   
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
-                        <Phone className="w-4 h-4 text-slate-400" />
+                      <div className="w-7 h-7 bg-indigo-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Phone className="w-3.5 h-3.5 text-indigo-600" />
                       </div>
                       <span className="font-medium">{s.phone || 'Chưa có số điện thoại'}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
-                        <MapPin className="w-4 h-4 text-slate-400" />
+                    <div className="flex items-start gap-2 text-sm text-slate-600">
+                      <div className="w-7 h-7 bg-slate-50 rounded-lg flex items-center justify-center mt-0.5 flex-shrink-0">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
                       </div>
-                      <span className="truncate">{s.address || 'Chưa có địa chỉ'}</span>
+                      <span className="line-clamp-2">{s.address || 'Chưa có địa chỉ'}</span>
                     </div>
                   </div>
                   
                   {s.note && (
-                    <div className="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-500 italic">
+                    <div className="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-100 text-[11px] text-slate-500 italic">
                       {s.note}
                     </div>
                   )}
+
+                  <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center">
+                    <button 
+                      onClick={() => setSelectedSupplierForDetail(s)}
+                      className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                    >
+                      Xem chi tiết sản phẩm
+                      <Plus className="w-3 h-3" />
+                    </button>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      {s.productsCount || 0} sản phẩm
+                    </div>
+                  </div>
                 </div>
               ))
             )}

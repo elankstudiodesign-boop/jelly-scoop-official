@@ -217,14 +217,14 @@ export function PackagingForm({ manager, packagingItems, deletePackagingItem }: 
               packagingItems.map(item => (
                 <div key={item.id} className="p-4 hover:bg-slate-50 transition-colors">
                   <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="font-bold text-slate-900 text-lg">{item.name}</h3>
-                      <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-slate-900 text-lg truncate pr-2">{item.name}</h3>
+                      <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1 font-bold uppercase tracking-wider">
                         <Barcode className="w-3 h-3" />
                         {item.barcode}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       <button
                         onClick={() => handleEdit(item)}
                         className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm border border-slate-100"
@@ -244,7 +244,7 @@ export function PackagingForm({ manager, packagingItems, deletePackagingItem }: 
                     </div>
                   </div>
                   
-                  <div className="flex items-center justify-between mt-4">
+                  <div className="flex items-center justify-between mt-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
                     <div className="flex flex-col">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Giá nhập</span>
                       <span className="font-black text-indigo-600">{formatCurrency(item.price)}đ</span>

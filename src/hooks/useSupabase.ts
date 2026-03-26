@@ -167,36 +167,36 @@ export function mapProductToDB(p: Partial<Product>, existing?: Product) {
   if (p.warehouseQuantity !== undefined) { res.warehouse_quantity = p.warehouseQuantity; delete res.warehouseQuantity; }
   if (p.barcode !== undefined) { res.barcode = p.barcode; }
   
-  // Use explicit values if provided, otherwise fallback to existing
-  const isCombo = p.isCombo !== undefined ? p.isCombo : existing?.isCombo;
-  const comboItems = p.comboItems !== undefined ? p.comboItems : existing?.comboItems;
+  // Strip old combo marker from note if present
+  if (p.note !== undefined) {
+    res.note = p.note.split('|||__COMBO__|||')[0].trim();
+  } else if (existing?.note) {
+    res.note = existing.note.split('|||__COMBO__|||')[0].trim();
+  }
   
-  // If we are updating note, or if we have combo info, we need to construct the note field
-  if (p.note !== undefined || isCombo !== undefined) {
-    let noteText = p.note !== undefined ? p.note : (existing?.note || '');
-    
-    // If it's a combo, append the items to the note
-    if (isCombo && comboItems && comboItems.length > 0) {
-      res.note = `${noteText}|||__COMBO__|||${JSON.stringify(comboItems)}`;
-    } else {
-      res.note = noteText;
-    }
+  // Use explicit values if provided, otherwise fallback to existing
+  if (p.isCombo !== undefined) {
+    res.is_combo = p.isCombo;
+    delete res.isCombo;
+  }
+  if (p.comboItems !== undefined) {
+    res.combo_items = p.comboItems;
+    delete res.comboItems;
   }
   
   if ('supplierId' in p) { res.supplier_id = p.supplierId; delete res.supplierId; }
-  delete res.isCombo;
-  delete res.comboItems;
   return res;
 }
 
 export function mapProductFromDB(p: any): Product {
   let note = p.note || '';
-  let isCombo = false;
-  let comboItems: any[] | undefined = undefined;
+  let isCombo = p.is_combo || false;
+  let comboItems: any[] | undefined = p.combo_items || undefined;
 
-  if (note.includes('|||__COMBO__|||')) {
+  // Fallback for old data format stored in note
+  if (!isCombo && note.includes('|||__COMBO__|||')) {
     const parts = note.split('|||__COMBO__|||');
-    note = parts[0];
+    note = parts[0].trim();
     isCombo = true;
     try {
       comboItems = JSON.parse(parts[1]);
@@ -228,7 +228,7 @@ export function mapSessionToDB(s: Partial<LiveSession>) {
   if (s.scoopsSold !== undefined) { res.scoops_sold = s.scoopsSold; delete res.scoopsSold; }
   if (s.tiktokFeePercent !== undefined) { res.tiktok_fee_percent = s.tiktokFeePercent; delete res.tiktokFeePercent; }
   if (s.packagingCostPerScoop !== undefined) { res.packaging_cost_per_scoop = s.packagingCostPerScoop; delete res.packagingCostPerScoop; }
-  if (s.averageScoopCost !== undefined) { res.average_scoop_cost = s.averageScoopCost; delete res.averageScoopCost; }
+  if (s.averageScoopCost !== undefined) { res.average_scoop_cost = s.averageScoopCost; delete s.averageScoopCost; }
   return res;
 }
 
@@ -301,10 +301,15 @@ export function mapPackagingItemFromDB(p: any): PackagingItem {
 
 export function mapTransactionToDB(t: Partial<Transaction>) {
   const res: any = { ...t };
-  if (t.items && t.items.length > 0) {
-    res.description = `${t.description || ''}|||__ITEMS__|||${JSON.stringify(t.items)}`;
+  if (t.items !== undefined) {
+    res.items = t.items;
+    delete res.items;
   }
-  delete res.items;
+  
+  // Strip old items marker from description if present
+  if (t.description !== undefined) {
+    res.description = t.description.split('|||__ITEMS__|||')[0].split('|||')[0].trim();
+  }
   
   if (t.customerName !== undefined) { res.customer_name = t.customerName; delete res.customerName; }
   if (t.customerPhone !== undefined) { res.customer_phone = t.customerPhone; delete res.customerPhone; }
@@ -316,19 +321,20 @@ export function mapTransactionToDB(t: Partial<Transaction>) {
 
 export function mapTransactionFromDB(t: any): Transaction {
   let description = t.description || '';
-  let items: { productId: string; quantity: number, retailPrice?: number }[] | undefined = undefined;
+  let items: { productId: string; quantity: number, retailPrice?: number }[] | undefined = t.items || undefined;
 
-  if (description.includes('|||__ITEMS__|||')) {
+  // Fallback for old data format stored in description
+  if ((!items || items.length === 0) && description.includes('|||__ITEMS__|||')) {
     const parts = description.split('|||__ITEMS__|||');
-    description = parts[0];
+    description = parts[0].trim();
     try {
       items = JSON.parse(parts[1]);
     } catch (e) {
       // ignore
     }
-  } else if (description.includes('|||')) {
+  } else if ((!items || items.length === 0) && description.includes('|||')) {
     const parts = description.split('|||');
-    description = parts[0];
+    description = parts[0].trim();
     try {
       items = JSON.parse(parts[1]);
     } catch (e) {
