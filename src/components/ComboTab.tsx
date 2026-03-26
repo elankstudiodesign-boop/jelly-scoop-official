@@ -440,7 +440,7 @@ export default function ComboTab({
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <form onSubmit={handleCreateCombo} className="space-y-6 max-w-3xl">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
@@ -672,7 +672,7 @@ export default function ComboTab({
         </form>
       </div>
 
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mt-6">
+      <div className="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm mt-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
           <h2 className="text-lg font-semibold text-slate-800">Danh sách Combo đã tạo</h2>
           <div className="flex items-center gap-3">
@@ -727,7 +727,7 @@ export default function ComboTab({
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {comboProducts.map(combo => (
-              <div key={combo.id} className="border border-slate-200 rounded-xl p-4 flex gap-4 bg-slate-50 relative">
+              <div key={combo.id} className="border border-slate-200 rounded-xl p-3 sm:p-4 flex gap-3 sm:gap-4 bg-slate-50 relative">
                 {isSelectionMode && (
                   <div className="absolute top-2 right-2 z-10">
                     <input
