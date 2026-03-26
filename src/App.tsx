@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import Sidebar from './components/Sidebar';
 import Analytics from './pages/Analytics';
 import Products from './pages/Products';
@@ -68,6 +69,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <div className="flex min-h-screen min-h-[100dvh] bg-slate-50 font-sans text-slate-900 selection:bg-indigo-100 selection:text-indigo-900">
+        <Toaster position="top-right" richColors />
         <Sidebar />
         <main className="flex-1 p-4 md:p-8 lg:p-10 overflow-y-auto mt-16 md:mt-0 pb-8">
           <div className="max-w-7xl mx-auto">

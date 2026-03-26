@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Product, ScoopConfig, Transaction, LiveSession, OrderItem, PackagingItem } from '../types';
-import { useSupabaseConfigs } from '../hooks/useSupabase';
+import { useSupabaseConfigs, executeOrderTransaction, mapTransactionToDB, mapSessionToDB } from '../hooks/useSupabase';
 import { useDraftOrderSync, DraftOrderState } from '../hooks/useDraftOrderSync';
 import { defaultConfigs } from './Simulator';
 import { v4 as uuidv4 } from 'uuid';
 import { CheckCircle, ChevronDown, Barcode } from 'lucide-react';
 import { formatCurrency, parseCurrency, generateBarcodeNumber } from '../lib/format';
+import { toast } from 'sonner';
+import { hasSupabaseConfig } from '../lib/supabase';
 
 import OrderList from '../components/OrderList';
 import BarcodeScanner from '../components/BarcodeScanner';
@@ -250,91 +252,94 @@ export default function Live({
 
     const now = new Date().toISOString();
 
-    // 1. Deduct inventory
-    for (const item of orderItems) {
-      if (orderType === 'RETAIL') {
-        const currentWarehouseQty = item.product.warehouseQuantity || 0;
-        await updateProduct(item.product.id, { warehouseQuantity: Math.max(0, currentWarehouseQty - item.quantity) });
-      } else {
-        const currentQty = item.product.quantity || 0;
-        await updateProduct(item.product.id, { quantity: Math.max(0, currentQty - item.quantity) });
+    const incomeTx: Transaction = {
+      id: uuidv4(),
+      type: 'IN',
+      category: 'ORDER',
+      amount: totalAmount,
+      description: orderType === 'SCOOP' ? `Đơn hàng ${selectedConfig?.name} (${totalItemsCount} món)` : `Đơn hàng lẻ (${totalItemsCount} món)`,
+      date: now,
+      items: orderItems.map(item => ({ productId: item.product.id, quantity: item.quantity, retailPrice: item.retailPrice })),
+      customerName: customerName.trim() || undefined,
+      customerPhone: customerPhone.trim() || undefined,
+      customerAddress: customerAddress.trim() || undefined
+    };
+
+    const expenseTx: Transaction | null = scannedPackagingCost > 0 ? {
+      id: uuidv4(),
+      type: 'OUT',
+      category: 'PACKAGING',
+      amount: scannedPackagingCost,
+      description: orderType === 'SCOOP' ? `Chi phí bao bì đơn hàng ${selectedConfig?.name}` : `Chi phí bao bì đơn hàng lẻ`,
+      date: now
+    } : null;
+
+    const sessionObj: LiveSession | null = orderType === 'SCOOP' ? {
+      id: uuidv4(),
+      date: now,
+      scoopsSold: 1,
+      revenue: scoopPrice,
+      tiktokFeePercent: 0,
+      packagingCostPerScoop: currentPackagingCost,
+      averageScoopCost: totalCost
+    } : null;
+
+    const fallbackSequential = async () => {
+      try {
+        // 1. Deduct inventory
+        for (const item of orderItems) {
+          if (orderType === 'RETAIL') {
+            const currentWarehouseQty = item.product.warehouseQuantity || 0;
+            await updateProduct(item.product.id, { warehouseQuantity: Math.max(0, currentWarehouseQty - item.quantity) });
+          } else {
+            const currentQty = item.product.quantity || 0;
+            await updateProduct(item.product.id, { quantity: Math.max(0, currentQty - item.quantity) });
+          }
+        }
+
+        // Deduct packaging inventory
+        for (const p of scannedPackagingItems) {
+          const currentQty = p.item.quantity || 0;
+          await updatePackagingItem(p.item.id, { quantity: Math.max(0, currentQty - p.quantity) });
+        }
+
+        await addTransaction(incomeTx);
+        if (expenseTx) await addTransaction(expenseTx);
+        if (sessionObj) await addSession(sessionObj);
+
+        toast.success('Hoàn tất đơn hàng thành công!');
+        broadcastOrderCompleted();
+        handleClearOrder();
+      } catch (error) {
+        toast.error('Lỗi khi lưu đơn hàng!');
       }
-    }
+    };
 
-    // Deduct packaging inventory
-    for (const p of scannedPackagingItems) {
-      const currentQty = p.item.quantity || 0;
-      await updatePackagingItem(p.item.id, { quantity: Math.max(0, currentQty - p.quantity) });
-    }
-
-    if (orderType === 'SCOOP') {
-      // 2. Add Income Transaction (Revenue)
-      await addTransaction({
-        id: uuidv4(),
-        type: 'IN',
-        category: 'ORDER',
-        amount: totalAmount,
-        description: `Đơn hàng ${selectedConfig?.name} (${totalItemsCount} món)`,
-        date: now,
-        items: orderItems.map(item => ({ productId: item.product.id, quantity: item.quantity, retailPrice: item.retailPrice })),
-        customerName: customerName.trim() || undefined,
-        customerPhone: customerPhone.trim() || undefined,
-        customerAddress: customerAddress.trim() || undefined
-      });
-
-      // 3. Add Expense Transaction (Packaging)
-      if (scannedPackagingCost > 0) {
-        await addTransaction({
-          id: uuidv4(),
-          type: 'OUT',
-          category: 'PACKAGING',
-          amount: scannedPackagingCost,
-          description: `Chi phí bao bì đơn hàng ${selectedConfig?.name}`,
-          date: now
+    if (hasSupabaseConfig) {
+      try {
+        await executeOrderTransaction({
+          p_order_type: orderType,
+          p_items: orderItems.map(item => ({ id: item.product.id, quantity: item.quantity })),
+          p_packaging_items: scannedPackagingItems.map(p => ({ id: p.item.id, quantity: p.quantity })),
+          p_income_transaction: mapTransactionToDB(incomeTx),
+          p_expense_transaction: expenseTx ? mapTransactionToDB(expenseTx) : null,
+          p_session: sessionObj ? mapSessionToDB(sessionObj) : null
         });
+        toast.success('Hoàn tất đơn hàng thành công!');
+        broadcastOrderCompleted();
+        handleClearOrder();
+      } catch (error: any) {
+        console.error('RPC Error:', error);
+        if (error.message?.includes('Could not find the function') || error.code === 'PGRST202') {
+          toast.warning('Chưa cài đặt Database Transaction. Đang dùng phương thức tuần tự...');
+          await fallbackSequential();
+        } else {
+          toast.error('Lỗi khi hoàn tất đơn hàng: ' + error.message);
+        }
       }
-
-      // 4. Record Session (Analytics)
-      await addSession({
-        id: uuidv4(),
-        date: now,
-        scoopsSold: 1,
-        revenue: scoopPrice,
-        tiktokFeePercent: 0,
-        packagingCostPerScoop: currentPackagingCost,
-        averageScoopCost: totalCost
-      });
     } else {
-      // 2. Add Income Transaction (Revenue)
-      await addTransaction({
-        id: uuidv4(),
-        type: 'IN',
-        category: 'ORDER',
-        amount: totalAmount,
-        description: `Đơn hàng lẻ (${totalItemsCount} món)`,
-        date: now,
-        items: orderItems.map(item => ({ productId: item.product.id, quantity: item.quantity, retailPrice: item.retailPrice })),
-        customerName: customerName.trim() || undefined,
-        customerPhone: customerPhone.trim() || undefined,
-        customerAddress: customerAddress.trim() || undefined
-      });
-
-      // 3. Add Expense Transaction (Packaging)
-      if (scannedPackagingCost > 0) {
-        await addTransaction({
-          id: uuidv4(),
-          type: 'OUT',
-          category: 'PACKAGING',
-          amount: scannedPackagingCost,
-          description: `Chi phí bao bì đơn hàng lẻ`,
-          date: now
-        });
-      }
+      await fallbackSequential();
     }
-
-    alert('Hoàn tất đơn hàng thành công!');
-    broadcastOrderCompleted();
-    handleClearOrder();
   };
 
   if (loading) {

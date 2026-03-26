@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { supabase, hasSupabaseConfig } from '../lib/supabase';
 import { Product, LiveSession, ScoopConfig, Transaction, Supplier, PackagingItem } from '../types';
 import { useLocalStorage } from './useLocalStorage';
@@ -90,14 +91,12 @@ export function useSupabaseProducts() {
   const addProduct = async (product: Product) => {
     setProducts(prev => upsertById(prev, product, (a, b) => a.name.localeCompare(b.name)));
     if (!hasSupabaseConfig) return;
-    const { error } = await supabase.from('products').upsert([mapProductToDB(product)]);
-    if (error) {
+    try {
+      const { error } = await supabase.from('products').upsert([mapProductToDB(product)]);
+      if (error) throw error;
+    } catch (error) {
       console.error('Error adding product:', error);
-      if (error.message?.includes('note')) {
-        const p2 = mapProductToDB(product);
-        delete p2.note;
-        await supabase.from('products').upsert([p2]);
-      }
+      toast.error('Không thể thêm sản phẩm. Vui lòng thử lại.');
       fetchProducts();
     }
   };
@@ -110,14 +109,12 @@ export function useSupabaseProducts() {
       return upsertById(prev, { ...ex, ...updates }, (a, b) => a.name.localeCompare(b.name));
     });
     if (!hasSupabaseConfig) return;
-    const { error } = await supabase.from('products').update(mapProductToDB(updates, existing)).eq('id', id);
-    if (error) {
+    try {
+      const { error } = await supabase.from('products').update(mapProductToDB(updates, existing)).eq('id', id);
+      if (error) throw error;
+    } catch (error) {
       console.error('Error updating product:', error);
-      if (error.message?.includes('note')) {
-        const u2 = mapProductToDB(updates, existing);
-        delete u2.note;
-        await supabase.from('products').update(u2).eq('id', id);
-      }
+      toast.error('Không thể cập nhật sản phẩm. Vui lòng thử lại.');
       fetchProducts();
     }
   };
@@ -125,9 +122,12 @@ export function useSupabaseProducts() {
   const deleteProduct = async (id: string) => {
     setProducts(prev => prev.filter(p => p.id !== id));
     if (!hasSupabaseConfig) return;
-    const { error } = await supabase.from('products').delete().eq('id', id);
-    if (error) {
+    try {
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) throw error;
+    } catch (error) {
       console.error('Error deleting product:', error);
+      toast.error('Không thể xoá sản phẩm. Vui lòng thử lại.');
       fetchProducts();
     }
   };
@@ -456,7 +456,7 @@ function mapProductFromDB(p: any): Product {
   };
 }
 
-function mapSessionToDB(s: Partial<LiveSession>) {
+export function mapSessionToDB(s: Partial<LiveSession>) {
   const res: any = { ...s };
   if (s.scoopsSold !== undefined) { res.scoops_sold = s.scoopsSold; delete res.scoopsSold; }
   if (s.tiktokFeePercent !== undefined) { res.tiktok_fee_percent = s.tiktokFeePercent; delete res.tiktokFeePercent; }
@@ -583,9 +583,12 @@ export function useSupabaseTransactions() {
   const addTransaction = async (transaction: Transaction) => {
     setTransactions(prev => upsertById(prev, transaction, (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     if (!hasSupabaseConfig) return;
-    const { error } = await supabase.from('transactions').upsert([mapTransactionToDB(transaction)]);
-    if (error) {
+    try {
+      const { error } = await supabase.from('transactions').upsert([mapTransactionToDB(transaction)]);
+      if (error) throw error;
+    } catch (error) {
       console.error('Error adding transaction:', error);
+      toast.error('Không thể thêm giao dịch. Vui lòng thử lại.');
       fetchTransactions();
     }
   };
@@ -593,14 +596,24 @@ export function useSupabaseTransactions() {
   const deleteTransaction = async (id: string) => {
     setTransactions(prev => prev.filter(t => t.id !== id));
     if (!hasSupabaseConfig) return;
-    const { error } = await supabase.from('transactions').delete().eq('id', id);
-    if (error) {
+    try {
+      const { error } = await supabase.from('transactions').delete().eq('id', id);
+      if (error) throw error;
+    } catch (error) {
       console.error('Error deleting transaction:', error);
+      toast.error('Không thể xoá giao dịch. Vui lòng thử lại.');
       fetchTransactions();
     }
   };
 
   return { transactions, addTransaction, deleteTransaction, loading };
+}
+
+export async function executeOrderTransaction(payload: any) {
+  if (!hasSupabaseConfig) throw new Error('No Supabase config');
+  const { data, error } = await supabase.rpc('complete_order', payload);
+  if (error) throw error;
+  return data;
 }
 
 export function useSupabasePackagingItems() {
@@ -697,7 +710,7 @@ export function useSupabasePackagingItems() {
   return { packagingItems, addPackagingItem, updatePackagingItem, deletePackagingItem, loading };
 }
 
-function mapTransactionToDB(t: Partial<Transaction>) {
+export function mapTransactionToDB(t: Partial<Transaction>) {
   const res: any = { ...t };
   if (t.items && t.items.length > 0) {
     res.description = `${t.description || ''}|||__ITEMS__|||${JSON.stringify(t.items)}`;
