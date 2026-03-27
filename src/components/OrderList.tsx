@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Transaction, Product } from '../types';
 import { formatCurrency } from '../lib/format';
 import { Printer, Trash2, Eye, X, Search, CheckSquare, Square } from 'lucide-react';
+import ConfirmModal from './ConfirmModal';
 
 interface OrderListProps {
   transactions: Transaction[];
@@ -14,6 +15,7 @@ export default function OrderList({ transactions, products, deleteTransaction }:
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
   
   // Filter only ORDER transactions and apply search
@@ -58,17 +60,22 @@ export default function OrderList({ transactions, products, deleteTransaction }:
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm('Bạn có chắc chắn muốn xoá đơn hàng này?')) {
-      deleteTransaction(id);
-      if (selectedOrder?.id === id) {
-        setSelectedOrder(null);
-      }
-      setSelectedIds(prev => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
+    setDeleteConfirmId(id);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteConfirmId) return;
+    
+    deleteTransaction(deleteConfirmId);
+    if (selectedOrder?.id === deleteConfirmId) {
+      setSelectedOrder(null);
     }
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.delete(deleteConfirmId);
+      return next;
+    });
+    setDeleteConfirmId(null);
   };
 
   const generateInvoiceHtml = (order: Transaction) => {
@@ -102,7 +109,7 @@ export default function OrderList({ transactions, products, deleteTransaction }:
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                   <path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0h.003zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.036 1.204.166 1.486.275.373.145.64.319.92.599.28.28.453.546.598.92.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.47 2.47 0 0 1-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.478 2.478 0 0 1-.92-.598 2.48 2.48 0 0 1-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233 0-2.136.008-2.388.046-3.231.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92.28-.28.546-.453.92-.598.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045v.002zm4.988 1.328a.96.96 0 1 0 0 1.92.96.96 0 0 0 0-1.92zm-4.27 1.122a4.109 4.109 0 1 0 0 8.217 4.109 4.109 0 0 0 0-8.217zm0 1.441a2.667 2.667 0 1 1 0 5.334 2.667 2.667 0 0 1 0-5.334z"/>
                 </svg>
-                @jellyscoop
+                @jellystore.official
               </div>
               <div class="social-link">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
@@ -631,7 +638,27 @@ export default function OrderList({ transactions, products, deleteTransaction }:
               </div>
               <div>
                 <div className="font-medium text-slate-900">{order.customerName || 'Khách lẻ'}</div>
-                <div className="text-sm text-slate-600">{order.description}</div>
+                {order.items && order.items.length > 0 ? (
+                  <div className="mt-2 p-2 bg-slate-50 rounded-lg space-y-1.5">
+                    {order.items.map((item, idx) => {
+                      const product = products.find(p => p.id === item.productId);
+                      const price = item.retailPrice ?? (product?.retailPrice ?? product?.cost ?? 0);
+                      return (
+                        <div key={idx} className="flex justify-between items-center text-xs">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="bg-slate-200 text-slate-700 px-1 rounded font-bold">{item.quantity}</span>
+                            <span className="text-slate-700 truncate">{product?.name || 'Sản phẩm không xác định'}</span>
+                          </div>
+                          <div className="text-slate-500 font-medium ml-2 whitespace-nowrap">
+                            {formatCurrency(price * item.quantity)}đ
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-600 mt-1">{order.description}</div>
+                )}
               </div>
               <div className="flex justify-between items-center pt-2 border-t border-slate-100">
                 <div className="text-xs text-slate-500">{new Date(order.date).toLocaleString('vi-VN')}</div>
@@ -688,7 +715,7 @@ export default function OrderList({ transactions, products, deleteTransaction }:
                 <th className="p-4">Mã ĐH</th>
                 <th className="p-4">Ngày</th>
                 <th className="p-4">Khách hàng</th>
-                <th className="p-4">Mô tả</th>
+                <th className="p-4">Sản phẩm</th>
                 <th className="p-4 text-right">Tổng tiền</th>
                 <th className="p-4 text-right">Thao tác</th>
               </tr>
@@ -696,7 +723,7 @@ export default function OrderList({ transactions, products, deleteTransaction }:
             <tbody className="divide-y divide-slate-100">
               {orders.length === 0 ? (
                 <tr>
-                  <td colSpan={isSelectionMode ? 7 : 6} className="p-8 text-center text-slate-500">
+                  <td colSpan={isSelectionMode ? 8 : 7} className="p-8 text-center text-slate-500">
                     Chưa có đơn hàng nào
                   </td>
                 </tr>
@@ -718,7 +745,10 @@ export default function OrderList({ transactions, products, deleteTransaction }:
                       </td>
                     )}
                     <td className="p-4 font-mono text-xs text-slate-500">{order.id.slice(0, 8).toUpperCase()}</td>
-                    <td className="p-4">{new Date(order.date).toLocaleString('vi-VN')}</td>
+                    <td className="p-4">
+                      <div className="text-sm text-slate-900">{new Date(order.date).toLocaleDateString('vi-VN')}</div>
+                      <div className="text-xs text-slate-500">{new Date(order.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div>
+                    </td>
                     <td className="p-4">
                       {order.customerName ? (
                         <div>
@@ -729,7 +759,29 @@ export default function OrderList({ transactions, products, deleteTransaction }:
                         <span className="text-slate-400 italic">Khách lẻ</span>
                       )}
                     </td>
-                    <td className="p-4 text-slate-600">{order.description}</td>
+                    <td className="p-4">
+                      <div className="max-w-xs">
+                        {order.items && order.items.length > 0 ? (
+                          <div className="space-y-1">
+                            {order.items.slice(0, 3).map((item, idx) => {
+                              const product = products.find(p => p.id === item.productId);
+                              return (
+                                <div key={idx} className="text-xs text-slate-600 truncate">
+                                  <span className="font-medium">{item.quantity}x</span> {product?.name || 'Sản phẩm không xác định'}
+                                </div>
+                              );
+                            })}
+                            {order.items.length > 3 && (
+                              <div className="text-[10px] text-indigo-600 font-medium">
+                                + {order.items.length - 3} sản phẩm khác
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-slate-500 italic">{order.description}</div>
+                        )}
+                      </div>
+                    </td>
                     <td className="p-4 text-right font-medium text-indigo-600">{formatCurrency(order.amount)}đ</td>
                     <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-2">
@@ -748,7 +800,7 @@ export default function OrderList({ transactions, products, deleteTransaction }:
                           <Printer className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(order.id)}
+                          onClick={(e) => { e.stopPropagation(); handleDelete(order.id); }}
                           className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Xoá đơn hàng"
                         >
@@ -860,6 +912,16 @@ export default function OrderList({ transactions, products, deleteTransaction }:
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!deleteConfirmId}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={confirmDelete}
+        title="Xoá đơn hàng"
+        message="Bạn có chắc chắn muốn xoá đơn hàng này? Hành động này không thể hoàn tác và sẽ ảnh hưởng đến báo cáo doanh thu."
+        confirmLabel="Xoá vĩnh viễn"
+        isDestructive={true}
+      />
     </div>
   );
 }

@@ -303,7 +303,6 @@ export function mapTransactionToDB(t: Partial<Transaction>) {
   const res: any = { ...t };
   if (t.items !== undefined) {
     res.items = t.items;
-    delete res.items;
   }
   
   // Strip old items marker from description if present
