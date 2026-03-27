@@ -16,7 +16,8 @@ import {
   Info,
   TrendingUp,
   Box,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '../lib/format';
 import EditProductModal from '../components/EditProductModal';
@@ -40,6 +41,7 @@ export default function Products({ products, updateProduct, deleteProduct, suppl
   const [priceGroup, setPriceGroup] = useState<PriceGroup>('Thấp');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const selectAllRef = useRef<HTMLInputElement>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -88,7 +90,7 @@ export default function Products({ products, updateProduct, deleteProduct, suppl
     }
   };
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProduct || !retailPrice || !quantity) return;
 
@@ -103,23 +105,30 @@ export default function Products({ products, updateProduct, deleteProduct, suppl
       return;
     }
 
-    const newPoolQuantity = (selectedProduct.quantity || 0) + numQuantity;
-    const newWarehouseQuantity = (selectedProduct.warehouseQuantity || 0) - numQuantity;
+    setIsSubmitting(true);
+    try {
+      const newPoolQuantity = (selectedProduct.quantity || 0) + numQuantity;
+      const newWarehouseQuantity = (selectedProduct.warehouseQuantity || 0) - numQuantity;
 
-    updateProduct(selectedProduct.id, {
-      retailPrice: parseCurrency(retailPrice),
-      margin: Number(margin),
-      priceGroup,
-      quantity: newPoolQuantity,
-      warehouseQuantity: newWarehouseQuantity
-    });
+      await updateProduct(selectedProduct.id, {
+        retailPrice: parseCurrency(retailPrice),
+        margin: Number(margin),
+        priceGroup,
+        quantity: newPoolQuantity,
+        warehouseQuantity: newWarehouseQuantity
+      });
 
-    setSelectedProductId('');
-    setMargin('50');
-    setRetailPrice('');
-    setQuantity('');
-    setNotification({ type: 'success', message: 'Đã thêm vào bể thành công!' });
-    setTimeout(() => setNotification(null), 3000);
+      setSelectedProductId('');
+      setMargin('50');
+      setRetailPrice('');
+      setQuantity('');
+      setNotification({ type: 'success', message: 'Đã thêm vào bể thành công!' });
+      setTimeout(() => setNotification(null), 3000);
+    } catch (error) {
+      console.error('Error adding to pool:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleUpdateQuantity = (id: string, newQuantity: number) => {
@@ -377,10 +386,17 @@ export default function Products({ products, updateProduct, deleteProduct, suppl
                   </button>
                   <button 
                     type="submit" 
-                    disabled={!selectedProduct} 
+                    disabled={!selectedProduct || isSubmitting} 
                     className="bg-indigo-600 text-white px-8 py-3 rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    Xác nhận đổ bể
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Đang xử lý...
+                      </>
+                    ) : (
+                      'Xác nhận đổ bể'
+                    )}
                   </button>
                 </div>
               </form>

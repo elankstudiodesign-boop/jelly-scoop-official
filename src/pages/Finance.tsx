@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Transaction, Product } from '../types';
-import { Wallet, TrendingUp, TrendingDown, Trash2, AlertTriangle, X, Plus, ChevronDown, Calendar, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, Trash2, AlertTriangle, X, Plus, ChevronDown, Calendar, BarChart3, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '../lib/format';
 import { v4 as uuidv4 } from 'uuid';
 import { useSupabaseFinancialSummaries, usePaginatedTransactions } from '../hooks/useSupabase';
@@ -40,8 +40,9 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
   const [newTxCategory, setNewTxCategory] = useState<Transaction['category']>('PACKAGING');
   const [newTxAmount, setNewTxAmount] = useState<number | undefined>(undefined);
   const [newTxDescription, setNewTxDescription] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleAddTransaction = (e: React.FormEvent) => {
+  const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     const amount = newTxAmount || 0;
     if (amount <= 0 || !newTxDescription) {
@@ -49,21 +50,28 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
       return;
     }
 
-    addTransaction({
-      id: uuidv4(),
-      type: newTxType,
-      category: newTxCategory,
-      amount,
-      description: newTxDescription,
-      date: new Date().toISOString()
-    });
+    setIsSubmitting(true);
+    try {
+      await addTransaction({
+        id: uuidv4(),
+        type: newTxType,
+        category: newTxCategory,
+        amount,
+        description: newTxDescription,
+        date: new Date().toISOString()
+      });
 
-    // Reset form and close modal
-    setNewTxType('OUT');
-    setNewTxCategory('PACKAGING');
-    setNewTxAmount(undefined);
-    setNewTxDescription('');
-    setIsAddModalOpen(false);
+      // Reset form and close modal
+      setNewTxType('OUT');
+      setNewTxCategory('PACKAGING');
+      setNewTxAmount(undefined);
+      setNewTxDescription('');
+      setIsAddModalOpen(false);
+    } catch (error) {
+      console.error('Error adding transaction:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDeleteConfirmed = () => {
@@ -715,9 +723,17 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
               <div className="pt-2">
                 <button
                   type="submit"
-                  className="w-full px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors"
+                  disabled={isSubmitting}
+                  className="w-full px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Lưu giao dịch
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Đang lưu...
+                    </>
+                  ) : (
+                    'Lưu giao dịch'
+                  )}
                 </button>
               </div>
             </form>

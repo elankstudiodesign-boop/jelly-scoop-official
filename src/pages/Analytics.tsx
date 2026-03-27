@@ -5,7 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { formatCurrency, parseCurrency } from '../lib/format';
 import PoolDistribution from './PoolDistribution';
 import Simulator from './Simulator';
-import { BarChart3, Droplets, Calculator, Trash2, PlusCircle, Calendar as CalendarIcon } from 'lucide-react';
+import { BarChart3, Droplets, Calculator, Trash2, PlusCircle, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 import CurrencyInput from '../components/CurrencyInput';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -24,25 +24,33 @@ export default function Analytics({ sessions, addSession, deleteSession, product
   // Confirmation modal state
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!date || !scoopsSold || revenue === undefined) return;
     
-    const newSession: LiveSession = {
-      id: uuidv4(),
-      date,
-      scoopsSold: Number(scoopsSold),
-      revenue: revenue,
-      tiktokFeePercent: Number(tiktokFeePercent),
-      packagingCostPerScoop: packagingCost || 0,
-      averageScoopCost: averageScoopCost || 0
-    };
-    
-    addSession(newSession);
-    
-    setScoopsSold('');
-    setRevenue(undefined);
+    setIsSubmitting(true);
+    try {
+      const newSession: LiveSession = {
+        id: uuidv4(),
+        date,
+        scoopsSold: Number(scoopsSold),
+        revenue: revenue,
+        tiktokFeePercent: Number(tiktokFeePercent),
+        packagingCostPerScoop: packagingCost || 0,
+        averageScoopCost: averageScoopCost || 0
+      };
+      
+      await addSession(newSession);
+      
+      setScoopsSold('');
+      setRevenue(undefined);
+    } catch (error) {
+      console.error('Error adding session:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -268,10 +276,20 @@ export default function Analytics({ sessions, addSession, deleteSession, product
 
                   <button 
                     type="submit" 
-                    className="w-full mt-5 bg-indigo-600 text-white h-12 rounded-2xl text-sm font-black uppercase tracking-wider hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                    disabled={isSubmitting}
+                    className="w-full mt-5 bg-indigo-600 text-white h-12 rounded-2xl text-sm font-black uppercase tracking-wider hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <PlusCircle className="w-5 h-5" />
-                    Lưu phiên Live
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Đang lưu...
+                      </>
+                    ) : (
+                      <>
+                        <PlusCircle className="w-5 h-5" />
+                        Lưu phiên Live
+                      </>
+                    )}
                   </button>
                 </form>
               </div>
