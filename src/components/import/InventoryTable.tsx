@@ -147,14 +147,24 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                  className="p-2.5 text-slate-500 bg-slate-50 border border-slate-200 rounded-xl hover:text-indigo-600 hover:border-indigo-200 transition-all"
-                  title={viewMode === 'grid' ? 'Chế độ danh sách' : 'Chế độ lưới'}
-                >
-                  {viewMode === 'grid' ? <List className="w-5 h-5" /> : <Grid className="w-5 h-5" />}
-                </button>
+                <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-200">
+                  <button 
+                    type="button"
+                    onClick={() => setViewMode('grid')}
+                    className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    title="Chế độ lưới"
+                  >
+                    <Grid className="w-4 h-4" />
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setViewMode('list')}
+                    className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    title="Chế độ danh sách"
+                  >
+                    <List className="w-4 h-4" />
+                  </button>
+                </div>
                 
                 <button
                   type="button"

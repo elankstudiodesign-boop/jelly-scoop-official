@@ -380,7 +380,6 @@ export default function Products({ products, updateProduct, deleteProduct, suppl
                     disabled={!selectedProduct} 
                     className="bg-indigo-600 text-white px-8 py-3 rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    <ArrowDownToLine className="w-4 h-4" />
                     Xác nhận đổ bể
                   </button>
                 </div>
@@ -391,66 +390,103 @@ export default function Products({ products, updateProduct, deleteProduct, suppl
       </div>
 
       {/* Main Inventory Section */}
-      <div className="space-y-4">
-        {/* Tabs & Filters */}
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between overflow-x-auto no-scrollbar pb-2 sm:pb-0">
-            <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
-              {[
-                { id: 'all', label: 'Tất cả', icon: Package },
-                { id: 'in-pool', label: 'Trong bể', icon: TrendingUp },
-                { id: 'in-warehouse', label: 'Trong kho', icon: Box },
-                { id: 'low-stock', label: 'Sắp hết', icon: AlertTriangle },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as TabType)}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-                  }`}
-                >
-                  <tab.icon className="w-4 h-4" />
-                  {tab.label}
-                </button>
-              ))}
+      <div className="space-y-5">
+        {/* Tabs & Filters Header */}
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            {/* Segmented Control Tabs */}
+            <div className="relative flex bg-slate-200/40 p-1.5 rounded-[20px] border border-slate-200/50 w-full lg:w-auto overflow-x-auto no-scrollbar shadow-inner backdrop-blur-sm">
+              <div className="flex min-w-full lg:min-w-0 gap-1">
+                {[
+                  { id: 'all', label: 'Tất cả', icon: Package },
+                  { id: 'in-pool', label: 'Trong bể', icon: TrendingUp },
+                  { id: 'in-warehouse', label: 'Trong kho', icon: Box },
+                  { id: 'low-stock', label: 'Sắp hết', icon: AlertTriangle },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as TabType)}
+                    className={`relative flex items-center justify-center gap-2.5 px-5 py-2.5 text-xs md:text-sm font-extrabold rounded-2xl transition-all whitespace-nowrap z-10 flex-1 lg:flex-none ${
+                      activeTab === tab.id ? 'text-white' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    {activeTab === tab.id && (
+                      <motion.div
+                        layoutId="activeTab"
+                        className="absolute inset-0 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-200"
+                        transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+                      />
+                    )}
+                    <tab.icon className={`relative w-4 h-4 z-20 ${activeTab === tab.id ? 'text-white' : 'text-slate-400'}`} />
+                    <span className="relative z-20">{tab.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="hidden md:flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm ml-4">
-              <button 
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-slate-100 text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
-              >
-                <LayoutGrid className="w-5 h-5" />
-              </button>
-              <button 
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-slate-100 text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
-              >
-                <List className="w-5 h-5" />
-              </button>
+            {/* View Mode & Actions Group */}
+            <div className="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto">
+              <div className="flex bg-slate-200/40 p-1.5 rounded-[20px] border border-slate-200/50 shadow-inner backdrop-blur-sm">
+                <button 
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2.5 rounded-2xl transition-all ${viewMode === 'grid' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                  title="Chế độ lưới"
+                >
+                  <LayoutGrid className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={() => setViewMode('list')}
+                  className={`p-2.5 rounded-2xl transition-all ${viewMode === 'list' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                  title="Chế độ danh sách"
+                >
+                  <List className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 flex-1 lg:flex-none">
+                <button
+                  onClick={() => setIsSelectionMode(!isSelectionMode)}
+                  className={`flex-1 lg:flex-none px-5 py-3 rounded-[20px] text-xs md:text-sm font-black transition-all border shadow-sm ${
+                    isSelectionMode 
+                      ? 'bg-indigo-50 border-indigo-200 text-indigo-700' 
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {isSelectionMode ? 'Hủy chọn' : 'Chọn nhiều'}
+                </button>
+                {isSelectionMode && (
+                  <button
+                    onClick={() => handleReturnToWarehouse(Array.from(selectedIds))}
+                    disabled={selectedIds.size === 0}
+                    className="px-5 py-3 bg-rose-600 text-white rounded-[20px] text-xs md:text-sm font-black shadow-xl shadow-rose-200 disabled:opacity-50 disabled:shadow-none transition-all flex items-center gap-2"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    <span className="hidden sm:inline">Hoàn kho</span> ({selectedIds.size})
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+          {/* Search & Filter Bar */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1 group">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
               <input
                 type="text"
                 placeholder="Tìm tên sản phẩm..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium shadow-sm"
+                className="w-full pl-12 pr-6 py-3.5 bg-white border border-slate-200 rounded-[22px] focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-sm font-bold transition-all shadow-sm placeholder:text-slate-400"
               />
             </div>
 
-            <div className="relative">
-              <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <div className="relative w-full sm:w-72">
+              <Filter className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <select 
                 value={filterPriceGroup} 
                 onChange={e => setFilterPriceGroup(e.target.value as any)}
-                className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium shadow-sm appearance-none cursor-pointer"
+                className="w-full pl-12 pr-12 py-3.5 bg-white border border-slate-200 rounded-[22px] focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-sm font-bold transition-all appearance-none cursor-pointer shadow-sm"
               >
                 <option value="Tất cả">Tất cả nhóm giá</option>
                 <option value="Thấp">Nhóm Thấp</option>
@@ -458,29 +494,9 @@ export default function Products({ products, updateProduct, deleteProduct, suppl
                 <option value="Cao">Nhóm Cao</option>
                 <option value="Cao cấp">Nhóm Cao cấp</option>
               </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setIsSelectionMode(!isSelectionMode)}
-                className={`flex-1 px-4 py-3 rounded-2xl text-sm font-bold transition-all border ${
-                  isSelectionMode 
-                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700' 
-                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                {isSelectionMode ? 'Hủy chọn' : 'Chọn nhiều'}
-              </button>
-              {isSelectionMode && (
-                <button
-                  onClick={() => handleReturnToWarehouse(Array.from(selectedIds))}
-                  disabled={selectedIds.size === 0}
-                  className="px-4 py-3 bg-rose-600 text-white rounded-2xl text-sm font-bold shadow-lg shadow-rose-100 disabled:opacity-50 disabled:shadow-none transition-all flex items-center gap-2"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  Hoàn kho ({selectedIds.size})
-                </button>
-              )}
+              <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <ChevronDown className="w-4 h-4" />
+              </div>
             </div>
           </div>
         </div>

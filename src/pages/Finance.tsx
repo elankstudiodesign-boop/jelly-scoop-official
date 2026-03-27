@@ -4,6 +4,8 @@ import { Wallet, TrendingUp, TrendingDown, Trash2, AlertTriangle, X, Plus, Chevr
 import { formatCurrency, parseCurrency } from '../lib/format';
 import { v4 as uuidv4 } from 'uuid';
 import { useSupabaseFinancialSummaries, usePaginatedTransactions } from '../hooks/useSupabase';
+import CurrencyInput from '../components/CurrencyInput';
+import ConfirmModal from '../components/ConfirmModal';
 
 interface FinanceProps {
   transactions: Transaction[];
@@ -36,12 +38,12 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
   // Form state for new transaction
   const [newTxType, setNewTxType] = useState<'IN' | 'OUT'>('OUT');
   const [newTxCategory, setNewTxCategory] = useState<Transaction['category']>('PACKAGING');
-  const [newTxAmount, setNewTxAmount] = useState('');
+  const [newTxAmount, setNewTxAmount] = useState<number | undefined>(undefined);
   const [newTxDescription, setNewTxDescription] = useState('');
 
   const handleAddTransaction = (e: React.FormEvent) => {
     e.preventDefault();
-    const amount = parseCurrency(newTxAmount);
+    const amount = newTxAmount || 0;
     if (amount <= 0 || !newTxDescription) {
       alert('Vui lòng nhập số tiền lớn hơn 0 và mô tả giao dịch');
       return;
@@ -59,9 +61,47 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
     // Reset form and close modal
     setNewTxType('OUT');
     setNewTxCategory('PACKAGING');
-    setNewTxAmount('');
+    setNewTxAmount(undefined);
     setNewTxDescription('');
     setIsAddModalOpen(false);
+  };
+
+  const handleDeleteConfirmed = () => {
+    if (!deleteConfirmIds) return;
+    
+    const ids = deleteConfirmIds;
+    
+    // Restore inventory for each transaction
+    const productUpdates: Record<string, number> = {};
+    
+    ids.forEach(id => {
+      const tx = paginatedTransactions.find(t => t.id === id);
+      if (tx && tx.items && tx.items.length > 0) {
+        tx.items.forEach(item => {
+          // If it's an IN transaction (e.g., ORDER), we sold items, so deleting it means we add them back.
+          // If it's an OUT transaction (e.g., IMPORT), we bought items, so deleting it means we remove them.
+          const quantityChange = tx.type === 'IN' ? item.quantity : -item.quantity;
+          productUpdates[item.productId] = (productUpdates[item.productId] || 0) + quantityChange;
+        });
+      }
+      deleteTransaction(id);
+    });
+
+    // Apply updates
+    Object.entries(productUpdates).forEach(([productId, change]) => {
+      const product = products.find(p => p.id === productId);
+      if (product) {
+        const newQuantity = Math.max(0, (product.warehouseQuantity || 0) + change);
+        updateProduct(product.id, { warehouseQuantity: newQuantity });
+      }
+    });
+
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      ids.forEach(id => next.delete(id));
+      return next;
+    });
+    setDeleteConfirmIds(null);
   };
 
   const { totalRevenue, totalExpense, netProfit } = useMemo(() => {
@@ -560,78 +600,18 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
       </div>
 
       {/* Delete Confirmation Modal */}
-      {deleteConfirmIds && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-6">
-              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-rose-100 text-rose-600 mb-4 mx-auto">
-                <AlertTriangle className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900 text-center mb-2">
-                {deleteConfirmIds.length === 1 ? 'Xóa giao dịch' : `Xóa ${deleteConfirmIds.length} giao dịch`}
-              </h3>
-              <p className="text-slate-500 text-center mb-6">
-                {deleteConfirmIds.length === 1
-                  ? 'Bạn có chắc chắn muốn xóa giao dịch này không? Hành động này không thể hoàn tác.'
-                  : 'Bạn có chắc chắn muốn xóa các giao dịch đang chọn không? Hành động này không thể hoàn tác.'
-                }
-                <br />
-                <span className="text-emerald-600 font-medium mt-2 block">
-                  Số lượng sản phẩm trong kho sẽ được tự động hoàn lại.
-                </span>
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setDeleteConfirmIds(null)}
-                  className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors"
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={() => {
-                    const ids = deleteConfirmIds;
-                    
-                    // Restore inventory for each transaction
-                    const productUpdates: Record<string, number> = {};
-                    
-                    ids.forEach(id => {
-                      const tx = paginatedTransactions.find(t => t.id === id);
-                      if (tx && tx.items && tx.items.length > 0) {
-                        tx.items.forEach(item => {
-                          // If it's an IN transaction (e.g., ORDER), we sold items, so deleting it means we add them back.
-                          // If it's an OUT transaction (e.g., IMPORT), we bought items, so deleting it means we remove them.
-                          const quantityChange = tx.type === 'IN' ? item.quantity : -item.quantity;
-                          productUpdates[item.productId] = (productUpdates[item.productId] || 0) + quantityChange;
-                        });
-                      }
-                      deleteTransaction(id);
-                    });
+      <ConfirmModal
+        isOpen={!!deleteConfirmIds}
+        onClose={() => setDeleteConfirmIds(null)}
+        onConfirm={handleDeleteConfirmed}
+        title={deleteConfirmIds?.length === 1 ? 'Xóa giao dịch?' : `Xóa ${deleteConfirmIds?.length} giao dịch?`}
+        message={deleteConfirmIds?.length === 1
+          ? 'Bạn có chắc chắn muốn xóa giao dịch này không? Hành động này không thể hoàn tác. Số lượng sản phẩm trong kho sẽ được tự động hoàn lại.'
+          : 'Bạn có chắc chắn muốn xóa các giao dịch đang chọn không? Hành động này không thể hoàn tác. Số lượng sản phẩm trong kho sẽ được tự động hoàn lại.'
+        }
+        confirmLabel="Xóa vĩnh viễn"
+      />
 
-                    // Apply updates
-                    Object.entries(productUpdates).forEach(([productId, change]) => {
-                      const product = products.find(p => p.id === productId);
-                      if (product) {
-                        const newQuantity = Math.max(0, (product.warehouseQuantity || 0) + change);
-                        updateProduct(product.id, { warehouseQuantity: newQuantity });
-                      }
-                    });
-
-                    setSelectedIds(prev => {
-                      const next = new Set(prev);
-                      ids.forEach(id => next.delete(id));
-                      return next;
-                    });
-                    setDeleteConfirmIds(null);
-                  }}
-                  className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-medium rounded-lg transition-colors"
-                >
-                  Xóa
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       {/* Add Transaction Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -712,18 +692,13 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Số tiền (VNĐ)</label>
-                <input
-                  type="text"
-                  min="0"
-                  value={newTxAmount}
-                  onChange={(e) => setNewTxAmount(formatCurrency(e.target.value))}
-                  placeholder="Ví dụ: 50.000"
-                  className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                  required
-                />
-              </div>
+              <CurrencyInput
+                label="Số tiền"
+                value={newTxAmount}
+                onValueChange={(values) => setNewTxAmount(values.floatValue)}
+                placeholder="Ví dụ: 50.000"
+                required
+              />
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Mô tả chi tiết</label>

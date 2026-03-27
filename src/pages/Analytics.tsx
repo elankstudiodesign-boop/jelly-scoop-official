@@ -5,38 +5,44 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { formatCurrency, parseCurrency } from '../lib/format';
 import PoolDistribution from './PoolDistribution';
 import Simulator from './Simulator';
-import { BarChart3, Droplets, Calculator } from 'lucide-react';
+import { BarChart3, Droplets, Calculator, Trash2, PlusCircle, Calendar as CalendarIcon } from 'lucide-react';
+import CurrencyInput from '../components/CurrencyInput';
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function Analytics({ sessions, addSession, deleteSession, products }: { sessions: LiveSession[], addSession: (s: LiveSession) => void, deleteSession: (id: string) => void, products: Product[] }) {
   const [activeTab, setActiveTab] = useState<'stats' | 'pool' | 'simulator'>('stats');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [scoopsSold, setScoopsSold] = useState('');
-  const [revenue, setRevenue] = useState('');
+  const [revenue, setRevenue] = useState<number | undefined>(undefined);
   const [tiktokFeePercent, setTiktokFeePercent] = useState('4');
-  const [packagingCost, setPackagingCost] = useState('5000');
-  const [averageScoopCost, setAverageScoopCost] = useState('45000');
+  const [packagingCost, setPackagingCost] = useState<number | undefined>(5000);
+  const [averageScoopCost, setAverageScoopCost] = useState<number | undefined>(45000);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const selectAllRef = useRef<HTMLInputElement>(null);
 
+  // Confirmation modal state
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
+
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!date || !scoopsSold || !revenue) return;
+    if (!date || !scoopsSold || revenue === undefined) return;
     
     const newSession: LiveSession = {
       id: uuidv4(),
       date,
       scoopsSold: Number(scoopsSold),
-      revenue: parseCurrency(revenue),
+      revenue: revenue,
       tiktokFeePercent: Number(tiktokFeePercent),
-      packagingCostPerScoop: parseCurrency(packagingCost),
-      averageScoopCost: parseCurrency(averageScoopCost)
+      packagingCostPerScoop: packagingCost || 0,
+      averageScoopCost: averageScoopCost || 0
     };
     
     addSession(newSession);
     
     setScoopsSold('');
-    setRevenue('');
+    setRevenue(undefined);
   };
 
   const handleDelete = (id: string) => {
@@ -46,6 +52,7 @@ export default function Analytics({ sessions, addSession, deleteSession, product
       next.delete(id);
       return next;
     });
+    setConfirmDeleteId(null);
   };
 
   const chartData = sessions.map(s => {
@@ -197,34 +204,73 @@ export default function Analytics({ sessions, addSession, deleteSession, product
                 <h3 className="text-base font-semibold text-slate-800 mb-5">Thêm phiên Live</h3>
                 <form onSubmit={handleAdd} className="space-y-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Ngày</label>
-                    <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required />
+                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Ngày</label>
+                    <div className="relative group">
+                      <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                      <input 
+                        type="date" 
+                        value={date} 
+                        onChange={e => setDate(e.target.value)} 
+                        className="w-full h-12 bg-white border-2 border-slate-100 rounded-2xl pl-11 pr-4 text-sm font-bold transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none" 
+                        required 
+                      />
+                    </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Tổng Scoop đã bán</label>
-                    <input type="number" min="0" value={scoopsSold} onChange={e => setScoopsSold(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required placeholder="0" />
+                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Tổng Scoop đã bán</label>
+                    <input 
+                      type="number" 
+                      min="0" 
+                      value={scoopsSold} 
+                      onChange={e => setScoopsSold(e.target.value)} 
+                      className="w-full h-12 bg-white border-2 border-slate-100 rounded-2xl px-4 text-sm font-bold transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none placeholder:text-slate-300" 
+                      required 
+                      placeholder="0" 
+                    />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Tổng doanh thu (VNĐ)</label>
-                    <input type="text" min="0" value={revenue} onChange={e => setRevenue(formatCurrency(e.target.value))} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required placeholder="0" />
-                  </div>
+                  
+                  <CurrencyInput
+                    label="Tổng doanh thu"
+                    value={revenue}
+                    onValueChange={(values) => setRevenue(values.floatValue)}
+                    placeholder="0 ₫"
+                    required
+                  />
                   
                   <div className="pt-4 border-t border-slate-100 space-y-4">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Phí sàn TikTok (%)</label>
-                      <input type="number" min="0" step="0.1" value={tiktokFeePercent} onChange={e => setTiktokFeePercent(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required />
+                      <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Phí sàn TikTok (%)</label>
+                      <input 
+                        type="number" 
+                        min="0" 
+                        step="0.1" 
+                        value={tiktokFeePercent} 
+                        onChange={e => setTiktokFeePercent(e.target.value)} 
+                        className="w-full h-12 bg-white border-2 border-slate-100 rounded-2xl px-4 text-sm font-bold transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none" 
+                        required 
+                      />
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Chi phí bao bì / Scoop (VNĐ)</label>
-                      <input type="text" min="0" value={packagingCost} onChange={e => setPackagingCost(formatCurrency(e.target.value))} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Giá vốn TB / Scoop (VNĐ)</label>
-                      <input type="text" min="0" value={averageScoopCost} onChange={e => setAverageScoopCost(formatCurrency(e.target.value))} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required />
-                    </div>
+                    
+                    <CurrencyInput
+                      label="Chi phí bao bì / Scoop"
+                      value={packagingCost}
+                      onValueChange={(values) => setPackagingCost(values.floatValue)}
+                      required
+                    />
+
+                    <CurrencyInput
+                      label="Giá vốn TB / Scoop"
+                      value={averageScoopCost}
+                      onValueChange={(values) => setAverageScoopCost(values.floatValue)}
+                      required
+                    />
                   </div>
 
-                  <button type="submit" className="w-full mt-5 bg-indigo-600 text-white px-4 py-2.5 rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors">
+                  <button 
+                    type="submit" 
+                    className="w-full mt-5 bg-indigo-600 text-white h-12 rounded-2xl text-sm font-black uppercase tracking-wider hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                  >
+                    <PlusCircle className="w-5 h-5" />
                     Lưu phiên Live
                   </button>
                 </form>
@@ -249,10 +295,11 @@ export default function Analytics({ sessions, addSession, deleteSession, product
                     </label>
                     <button
                       type="button"
-                      onClick={handleDeleteSelected}
+                      onClick={() => setIsBulkDeleteConfirmOpen(true)}
                       disabled={selectedIds.size === 0}
-                      className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
+                      <Trash2 className="w-4 h-4" />
                       Xoá đã chọn {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
                     </button>
                     <button
@@ -320,8 +367,12 @@ export default function Analytics({ sessions, addSession, deleteSession, product
                           </span>
                         </td>
                         <td className="p-4 text-center">
-                          <button onClick={() => handleDelete(session.id)} className="text-xs font-medium text-red-600 hover:text-red-800 transition-colors">
-                            Xóa
+                          <button 
+                            onClick={() => setConfirmDeleteId(session.id)} 
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                            title="Xóa phiên Live"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </td>
                       </tr>
@@ -352,6 +403,24 @@ export default function Analytics({ sessions, addSession, deleteSession, product
           <Simulator products={products} />
         </div>
       )}
+      {/* Confirmation Modals */}
+      <ConfirmModal
+        isOpen={!!confirmDeleteId}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={() => confirmDeleteId && handleDelete(confirmDeleteId)}
+        title="Xóa phiên Live?"
+        message="Dữ liệu phiên Live này sẽ bị xóa vĩnh viễn và không thể khôi phục. Bạn có chắc chắn muốn tiếp tục?"
+        confirmLabel="Xóa vĩnh viễn"
+      />
+
+      <ConfirmModal
+        isOpen={isBulkDeleteConfirmOpen}
+        onClose={() => setIsBulkDeleteConfirmOpen(false)}
+        onConfirm={handleDeleteSelected}
+        title={`Xóa ${selectedIds.size} phiên Live?`}
+        message="Tất cả các phiên Live đã chọn sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác."
+        confirmLabel="Xóa tất cả"
+      />
     </div>
   );
 }
