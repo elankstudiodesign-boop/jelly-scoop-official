@@ -1,125 +1,80 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { LiveSession, Product } from '../types';
+import { LiveSession, Product, Transaction } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { formatCurrency, parseCurrency } from '../lib/format';
 import PoolDistribution from './PoolDistribution';
 import Simulator from './Simulator';
-import { BarChart3, Droplets, Calculator, Trash2, PlusCircle, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
+import { BarChart3, Droplets, Calculator, Trash2, PlusCircle, Calendar as CalendarIcon, Loader2, TrendingUp, TrendingDown, DollarSign, ShoppingBag, Package, Percent } from 'lucide-react';
 import CurrencyInput from '../components/CurrencyInput';
 import ConfirmModal from '../components/ConfirmModal';
 
-export default function Analytics({ sessions, addSession, deleteSession, products }: { sessions: LiveSession[], addSession: (s: LiveSession) => void, deleteSession: (id: string) => void, products: Product[] }) {
+export default function Analytics({ products, transactions }: { products: Product[], transactions: Transaction[] }) {
   const [activeTab, setActiveTab] = useState<'stats' | 'pool' | 'simulator'>('stats');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [scoopsSold, setScoopsSold] = useState('');
-  const [revenue, setRevenue] = useState<number | undefined>(undefined);
-  const [tiktokFeePercent, setTiktokFeePercent] = useState('4');
-  const [packagingCost, setPackagingCost] = useState<number | undefined>(5000);
-  const [averageScoopCost, setAverageScoopCost] = useState<number | undefined>(45000);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const selectAllRef = useRef<HTMLInputElement>(null);
 
-  // Confirmation modal state
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Calculate stats from transactions
+  const chartData = React.useMemo(() => {
+    const dailyData: { [date: string]: { revenue: number, totalCost: number, totalPackaging: number, totalPlatformFee: number, totalOtherExpenses: number, scoopsSold: number } } = {};
 
-  const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!date || !scoopsSold || revenue === undefined) return;
-    
-    setIsSubmitting(true);
-    try {
-      const newSession: LiveSession = {
-        id: uuidv4(),
+    transactions.forEach(tx => {
+      const dateStr = new Date(tx.date).toISOString().split('T')[0];
+      if (!dailyData[dateStr]) {
+        dailyData[dateStr] = { revenue: 0, totalCost: 0, totalPackaging: 0, totalPlatformFee: 0, totalOtherExpenses: 0, scoopsSold: 0 };
+      }
+
+      if (tx.type === 'IN') {
+        if (tx.category === 'ORDER') {
+          dailyData[dateStr].revenue += tx.amount;
+          if (tx.items) {
+            tx.items.forEach(item => {
+              const product = products.find(p => p.id === item.productId);
+              if (product) {
+                dailyData[dateStr].totalCost += (product.cost || 0) * item.quantity;
+                dailyData[dateStr].scoopsSold += item.quantity;
+              }
+            });
+          }
+        } else {
+          // Other income
+          dailyData[dateStr].revenue += tx.amount;
+        }
+      } else {
+        // Expenses
+        if (tx.category === 'PACKAGING') {
+          dailyData[dateStr].totalPackaging += tx.amount;
+        } else if (tx.category === 'PLATFORM_FEE') {
+          dailyData[dateStr].totalPlatformFee += tx.amount;
+        } else if (tx.category === 'IMPORT') {
+          // Import costs are usually handled via product cost, but if it's a direct expense:
+          // We don't double count if it's already in product.cost
+        } else {
+          dailyData[dateStr].totalOtherExpenses += tx.amount;
+        }
+      }
+    });
+
+    return Object.entries(dailyData).map(([date, data]) => {
+      const netProfit = data.revenue - data.totalCost - data.totalPackaging - data.totalPlatformFee - data.totalOtherExpenses;
+      const margin = data.revenue > 0 ? (netProfit / data.revenue) * 100 : 0;
+      return {
+        id: date,
         date,
-        scoopsSold: Number(scoopsSold),
-        revenue: revenue,
-        tiktokFeePercent: Number(tiktokFeePercent),
-        packagingCostPerScoop: packagingCost || 0,
-        averageScoopCost: averageScoopCost || 0
+        displayDate: new Date(date).toLocaleDateString('vi-VN', { month: 'numeric', day: 'numeric' }),
+        revenue: data.revenue,
+        netProfit,
+        margin,
+        scoopsSold: data.scoopsSold,
+        totalCost: data.totalCost,
+        totalPackaging: data.totalPackaging,
+        totalPlatformFee: data.totalPlatformFee,
+        totalOtherExpenses: data.totalOtherExpenses
       };
-      
-      await addSession(newSession);
-      
-      setScoopsSold('');
-      setRevenue(undefined);
-    } catch (error) {
-      console.error('Error adding session:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDelete = (id: string) => {
-    deleteSession(id);
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-    setConfirmDeleteId(null);
-  };
-
-  const chartData = sessions.map(s => {
-    const platformFee = s.revenue * (s.tiktokFeePercent / 100);
-    const totalPackaging = s.scoopsSold * s.packagingCostPerScoop;
-    const totalGoodsCost = s.scoopsSold * s.averageScoopCost;
-    const netProfit = s.revenue - platformFee - totalPackaging - totalGoodsCost;
-    const margin = s.revenue > 0 ? (netProfit / s.revenue) * 100 : 0;
-    
-    return {
-      ...s,
-      netProfit,
-      margin,
-      displayDate: new Date(s.date).toLocaleDateString('vi-VN', { month: 'numeric', day: 'numeric' })
-    };
-  });
-
-  const allIds = chartData.map(s => s.id);
-  const allSelected = allIds.length > 0 && selectedIds.size === allIds.length;
-  const someSelected = selectedIds.size > 0 && !allSelected;
-
-  const toggleSelected = (id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleSelectAll = () => {
-    setSelectedIds(prev => {
-      if (allSelected) return new Set();
-      const next = new Set(prev);
-      allIds.forEach(id => next.add(id));
-      return next;
-    });
-  };
-
-  const handleDeleteSelected = () => {
-    const ids = Array.from(selectedIds);
-    if (ids.length === 0) return;
-    ids.forEach(id => deleteSession(id));
-    setSelectedIds(new Set());
-  };
-
-  useEffect(() => {
-    const allowed = new Set(allIds);
-    setSelectedIds(prev => new Set([...prev].filter(id => allowed.has(id))));
-  }, [sessions]);
-
-  useEffect(() => {
-    if (selectAllRef.current) {
-      selectAllRef.current.indeterminate = someSelected;
-    }
-  }, [someSelected]);
+    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [transactions, products]);
 
   const totalRevenue = chartData.reduce((sum, s) => sum + s.revenue, 0);
   const totalProfit = chartData.reduce((sum, s) => sum + s.netProfit, 0);
+  const totalExpenses = totalRevenue - totalProfit;
   const totalScoops = chartData.reduce((sum, s) => sum + s.scoopsSold, 0);
   const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
@@ -159,29 +114,75 @@ export default function Analytics({ sessions, addSession, deleteSession, product
 
       {activeTab === 'stats' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center text-center">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Tổng Doanh Thu</p>
-              <p className="text-2xl font-bold text-slate-900">{formatCurrency(totalRevenue)}đ</p>
+          {/* Main Financial Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500 mb-1">Tổng doanh thu (Toàn thời gian)</p>
+                <p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalRevenue)}đ</p>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                <TrendingUp className="w-6 h-6" />
+              </div>
             </div>
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center text-center">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Lợi Nhuận Ròng</p>
-              <p className="text-2xl font-bold text-indigo-600">{formatCurrency(totalProfit)}đ</p>
+
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500 mb-1">Tổng chi phí (Toàn thời gian)</p>
+                <p className="text-2xl font-bold text-rose-600">{formatCurrency(totalExpenses)}đ</p>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-600">
+                <TrendingDown className="w-6 h-6" />
+              </div>
             </div>
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center text-center">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Số Scoop Đã Bán</p>
+            
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500 mb-1">Lợi nhuận ròng (Toàn thời gian)</p>
+                <p className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
+                  {formatCurrency(totalProfit)}đ
+                </p>
+              </div>
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${totalProfit >= 0 ? 'bg-indigo-50 text-indigo-600' : 'bg-rose-50 text-rose-600'}`}>
+                <DollarSign className="w-6 h-6" />
+              </div>
+            </div>
+          </div>
+
+          {/* Secondary Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center text-center group hover:border-amber-200 transition-colors">
+              <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <ShoppingBag className="w-5 h-5 text-amber-600" />
+              </div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Số Món Đã Bán</p>
               <p className="text-2xl font-bold text-slate-900">{formatCurrency(totalScoops)}</p>
             </div>
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center text-center">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Biên Lợi Nhuận TB</p>
-              <p className="text-2xl font-bold text-emerald-600">{avgMargin.toFixed(1)}%</p>
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center text-center group hover:border-indigo-200 transition-colors">
+              <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <Percent className="w-5 h-5 text-indigo-600" />
+              </div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Biên Lợi Nhuận TB</p>
+              <p className="text-2xl font-bold text-indigo-600">{avgMargin.toFixed(1)}%</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-[450px] flex flex-col">
-                <h3 className="text-base font-semibold text-slate-800 mb-5">Biểu đồ Lợi nhuận & Doanh thu</h3>
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-base font-semibold text-slate-800">Biểu đồ Lợi nhuận & Doanh thu</h3>
+                  <div className="flex items-center gap-4 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-slate-400"></div>
+                      <span className="text-slate-500">Doanh thu</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-indigo-600"></div>
+                      <span className="text-slate-500">Lợi nhuận</span>
+                    </div>
+                  </div>
+                </div>
                 {chartData.length > 0 ? (
                   <div className="flex-1 min-h-0">
                     <ResponsiveContainer width="100%" height="100%">
@@ -191,7 +192,7 @@ export default function Analytics({ sessions, addSession, deleteSession, product
                         <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b', fontWeight: 500}} tickFormatter={(val) => `${val / 1000000}M`} dx={-10} />
                         <Tooltip 
                           cursor={{fill: '#f8fafc'}}
-                          contentStyle={{borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', fontWeight: 500, color: '#0f172a'}}
+                          contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', fontWeight: 600, padding: '12px'}}
                           formatter={(value: number) => [`${formatCurrency(value)}đ`, '']}
                         />
                         <Bar yAxisId="left" dataKey="revenue" name="Doanh thu" fill="#94a3b8" radius={[4, 4, 0, 0]} maxBarSize={40} />
@@ -201,205 +202,86 @@ export default function Analytics({ sessions, addSession, deleteSession, product
                   </div>
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                    <p className="font-medium">Chưa có dữ liệu phiên Live nào</p>
+                    <p className="font-medium">Chưa có dữ liệu đơn hàng nào</p>
                   </div>
                 )}
               </div>
             </div>
 
             <div className="lg:col-span-1">
-              <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm">
-                <h3 className="text-base font-semibold text-slate-800 mb-5">Thêm phiên Live</h3>
-                <form onSubmit={handleAdd} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Ngày</label>
-                    <div className="relative group">
-                      <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-                      <input 
-                        type="date" 
-                        value={date} 
-                        onChange={e => setDate(e.target.value)} 
-                        className="w-full h-12 bg-white border-2 border-slate-100 rounded-2xl pl-11 pr-4 text-sm font-bold transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none" 
-                        required 
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Tổng Scoop đã bán</label>
-                    <input 
-                      type="number" 
-                      min="0" 
-                      value={scoopsSold} 
-                      onChange={e => setScoopsSold(e.target.value)} 
-                      className="w-full h-12 bg-white border-2 border-slate-100 rounded-2xl px-4 text-sm font-bold transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none placeholder:text-slate-300" 
-                      required 
-                      placeholder="0" 
-                    />
-                  </div>
-                  
-                  <CurrencyInput
-                    label="Tổng doanh thu"
-                    value={revenue}
-                    onValueChange={(values) => setRevenue(values.floatValue)}
-                    placeholder="0 ₫"
-                    required
-                  />
-                  
-                  <div className="pt-4 border-t border-slate-100 space-y-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Phí sàn TikTok (%)</label>
-                      <input 
-                        type="number" 
-                        min="0" 
-                        step="0.1" 
-                        value={tiktokFeePercent} 
-                        onChange={e => setTiktokFeePercent(e.target.value)} 
-                        className="w-full h-12 bg-white border-2 border-slate-100 rounded-2xl px-4 text-sm font-bold transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none" 
-                        required 
-                      />
-                    </div>
-                    
-                    <CurrencyInput
-                      label="Chi phí bao bì / Scoop"
-                      value={packagingCost}
-                      onValueChange={(values) => setPackagingCost(values.floatValue)}
-                      required
-                    />
-
-                    <CurrencyInput
-                      label="Giá vốn TB / Scoop"
-                      value={averageScoopCost}
-                      onValueChange={(values) => setAverageScoopCost(values.floatValue)}
-                      required
-                    />
+              <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm h-full flex flex-col">
+                <h3 className="text-base font-semibold text-slate-800 mb-5">Thông tin Thống kê</h3>
+                <div className="space-y-4 flex-1">
+                  <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+                    <h4 className="text-sm font-bold text-indigo-900 mb-2 flex items-center gap-2">
+                      <Calculator className="w-4 h-4" />
+                      Cách tính toán
+                    </h4>
+                    <ul className="text-xs text-indigo-700 space-y-2 list-disc list-inside">
+                      <li>Dữ liệu được lấy tự động từ các đơn hàng bạn đã hoàn tất trong trang <b>Live</b>.</li>
+                      <li><b>Doanh thu:</b> Tổng số tiền khách thanh toán (bao gồm ship, trừ giảm giá).</li>
+                      <li><b>Giá vốn:</b> Tính theo giá vốn của từng sản phẩm trong đơn hàng.</li>
+                      <li><b>Chi phí khác:</b> Bao gồm phí bao bì, phí sàn TikTok và các chi tiêu khác bạn nhập trong mục <b>Tài chính</b>.</li>
+                    </ul>
                   </div>
 
-                  <button 
-                    type="submit" 
-                    disabled={isSubmitting}
-                    className="w-full mt-5 bg-indigo-600 text-white h-12 rounded-2xl text-sm font-black uppercase tracking-wider hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Đang lưu...
-                      </>
-                    ) : (
-                      <>
-                        <PlusCircle className="w-5 h-5" />
-                        Lưu phiên Live
-                      </>
-                    )}
-                  </button>
-                </form>
+                  <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                    <h4 className="text-sm font-bold text-emerald-900 mb-2 flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4" />
+                      Mục tiêu lợi nhuận
+                    </h4>
+                    <p className="text-xs text-emerald-700 leading-relaxed">
+                      Hệ thống đánh giá đơn hàng có lợi nhuận tốt khi biên lợi nhuận đạt từ <b>50% trở lên</b>.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
           
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
             <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="flex items-center gap-3">
-                {isSelectionMode ? (
-                  <>
-                    <label className="flex items-center gap-2 text-sm text-slate-600 select-none">
-                      <input
-                        ref={selectAllRef}
-                        type="checkbox"
-                        checked={allSelected}
-                        onChange={toggleSelectAll}
-                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      Chọn tất cả
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setIsBulkDeleteConfirmOpen(true)}
-                      disabled={selectedIds.size === 0}
-                      className="flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Xoá đã chọn {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsSelectionMode(false);
-                        setSelectedIds(new Set());
-                      }}
-                      className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-slate-200 text-slate-700 hover:bg-slate-50"
-                    >
-                      Hủy chọn
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setIsSelectionMode(true)}
-                    className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-slate-200 text-slate-700 hover:bg-slate-50"
-                  >
-                    Chọn
-                  </button>
-                )}
-              </div>
-              <div className="text-sm text-slate-500">
-                {selectedIds.size > 0 ? `Đang chọn ${selectedIds.size}` : ''}
-              </div>
+              <h3 className="text-base font-semibold text-slate-800">Bảng tổng hợp theo ngày</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-600 font-semibold">
                   <tr>
-                    {isSelectionMode && <th className="p-4 w-12"></th>}
                     <th className="p-4">Ngày</th>
-                    <th className="p-4 text-right">Scoops</th>
+                    <th className="p-4 text-right">Số món</th>
                     <th className="p-4 text-right">Doanh thu</th>
-                    <th className="p-4 text-right">Chi phí</th>
+                    <th className="p-4 text-right">Giá vốn</th>
+                    <th className="p-4 text-right">Bao bì</th>
+                    <th className="p-4 text-right">Phí sàn</th>
+                    <th className="p-4 text-right">Chi phí khác</th>
                     <th className="p-4 text-right">Lợi nhuận ròng</th>
                     <th className="p-4 text-right">Biên LN</th>
-                    <th className="p-4 text-center">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {chartData.map(session => {
-                    const totalCost = session.revenue - session.netProfit;
+                  {chartData.map(day => {
                     return (
-                      <tr key={session.id} className="hover:bg-slate-50 transition-colors text-slate-900">
-                        {isSelectionMode && (
-                          <td className="p-4">
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.has(session.id)}
-                              onChange={() => toggleSelected(session.id)}
-                              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                            />
-                          </td>
-                        )}
-                        <td className="p-4">{new Date(session.date).toLocaleDateString('vi-VN')}</td>
-                        <td className="p-4 text-right">{session.scoopsSold}</td>
-                        <td className="p-4 text-right font-medium">{formatCurrency(session.revenue)}đ</td>
-                        <td className="p-4 text-right text-slate-500">{formatCurrency(totalCost)}đ</td>
-                        <td className="p-4 text-right font-semibold text-indigo-600">{formatCurrency(session.netProfit)}đ</td>
+                      <tr key={day.id} className="hover:bg-slate-50 transition-colors text-slate-900">
+                        <td className="p-4 font-medium">{new Date(day.date).toLocaleDateString('vi-VN')}</td>
+                        <td className="p-4 text-right">{day.scoopsSold}</td>
+                        <td className="p-4 text-right font-medium">{formatCurrency(day.revenue)}đ</td>
+                        <td className="p-4 text-right text-slate-500">{formatCurrency(day.totalCost)}đ</td>
+                        <td className="p-4 text-right text-slate-500">{formatCurrency(day.totalPackaging)}đ</td>
+                        <td className="p-4 text-right text-slate-500">{formatCurrency(day.totalPlatformFee)}đ</td>
+                        <td className="p-4 text-right text-slate-500">{formatCurrency(day.totalOtherExpenses)}đ</td>
+                        <td className="p-4 text-right font-semibold text-indigo-600">{formatCurrency(day.netProfit)}đ</td>
                         <td className="p-4 text-right">
-                          <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${session.margin >= 20 ? 'bg-emerald-100 text-emerald-700' : session.margin > 0 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
-                            {session.margin.toFixed(1)}%
+                          <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${day.margin >= 50 ? 'bg-emerald-100 text-emerald-700' : day.margin > 0 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                            {day.margin.toFixed(1)}%
                           </span>
-                        </td>
-                        <td className="p-4 text-center">
-                          <button 
-                            onClick={() => setConfirmDeleteId(session.id)} 
-                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                            title="Xóa phiên Live"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
                         </td>
                       </tr>
                     );
                   })}
                   {chartData.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="p-8 text-center text-slate-500">
-                        Chưa có dữ liệu phiên Live
+                      <td colSpan={9} className="p-8 text-center text-slate-500">
+                        Chưa có dữ liệu đơn hàng
                       </td>
                     </tr>
                   )}
@@ -421,24 +303,6 @@ export default function Analytics({ sessions, addSession, deleteSession, product
           <Simulator products={products} />
         </div>
       )}
-      {/* Confirmation Modals */}
-      <ConfirmModal
-        isOpen={!!confirmDeleteId}
-        onClose={() => setConfirmDeleteId(null)}
-        onConfirm={() => confirmDeleteId && handleDelete(confirmDeleteId)}
-        title="Xóa phiên Live?"
-        message="Dữ liệu phiên Live này sẽ bị xóa vĩnh viễn và không thể khôi phục. Bạn có chắc chắn muốn tiếp tục?"
-        confirmLabel="Xóa vĩnh viễn"
-      />
-
-      <ConfirmModal
-        isOpen={isBulkDeleteConfirmOpen}
-        onClose={() => setIsBulkDeleteConfirmOpen(false)}
-        onConfirm={handleDeleteSelected}
-        title={`Xóa ${selectedIds.size} phiên Live?`}
-        message="Tất cả các phiên Live đã chọn sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác."
-        confirmLabel="Xóa tất cả"
-      />
     </div>
   );
 }

@@ -16,7 +16,6 @@ interface FinanceProps {
 }
 
 export default function Finance({ transactions, deleteTransaction, addTransaction, products, updateProduct }: FinanceProps) {
-  const { dailySummaries, monthlySummaries, loading: summariesLoading } = useSupabaseFinancialSummaries();
   const [deleteConfirmIds, setDeleteConfirmIds] = useState<string[] | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -112,29 +111,105 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
     setDeleteConfirmIds(null);
   };
 
-  const { totalRevenue, totalExpense, netProfit } = useMemo(() => {
+  const { totalRevenue, totalExpense, netProfit, dailySummaries, monthlySummaries } = useMemo(() => {
+    const daily: Record<string, { revenue: number, expense: number, cost: number }> = {};
+    const monthly: Record<string, { revenue: number, expense: number, cost: number }> = {};
+    
     let rev = 0;
     let exp = 0;
-    monthlySummaries.forEach(m => {
-      rev += m.total_revenue;
-      exp += m.total_expense;
-    });
-    return {
-      totalRevenue: rev,
-      totalExpense: exp,
-      netProfit: rev - exp
-    };
-  }, [monthlySummaries]);
-
-  const expenseByCategory = useMemo(() => {
-    const totals = new Map<Transaction['category'], number>();
-    let total = 0;
+    let totalCost = 0;
 
     transactions.forEach(t => {
-      if (t.type !== 'OUT') return;
+      const date = t.date.split('T')[0];
+      const month = date.substring(0, 7); // YYYY-MM
+
+      if (!daily[date]) daily[date] = { revenue: 0, expense: 0, cost: 0 };
+      if (!monthly[month]) monthly[month] = { revenue: 0, expense: 0, cost: 0 };
+
+      if (t.type === 'IN') {
+        rev += t.amount;
+        daily[date].revenue += t.amount;
+        monthly[month].revenue += t.amount;
+        
+        // Calculate COGS for orders
+        if (t.category === 'ORDER' && t.items) {
+          t.items.forEach(item => {
+            const product = products.find(p => p.id === item.productId);
+            if (product) {
+              const itemCost = (product.cost || 0) * item.quantity;
+              totalCost += itemCost;
+              daily[date].cost += itemCost;
+              monthly[month].cost += itemCost;
+            }
+          });
+        }
+      } else {
+        // For profit calculation, we exclude IMPORT if we use COGS
+        // But for "Total Expense" card, we might want to show all OUT transactions?
+        // Let's match Analytics: profit = revenue - (COGS + OUT where category != IMPORT)
+        if (t.category !== 'IMPORT') {
+          exp += t.amount;
+          daily[date].expense += t.amount;
+          monthly[month].expense += t.amount;
+        }
+      }
+    });
+
+    const dailyList = Object.entries(daily).map(([date, data]) => ({
+      summary_date: date,
+      total_revenue: data.revenue,
+      total_expense: data.expense + data.cost, // Include COGS in daily expense for consistency
+      net_profit: data.revenue - (data.expense + data.cost),
+      transaction_count: 0 // Not used in UI
+    })).sort((a, b) => b.summary_date.localeCompare(a.summary_date)).slice(0, 30);
+
+    const monthlyList = Object.entries(monthly).map(([month, data]) => ({
+      summary_month: month + '-01',
+      total_revenue: data.revenue,
+      total_expense: data.expense + data.cost,
+      net_profit: data.revenue - (data.expense + data.cost),
+      transaction_count: 0
+    })).sort((a, b) => b.summary_month.localeCompare(a.summary_month));
+
+    return {
+      totalRevenue: rev,
+      totalExpense: exp + totalCost,
+      netProfit: rev - (exp + totalCost),
+      dailySummaries: dailyList,
+      monthlySummaries: monthlyList
+    };
+  }, [transactions, products]);
+
+  const expenseByCategory = useMemo(() => {
+    const totals = new Map<Transaction['category'] | 'COGS', number>();
+    let total = 0;
+    let totalCOGS = 0;
+
+    transactions.forEach(t => {
+      if (t.type === 'IN') {
+        if (t.category === 'ORDER' && t.items) {
+          t.items.forEach(item => {
+            const product = products.find(p => p.id === item.productId);
+            if (product) {
+              totalCOGS += (product.cost || 0) * item.quantity;
+            }
+          });
+        }
+        return;
+      }
+      
+      // For expenses, we include everything except IMPORT if we want to show where money went
+      // But if we want to be consistent with profit, we should show COGS instead of IMPORT
+      if (t.category === 'IMPORT') return;
+
       total += t.amount;
       totals.set(t.category, (totals.get(t.category) || 0) + t.amount);
     });
+
+    if (totalCOGS > 0) {
+      totals.set('COGS' as any, totalCOGS);
+      total += totalCOGS;
+    }
 
     const items = Array.from(totals.entries())
       .map(([category, amount]) => ({
@@ -145,7 +220,7 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
       .sort((a, b) => b.amount - a.amount);
 
     return { total, items };
-  }, [transactions]);
+  }, [transactions, products]);
 
   const allIds = paginatedTransactions.map(t => t.id);
   const allSelected = allIds.length > 0 && selectedIds.size === allIds.length;
@@ -191,6 +266,7 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
       case 'PLATFORM_FEE': return 'Phí sàn';
       case 'TOOL': return 'Dụng cụ / Thiết bị';
       case 'FEE': return 'Chi phí phát sinh';
+      case 'COGS': return 'Giá vốn hàng bán (COGS)';
       default: return 'Khác';
     }
   };
@@ -207,7 +283,7 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-slate-500 mb-1">Tổng doanh thu (Toàn thời gian)</p>
-            <p className="text-2xl font-bold text-emerald-600">{summariesLoading ? '...' : formatCurrency(totalRevenue)}đ</p>
+            <p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalRevenue)}đ</p>
           </div>
           <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
             <TrendingUp className="w-6 h-6" />
@@ -217,7 +293,7 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-slate-500 mb-1">Tổng chi phí (Toàn thời gian)</p>
-            <p className="text-2xl font-bold text-rose-600">{summariesLoading ? '...' : formatCurrency(totalExpense)}đ</p>
+            <p className="text-2xl font-bold text-rose-600">{formatCurrency(totalExpense)}đ</p>
           </div>
           <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-600">
             <TrendingDown className="w-6 h-6" />
@@ -228,7 +304,7 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
           <div>
             <p className="text-sm font-medium text-slate-500 mb-1">Lợi nhuận ròng (Toàn thời gian)</p>
             <p className={`text-2xl font-bold ${netProfit >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
-              {summariesLoading ? '...' : formatCurrency(netProfit)}đ
+              {formatCurrency(netProfit)}đ
             </p>
           </div>
           <div className={`w-12 h-12 rounded-full flex items-center justify-center ${netProfit >= 0 ? 'bg-indigo-50 text-indigo-600' : 'bg-rose-50 text-rose-600'}`}>
@@ -251,14 +327,14 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
                   <th className="p-3 font-medium text-slate-600">Ngày</th>
                   <th className="p-3 font-medium text-slate-600 text-right">Doanh thu</th>
                   <th className="p-3 font-medium text-slate-600 text-right">Chi phí</th>
-                  <th className="p-3 font-medium text-slate-600 text-right">Lợi nhuận</th>
+                  <th className="p-3 font-medium text-slate-600 text-right">Lợi nhuận ròng</th>
                 </tr>
               </thead>
               <tbody className="text-sm divide-y divide-slate-100">
                 {dailySummaries.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="p-4 text-center text-slate-500">
-                      {summariesLoading ? 'Đang tải...' : 'Chưa có dữ liệu'}
+                      Chưa có dữ liệu
                     </td>
                   </tr>
                 ) : (
@@ -292,14 +368,14 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
                   <th className="p-3 font-medium text-slate-600">Tháng</th>
                   <th className="p-3 font-medium text-slate-600 text-right">Doanh thu</th>
                   <th className="p-3 font-medium text-slate-600 text-right">Chi phí</th>
-                  <th className="p-3 font-medium text-slate-600 text-right">Lợi nhuận</th>
+                  <th className="p-3 font-medium text-slate-600 text-right">Lợi nhuận ròng</th>
                 </tr>
               </thead>
               <tbody className="text-sm divide-y divide-slate-100">
                 {monthlySummaries.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="p-4 text-center text-slate-500">
-                      {summariesLoading ? 'Đang tải...' : 'Chưa có dữ liệu'}
+                      Chưa có dữ liệu
                     </td>
                   </tr>
                 ) : (
