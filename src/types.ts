@@ -17,6 +17,7 @@ export interface Product {
   quantity?: number;
   warehouseQuantity?: number;
   note?: string;
+  category?: string;
   supplierId?: string | null;
   isCombo?: boolean;
   comboItems?: ComboItem[];

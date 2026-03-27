@@ -10,6 +10,7 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
     setSelectedProductId,
     setUnitCost,
     setNote,
+    setCategory,
     setSelectedSupplierId,
     setImageUrl,
     selectedSupplierId,
@@ -22,6 +23,7 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
     unitCost, handleUnitCostChange,
     totalCost, handleTotalCostChange,
     note,
+    category,
     description, setDescription,
     handleImport,
     handleClipboardPaste,
@@ -65,6 +67,7 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
                       setSelectedProductId(p.id);
                       setUnitCost(p.cost.toString());
                       setNote(p.note || '');
+                      setCategory(p.category || '');
                       setSelectedSupplierId(p.supplierId || '');
                       setImageUrl(p.imageUrl || '');
                       setShowDropdown(false);
@@ -88,8 +91,21 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
             )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-            {/* Supplier Selection */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+            <div className="space-y-2">
+              <label className="block text-sm font-bold text-slate-700 ml-1">Danh mục sản phẩm</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium text-slate-900 appearance-none cursor-pointer text-sm sm:text-base"
+              >
+                <option value="">-- Chọn danh mục --</option>
+                {['Kẹo dẻo', 'Kẹo cứng', 'Socola', 'Snack', 'Đồ chơi', 'Khác'].map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="space-y-2">
               <label className="block text-sm font-bold text-slate-700 ml-1">Nhà cung cấp (Tùy chọn)</label>
               <select
@@ -107,7 +123,6 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
               )}
             </div>
 
-            {/* Image Upload/Paste */}
             <div className="space-y-2">
               <label className="block text-sm font-bold text-slate-700 ml-1">Hình ảnh sản phẩm</label>
               <div 

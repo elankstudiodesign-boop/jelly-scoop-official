@@ -46,6 +46,7 @@ export function useImportManager({
   const [totalCost, setTotalCost] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [note, setNote] = useState<string>('');
+  const [category, setCategory] = useState<string>('');
   const [imageUrl, setImageUrl] = useState<string>('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageProcessing, setImageProcessing] = useState(false);
@@ -249,6 +250,7 @@ export function useImportManager({
         cost: numUnitCost,
         priceGroup: derivedPriceGroup,
         note: note,
+        category: category,
         supplierId: finalSupplierId,
         isCombo: productToUpdate.isCombo,
         comboItems: productToUpdate.comboItems
@@ -266,6 +268,7 @@ export function useImportManager({
         quantity: 0,
         warehouseQuantity: numQuantity,
         note: note,
+        category: category,
         supplierId: finalSupplierId || undefined
       };
       addProduct(newProduct);
@@ -440,6 +443,7 @@ export function useImportManager({
     totalCost, setTotalCost,
     description, setDescription,
     note, setNote,
+    category, setCategory,
     imageUrl, setImageUrl,
     imageProcessing,
     showDropdown, setShowDropdown,
