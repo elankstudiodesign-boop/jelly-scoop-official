@@ -227,6 +227,37 @@ export default function Import({
           onClose={() => setShowBarcodeModal(false)}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      {manager.deleteConfirmIds && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                <AlertCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Xác nhận xóa sản phẩm</h3>
+              <p className="text-slate-500">
+                Bạn có chắc chắn muốn xóa {manager.deleteConfirmIds.length === 1 ? 'sản phẩm này' : `${manager.deleteConfirmIds.length} sản phẩm`} không? Hành động này không thể hoàn tác.
+              </p>
+            </div>
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button
+                onClick={() => manager.setDeleteConfirmIds(null)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => manager.handleDeleteMany(manager.deleteConfirmIds!)}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors shadow-sm"
+              >
+                Xóa {manager.deleteConfirmIds.length === 1 ? 'sản phẩm' : `${manager.deleteConfirmIds.length} sản phẩm`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -330,22 +330,32 @@ export default function Live({
           } else if (error.message?.includes('Could not find the function') || error.code === 'PGRST202') {
             toast.warning('Chưa cài đặt Database Transaction. Đang dùng phương thức tuần tự...');
             // Fallback: Gọi lại các hàm không có localOnly để lưu lên Supabase
-            for (const item of orderItems) {
-              if (orderType === 'RETAIL') {
-                const currentWarehouseQty = item.product.warehouseQuantity || 0;
-                await updateProduct(item.product.id, { warehouseQuantity: Math.max(0, currentWarehouseQty - item.quantity) });
+            try {
+              for (const item of orderItems) {
+                if (orderType === 'RETAIL') {
+                  const currentWarehouseQty = item.product.warehouseQuantity || 0;
+                  await updateProduct(item.product.id, { warehouseQuantity: Math.max(0, currentWarehouseQty - item.quantity) });
+                } else {
+                  const currentQty = item.product.quantity || 0;
+                  await updateProduct(item.product.id, { quantity: Math.max(0, currentQty - item.quantity) });
+                }
+              }
+              for (const p of scannedPackagingItems) {
+                const currentQty = p.item.quantity || 0;
+                await updatePackagingItem(p.item.id, { quantity: Math.max(0, currentQty - p.quantity) });
+              }
+              await addTransaction(incomeTx);
+              if (expenseTx) await addTransaction(expenseTx);
+              if (sessionObj) await addSession(sessionObj);
+            } catch (fallbackError: any) {
+              if (fallbackError.message?.includes('column') && fallbackError.message?.includes('does not exist')) {
+                toast.error('Lỗi: Thiếu cột dữ liệu trong Supabase. Vui lòng chạy file supabase/update.sql trong SQL Editor.');
               } else {
-                const currentQty = item.product.quantity || 0;
-                await updateProduct(item.product.id, { quantity: Math.max(0, currentQty - item.quantity) });
+                toast.error('Lỗi khi lưu đơn hàng tuần tự: ' + fallbackError.message);
               }
             }
-            for (const p of scannedPackagingItems) {
-              const currentQty = p.item.quantity || 0;
-              await updatePackagingItem(p.item.id, { quantity: Math.max(0, currentQty - p.quantity) });
-            }
-            await addTransaction(incomeTx);
-            if (expenseTx) await addTransaction(expenseTx);
-            if (sessionObj) await addSession(sessionObj);
+          } else if (error.message?.includes('column') && error.message?.includes('does not exist')) {
+            toast.error('Lỗi: Thiếu cột dữ liệu trong Supabase. Vui lòng copy nội dung file supabase/update.sql và chạy trong SQL Editor của Supabase.');
           } else {
             toast.error('Lỗi khi hoàn tất đơn hàng: ' + error.message);
           }
