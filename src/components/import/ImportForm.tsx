@@ -10,7 +10,6 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
     setSelectedProductId,
     setUnitCost,
     setNote,
-    setCategory,
     setSelectedSupplierId,
     setImageUrl,
     selectedSupplierId,
@@ -23,20 +22,34 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
     unitCost, handleUnitCostChange,
     totalCost, handleTotalCostChange,
     note,
-    category,
     description, setDescription,
     handleImport,
     handleClipboardPaste,
     handlePaste
   } = manager;
+  const [isExpanded, setIsExpanded] = React.useState(true);
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="p-4 md:p-6 border-b border-slate-100 bg-slate-50/50">
-        <h2 className="text-lg md:text-xl font-black text-slate-900 tracking-tight">Nhập hàng vào kho</h2>
-        <p className="text-slate-500 text-xs md:text-sm font-medium mt-1">Tìm sản phẩm hoặc nhập tên mới để bắt đầu.</p>
+      <div 
+        className="p-4 md:p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between cursor-pointer"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div>
+          <h2 className="text-lg md:text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <PackagePlus className="w-5 h-5 text-indigo-600" />
+            Nhập hàng vào kho
+          </h2>
+          <p className="text-slate-500 text-xs md:text-sm font-medium mt-1">Tìm sản phẩm hoặc nhập tên mới để bắt đầu.</p>
+        </div>
+        <button className="p-2 hover:bg-slate-200 rounded-lg transition-colors">
+          {isExpanded ? <X className="w-5 h-5 text-slate-400" /> : <PackagePlus className="w-5 h-5 text-indigo-600" />}
+        </button>
       </div>
-      <div className="p-4 md:p-8">
-        <form onSubmit={handleImport} className="space-y-4 md:space-y-6">
+      
+      {isExpanded && (
+        <div className="p-4 md:p-8 animate-in slide-in-from-top-2 duration-200">
+          <form onSubmit={handleImport} className="space-y-4 md:space-y-6">
           {/* Product Search/Name */}
           <div className="space-y-2 relative">
             <label className="block text-sm font-bold text-slate-700 ml-1">Tên sản phẩm</label>
@@ -67,45 +80,42 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
                       setSelectedProductId(p.id);
                       setUnitCost(p.cost.toString());
                       setNote(p.note || '');
-                      setCategory(p.category || '');
                       setSelectedSupplierId(p.supplierId || '');
                       setImageUrl(p.imageUrl || '');
                       setShowDropdown(false);
                     }}
-                    className="w-full text-left p-3 hover:bg-indigo-50 rounded-xl flex justify-between items-center transition-colors group"
+                    className="w-full text-left p-3 hover:bg-indigo-50 rounded-xl flex justify-between items-center transition-colors group border border-transparent hover:border-indigo-100"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-slate-100 flex-shrink-0 overflow-hidden border border-slate-200">
+                      <div className="w-12 h-12 rounded-lg bg-slate-100 flex-shrink-0 overflow-hidden border border-slate-200">
                         {p.imageUrl ? (
                           <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         ) : (
-                          <ImageIcon className="w-5 h-5 m-2.5 text-slate-400" />
+                          <ImageIcon className="w-6 h-6 m-3 text-slate-400" />
                         )}
                       </div>
-                      <span className="font-bold text-slate-900 group-hover:text-indigo-700">{p.name}</span>
+                      <div>
+                        <span className="font-bold text-slate-900 group-hover:text-indigo-700 block">{p.name}</span>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">{new Intl.NumberFormat('vi-VN').format(p.cost)}đ</span>
+                        </div>
+                      </div>
                     </div>
-                    <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full uppercase tracking-wider">Kho: {p.warehouseQuantity || 0}</span>
+                    <div className="text-right">
+                      <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full uppercase tracking-wider block">Kho: {p.warehouseQuantity || 0}</span>
+                      {p.supplierId && (
+                        <span className="text-[9px] font-bold text-slate-400 uppercase mt-1 block">
+                          {suppliers.find(s => s.id === p.supplierId)?.name}
+                        </span>
+                      )}
+                    </div>
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-slate-700 ml-1">Danh mục sản phẩm</label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium text-slate-900 appearance-none cursor-pointer text-sm sm:text-base"
-              >
-                <option value="">-- Chọn danh mục --</option>
-                {['Kẹo dẻo', 'Kẹo cứng', 'Socola', 'Snack', 'Đồ chơi', 'Khác'].map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
             <div className="space-y-2">
               <label className="block text-sm font-bold text-slate-700 ml-1">Nhà cung cấp (Tùy chọn)</label>
               <select
@@ -251,6 +261,7 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
           </div>
         </form>
       </div>
+      )}
     </div>
   );
 }

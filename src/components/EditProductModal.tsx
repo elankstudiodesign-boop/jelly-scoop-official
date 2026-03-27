@@ -18,7 +18,6 @@ export default function EditProductModal({ product, onClose, onSave }: EditProdu
   const [warehouseQuantity, setWarehouseQuantity] = useState(product.warehouseQuantity?.toString() || '0');
   const [quantity, setQuantity] = useState(product.quantity.toString());
   const [priceGroup, setPriceGroup] = useState<PriceGroup>(product.priceGroup);
-  const [category, setCategory] = useState(product.category || '');
   const [note, setNote] = useState(product.note || '');
   
   const [imageUrl, setImageUrl] = useState(product.imageUrl || '');
@@ -28,8 +27,6 @@ export default function EditProductModal({ product, onClose, onSave }: EditProdu
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageObjectUrlRef = useRef<string | null>(null);
-
-  const categories = ['Kẹo dẻo', 'Kẹo cứng', 'Socola', 'Snack', 'Đồ chơi', 'Khác'];
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -124,7 +121,6 @@ export default function EditProductModal({ product, onClose, onSave }: EditProdu
         warehouseQuantity: Number(warehouseQuantity),
         quantity: Number(quantity),
         priceGroup,
-        category,
         note,
         imageUrl: finalImageUrl,
         isCombo: product.isCombo,
@@ -221,7 +217,7 @@ export default function EditProductModal({ product, onClose, onSave }: EditProdu
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Phân loại giá</label>
                   <select
@@ -233,19 +229,6 @@ export default function EditProductModal({ product, onClose, onSave }: EditProdu
                     <option value="Trung">Trung</option>
                     <option value="Cao">Cao</option>
                     <option value="Cao cấp">Cao cấp</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Danh mục</label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="">Chọn danh mục</option>
-                    {categories.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
                   </select>
                 </div>
               </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Package, Truck, Box, Layers, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Package, Truck, Box, Layers, AlertCircle, CheckCircle2, RefreshCw, X, TrendingUp, DollarSign, ChevronDown, ChevronUp } from 'lucide-react';
 import { Product, Transaction, Supplier, PackagingItem } from '../types';
 import { useImportManager } from '../hooks/useImportManager';
 import { ImportForm } from '../components/import/ImportForm';
@@ -67,11 +67,19 @@ export default function Import({
     assigningSupplierForProductId, setAssigningSupplierForProductId,
     modalSupplierId, setModalSupplierId,
     showBarcodeModal, setShowBarcodeModal,
-    printItems
+    printItems,
+    inventoryStockFilter, setInventoryStockFilter
   } = manager;
 
   const handleSync = () => {
     window.location.reload();
+  };
+
+  const warehouseStats = {
+    totalItems: products.reduce((sum, p) => sum + (p.warehouseQuantity || 0), 0),
+    lowStock: products.filter(p => (p.warehouseQuantity || 0) < 4 && (p.warehouseQuantity || 0) > 0).length,
+    outOfStock: products.filter(p => (p.warehouseQuantity || 0) === 0).length,
+    totalValue: products.reduce((sum, p) => sum + ((p.warehouseQuantity || 0) * p.cost), 0)
   };
 
   return (
@@ -80,8 +88,8 @@ export default function Import({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 px-4 sm:px-0">
         <div className="flex items-center justify-between w-full md:w-auto">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">NHẬP KHO & QUẢN LÝ</h1>
-            <p className="text-slate-500 text-xs sm:text-sm mt-1 font-medium">Quản lý sản phẩm, nhà cung cấp và bao bì</p>
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">QUẢN LÝ KHO HÀNG</h1>
+            <p className="text-slate-500 text-xs sm:text-sm mt-1 font-medium">Theo dõi tồn kho, nhập hàng và in mã vạch</p>
           </div>
           <button 
             onClick={handleSync}
@@ -148,6 +156,102 @@ export default function Import({
         </div>
       </div>
     </div>
+
+      {/* Warehouse Stats - Only on Import Tab */}
+      {activeTab === 'import' && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8 px-4 sm:px-0">
+          <div 
+            onClick={() => setInventoryStockFilter('all')}
+            className={`p-4 sm:p-6 rounded-2xl border transition-all cursor-pointer hover:shadow-md active:scale-95 ${
+              inventoryStockFilter === 'all' 
+                ? 'bg-indigo-50 border-indigo-200 ring-2 ring-indigo-100' 
+                : 'bg-white border-slate-200 shadow-sm'
+            }`}
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                inventoryStockFilter === 'all' ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600'
+              }`}>
+                <Package className="w-4 h-4" />
+              </div>
+              <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider ${
+                inventoryStockFilter === 'all' ? 'text-indigo-700' : 'text-slate-500'
+              }`}>Tổng tồn kho</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className={`text-xl sm:text-2xl font-black ${
+                inventoryStockFilter === 'all' ? 'text-indigo-700' : 'text-slate-900'
+              }`}>{warehouseStats.totalItems}</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Sản phẩm</span>
+            </div>
+          </div>
+
+          <div 
+            onClick={() => setInventoryStockFilter('low')}
+            className={`p-4 sm:p-6 rounded-2xl border transition-all cursor-pointer hover:shadow-md active:scale-95 ${
+              inventoryStockFilter === 'low' 
+                ? 'bg-orange-50 border-orange-200 ring-2 ring-orange-100' 
+                : 'bg-white border-slate-200 shadow-sm'
+            }`}
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                inventoryStockFilter === 'low' ? 'bg-orange-600 text-white' : 'bg-orange-50 text-orange-600'
+              }`}>
+                <AlertCircle className="w-4 h-4" />
+              </div>
+              <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider ${
+                inventoryStockFilter === 'low' ? 'text-orange-700' : 'text-slate-500'
+              }`}>Sắp hết hàng</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className={`text-xl sm:text-2xl font-black ${
+                inventoryStockFilter === 'low' ? 'text-orange-700' : 'text-orange-600'
+              }`}>{warehouseStats.lowStock}</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Mã hàng</span>
+            </div>
+          </div>
+
+          <div 
+            onClick={() => setInventoryStockFilter('out')}
+            className={`p-4 sm:p-6 rounded-2xl border transition-all cursor-pointer hover:shadow-md active:scale-95 ${
+              inventoryStockFilter === 'out' 
+                ? 'bg-red-50 border-red-200 ring-2 ring-red-100' 
+                : 'bg-white border-slate-200 shadow-sm'
+            }`}
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                inventoryStockFilter === 'out' ? 'bg-red-600 text-white' : 'bg-red-50 text-red-600'
+              }`}>
+                <X className="w-4 h-4" />
+              </div>
+              <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider ${
+                inventoryStockFilter === 'out' ? 'text-red-700' : 'text-slate-500'
+              }`}>Hết hàng</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className={`text-xl sm:text-2xl font-black ${
+                inventoryStockFilter === 'out' ? 'text-red-700' : 'text-red-600'
+              }`}>{warehouseStats.outOfStock}</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Mã hàng</span>
+            </div>
+          </div>
+
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                <Box className="w-4 h-4 text-emerald-600" />
+              </div>
+              <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Giá trị kho</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xl sm:text-2xl font-black text-slate-900">{new Intl.NumberFormat('vi-VN').format(warehouseStats.totalValue)}</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">đ</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Notifications */}
       {notification && (

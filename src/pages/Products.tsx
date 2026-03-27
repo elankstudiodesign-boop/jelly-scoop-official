@@ -47,13 +47,10 @@ export default function Products({ products, updateProduct, deleteProduct, suppl
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPriceGroup, setFilterPriceGroup] = useState<'Tất cả' | PriceGroup>('Tất cả');
-  const [filterCategory, setFilterCategory] = useState('Tất cả');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
 
   const selectedProduct = products.find(p => p.id === selectedProductId);
-
-  const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean))) as string[];
 
   const handleProductSelect = (id: string) => {
     setSelectedProductId(id);
@@ -133,14 +130,13 @@ export default function Products({ products, updateProduct, deleteProduct, suppl
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesPriceGroup = filterPriceGroup === 'Tất cả' || p.priceGroup === filterPriceGroup;
-    const matchesCategory = filterCategory === 'Tất cả' || p.category === filterCategory;
     
     let matchesTab = true;
     if (activeTab === 'in-pool') matchesTab = (p.quantity || 0) > 0;
     else if (activeTab === 'in-warehouse') matchesTab = (p.warehouseQuantity || 0) > 0;
     else if (activeTab === 'low-stock') matchesTab = (p.warehouseQuantity || 0) < 5 || (p.quantity || 0) < 5;
 
-    return matchesSearch && matchesPriceGroup && matchesCategory && matchesTab;
+    return matchesSearch && matchesPriceGroup && matchesTab;
   });
 
   const totalPoolItems = products.reduce((sum, p) => sum + (p.quantity || 0), 0);
@@ -231,7 +227,7 @@ export default function Products({ products, updateProduct, deleteProduct, suppl
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">KHO HÀNG HOÁ</h1>
-          <p className="text-slate-500 font-medium">Quản lý tồn kho, danh mục và phân phối sản phẩm.</p>
+          <p className="text-slate-500 font-medium">Quản lý tồn kho và phân phối sản phẩm.</p>
         </div>
         
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 w-full lg:w-auto">
@@ -437,7 +433,7 @@ export default function Products({ products, updateProduct, deleteProduct, suppl
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div className="relative group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
               <input
@@ -461,20 +457,6 @@ export default function Products({ products, updateProduct, deleteProduct, suppl
                 <option value="Trung">Nhóm Trung</option>
                 <option value="Cao">Nhóm Cao</option>
                 <option value="Cao cấp">Nhóm Cao cấp</option>
-              </select>
-            </div>
-
-            <div className="relative">
-              <Package className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <select 
-                value={filterCategory} 
-                onChange={e => setFilterCategory(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium shadow-sm appearance-none cursor-pointer"
-              >
-                <option value="Tất cả">Tất cả danh mục</option>
-                {categories.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
               </select>
             </div>
 
@@ -606,7 +588,6 @@ function ProductCard({ product, viewMode, isSelectionMode, isSelected, onToggleS
           <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
             <span className="flex items-center gap-1"><TrendingUp className="w-3 h-3" /> Bể: <b className="text-indigo-600">{poolQty}</b></span>
             <span className="flex items-center gap-1"><Box className="w-3 h-3" /> Kho: <b className="text-emerald-600">{warehouseQty}</b></span>
-            {product.category && <span className="px-2 py-0.5 bg-slate-100 rounded text-slate-600">{product.category}</span>}
           </div>
         </div>
 
@@ -655,14 +636,6 @@ function ProductCard({ product, viewMode, isSelectionMode, isSelected, onToggleS
             {product.priceGroup}
           </span>
         </div>
-
-        {product.category && (
-          <div className="absolute top-3 right-3">
-            <span className="px-2.5 py-1 bg-white/80 backdrop-blur-md rounded-xl text-[10px] font-bold text-slate-700 shadow-sm border border-white/50">
-              {product.category}
-            </span>
-          </div>
-        )}
 
         {/* Status Overlay */}
         {(isLowInPool || isLowInWarehouse) && (
