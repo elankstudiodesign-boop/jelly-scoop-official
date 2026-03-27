@@ -108,10 +108,13 @@ export default function Products({ products, updateProduct, deleteProduct, suppl
   const poolProducts = products.filter(p => (p.quantity || 0) > 0 || p.retailPrice !== undefined);
 
   const [filterGroup, setFilterGroup] = useState<'Tất cả' | PriceGroup>('Tất cả');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredPoolProducts = filterGroup === 'Tất cả' 
-    ? poolProducts 
-    : poolProducts.filter(p => p.priceGroup === filterGroup);
+  const filteredPoolProducts = poolProducts.filter(p => {
+    const matchesGroup = filterGroup === 'Tất cả' || p.priceGroup === filterGroup;
+    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesGroup && matchesSearch;
+  });
 
   const visibleIds = filteredPoolProducts.map(p => p.id);
   const selectedVisibleCount = visibleIds.filter(id => selectedIds.has(id)).length;
@@ -323,20 +326,36 @@ export default function Products({ products, updateProduct, deleteProduct, suppl
 
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm w-full sm:w-fit overflow-x-auto no-scrollbar">
-            {(['Tất cả', 'Thấp', 'Trung', 'Cao', 'Cao cấp'] as const).map((group) => (
-              <button
-                key={group}
-                onClick={() => setFilterGroup(group)}
-                className={`flex-1 sm:flex-none px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${
-                  filterGroup === group
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                {group}
-              </button>
-            ))}
+          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+            <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm w-full sm:w-fit overflow-x-auto no-scrollbar">
+              {(['Tất cả', 'Thấp', 'Trung', 'Cao', 'Cao cấp'] as const).map((group) => (
+                <button
+                  key={group}
+                  onClick={() => setFilterGroup(group)}
+                  className={`flex-1 sm:flex-none px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${
+                    filterGroup === group
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  {group}
+                </button>
+              ))}
+            </div>
+            <div className="relative w-full sm:w-64">
+              <input
+                type="text"
+                placeholder="Tìm kiếm sản phẩm trong bể..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm"
+              />
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
           </div>
           
           <div className="flex gap-3 overflow-x-auto pb-1 sm:pb-0">
