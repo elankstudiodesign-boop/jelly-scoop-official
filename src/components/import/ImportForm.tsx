@@ -179,6 +179,7 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
               <input
                 type="text"
                 required
+                min="0"
                 value={unitCost}
                 onChange={handleUnitCostChange}
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-900 text-sm sm:text-base"
@@ -191,6 +192,7 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
               <input
                 type="text"
                 required
+                min="0"
                 value={totalCost}
                 onChange={handleTotalCostChange}
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-900 text-sm sm:text-base"

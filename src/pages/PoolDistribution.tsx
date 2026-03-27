@@ -140,6 +140,7 @@ export default function PoolDistribution({ products }: { products: Product[] }) 
               <div className="relative">
                 <input 
                   type="number" 
+                  min="0"
                   value={totalBeadsInPool} 
                   onChange={e => setTotalBeadsInPool(Number(e.target.value))}
                   className="w-full pl-4 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all font-bold text-lg"
@@ -176,6 +177,7 @@ export default function PoolDistribution({ products }: { products: Product[] }) 
                       <div className="relative">
                         <input 
                           type="number" 
+                          min="0"
                           step="0.1"
                           value={config.ratio} 
                           onChange={e => handleRatioChange(config.group, Number(e.target.value))}

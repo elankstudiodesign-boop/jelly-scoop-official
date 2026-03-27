@@ -80,6 +80,7 @@ export function PackagingForm({ manager, packagingItems, deletePackagingItem }: 
                 <label className="text-sm font-medium text-slate-700">Giá nhập (VNĐ)</label>
                 <input
                   type="text"
+                  min="0"
                   value={packagingPrice}
                   onChange={(e) => setPackagingPrice(formatCurrency(e.target.value))}
                   className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
@@ -94,6 +95,7 @@ export function PackagingForm({ manager, packagingItems, deletePackagingItem }: 
                 <label className="text-sm font-medium text-slate-700">Số lượng hiện có</label>
                 <input
                   type="number"
+                  min="0"
                   value={packagingQuantity}
                   onChange={(e) => setPackagingQuantity(e.target.value)}
                   className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"

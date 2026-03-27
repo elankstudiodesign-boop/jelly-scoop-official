@@ -716,6 +716,7 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
                 <label className="block text-sm font-medium text-slate-700 mb-1">Số tiền (VNĐ)</label>
                 <input
                   type="text"
+                  min="0"
                   value={newTxAmount}
                   onChange={(e) => setNewTxAmount(formatCurrency(e.target.value))}
                   placeholder="Ví dụ: 50.000"

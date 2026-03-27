@@ -152,13 +152,13 @@ export default function OrderList({ transactions, products, deleteTransaction }:
             <p>Chuyển khoản ngân hàng</p>
             <p>MB bank</p>
             <p class="bold">LY THI KIM NHAN</p>
-            <p>11391679168</p>
+            <p>16969966778899</p>
             
             <div style="margin-top: 25px; display: flex; align-items: center; gap: 15px;">
-              <img src="https://img.vietqr.io/image/MB-11391679168-compact.png?amount=${order.amount}&addInfo=Thanh%20toan%20don%20hang%20${order.id.slice(0,8)}&accountName=LY%20THI%20KIM%20NHAN" alt="Bank QR" style="width: 100px; height: 100px;" />
+              <img src="https://img.vietqr.io/image/MB-16969966778899-compact.png?amount=${order.amount}&addInfo=Thanh%20toan%20don%20hang%20${order.id.slice(0,8)}&accountName=LY%20THI%20KIM%20NHAN" alt="Bank QR" style="width: 100px; height: 100px;" />
               <div>
                 <p style="font-weight: 700; margin-bottom: 4px; font-size: 14px;">Quét mã thanh toán</p>
-                <p style="font-size: 14px; margin: 0;">MB Bank - 11391679168</p>
+                <p style="font-size: 14px; margin: 0;">MB Bank - 16969966778899</p>
               </div>
             </div>
           </div>

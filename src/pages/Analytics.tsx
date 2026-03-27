@@ -202,25 +202,25 @@ export default function Analytics({ sessions, addSession, deleteSession, product
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Tổng Scoop đã bán</label>
-                    <input type="number" value={scoopsSold} onChange={e => setScoopsSold(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required placeholder="0" />
+                    <input type="number" min="0" value={scoopsSold} onChange={e => setScoopsSold(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required placeholder="0" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Tổng doanh thu (VNĐ)</label>
-                    <input type="text" value={revenue} onChange={e => setRevenue(formatCurrency(e.target.value))} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required placeholder="0" />
+                    <input type="text" min="0" value={revenue} onChange={e => setRevenue(formatCurrency(e.target.value))} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required placeholder="0" />
                   </div>
                   
                   <div className="pt-4 border-t border-slate-100 space-y-4">
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Phí sàn TikTok (%)</label>
-                      <input type="number" step="0.1" value={tiktokFeePercent} onChange={e => setTiktokFeePercent(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required />
+                      <input type="number" min="0" step="0.1" value={tiktokFeePercent} onChange={e => setTiktokFeePercent(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Chi phí bao bì / Scoop (VNĐ)</label>
-                      <input type="text" value={packagingCost} onChange={e => setPackagingCost(formatCurrency(e.target.value))} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required />
+                      <input type="text" min="0" value={packagingCost} onChange={e => setPackagingCost(formatCurrency(e.target.value))} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Giá vốn TB / Scoop (VNĐ)</label>
-                      <input type="text" value={averageScoopCost} onChange={e => setAverageScoopCost(formatCurrency(e.target.value))} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required />
+                      <input type="text" min="0" value={averageScoopCost} onChange={e => setAverageScoopCost(formatCurrency(e.target.value))} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-slate-900" required />
                     </div>
                   </div>
 

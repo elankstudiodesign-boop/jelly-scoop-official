@@ -135,6 +135,7 @@ export default function Simulator({ products }: { products: Product[] }) {
                   <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Tổng số món / Scoop</label>
                   <input 
                     type="number" 
+                    min="0"
                     value={config.totalItems} 
                     onChange={e => handleUpdateConfig(config.id, 'totalItems', Number(e.target.value))}
                     className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-base font-medium text-slate-900 text-center" 
@@ -149,21 +150,21 @@ export default function Simulator({ products }: { products: Product[] }) {
                         <div className="text-xs sm:text-sm font-semibold text-slate-700">Thấp</div>
                         <div className="text-[10px] sm:text-[11px] font-medium text-slate-500 mt-0.5">({countLow.toFixed(1)} món)</div>
                       </div>
-                      <input type="number" value={config.ratioLow} onChange={e => handleUpdateConfig(config.id, 'ratioLow', Number(e.target.value))} className="w-full border border-slate-300 rounded-md px-2 py-1.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm sm:text-base font-bold text-slate-900 text-center" />
+                      <input type="number" min="0" value={config.ratioLow} onChange={e => handleUpdateConfig(config.id, 'ratioLow', Number(e.target.value))} className="w-full border border-slate-300 rounded-md px-2 py-1.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm sm:text-base font-bold text-slate-900 text-center" />
                     </div>
                     <div className="flex flex-col justify-between bg-slate-50 p-2 sm:p-2.5 rounded-lg border border-slate-200">
                       <div className="text-center mb-2">
                         <div className="text-xs sm:text-sm font-semibold text-slate-700">Trung</div>
                         <div className="text-[10px] sm:text-[11px] font-medium text-slate-500 mt-0.5">({countMedium.toFixed(1)} món)</div>
                       </div>
-                      <input type="number" value={config.ratioMedium} onChange={e => handleUpdateConfig(config.id, 'ratioMedium', Number(e.target.value))} className="w-full border border-slate-300 rounded-md px-2 py-1.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm sm:text-base font-bold text-slate-900 text-center" />
+                      <input type="number" min="0" value={config.ratioMedium} onChange={e => handleUpdateConfig(config.id, 'ratioMedium', Number(e.target.value))} className="w-full border border-slate-300 rounded-md px-2 py-1.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm sm:text-base font-bold text-slate-900 text-center" />
                     </div>
                     <div className="flex flex-col justify-between bg-slate-50 p-2 sm:p-2.5 rounded-lg border border-slate-200">
                       <div className="text-center mb-2">
                         <div className="text-xs sm:text-sm font-semibold text-slate-700">Cao</div>
                         <div className="text-[10px] sm:text-[11px] font-medium text-slate-500 mt-0.5">({countHigh.toFixed(1)} món)</div>
                       </div>
-                      <input type="number" value={config.ratioHigh} onChange={e => handleUpdateConfig(config.id, 'ratioHigh', Number(e.target.value))} className="w-full border border-slate-300 rounded-md px-2 py-1.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm sm:text-base font-bold text-slate-900 text-center" />
+                      <input type="number" min="0" value={config.ratioHigh} onChange={e => handleUpdateConfig(config.id, 'ratioHigh', Number(e.target.value))} className="w-full border border-slate-300 rounded-md px-2 py-1.5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm sm:text-base font-bold text-slate-900 text-center" />
                     </div>
                   </div>
                 </div>

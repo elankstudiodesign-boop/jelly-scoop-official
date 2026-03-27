@@ -226,7 +226,7 @@ export default function Products({ products, updateProduct, deleteProduct, suppl
       )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Bể</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Kho hàng hoá</h1>
           <p className="text-slate-500 mt-1 text-sm">Quản lý sản phẩm và số lượng hiện có trong bể.</p>
         </div>
         <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex gap-6">
@@ -284,7 +284,7 @@ export default function Products({ products, updateProduct, deleteProduct, suppl
               <label className="text-sm font-medium text-slate-700">Số lượng đổ vào bể</label>
               <input 
                 type="number" 
-                min="1"
+                min="0"
                 max={selectedProduct?.warehouseQuantity || 0}
                 value={quantity} 
                 onChange={e => setQuantity(e.target.value)} 
@@ -307,11 +307,11 @@ export default function Products({ products, updateProduct, deleteProduct, suppl
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">% Lợi nhuận</label>
-              <input type="number" step="0.1" value={margin} onChange={e => handleMarginChange(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm text-slate-900" required />
+              <input type="number" min="0" step="0.1" value={margin} onChange={e => handleMarginChange(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm text-slate-900" required />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">Giá bán lẻ (VNĐ)</label>
-              <input type="text" value={retailPrice} onChange={e => handleRetailPriceChange(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm text-slate-900" required placeholder="0" />
+              <input type="text" min="0" value={retailPrice} onChange={e => handleRetailPriceChange(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-sm text-slate-900" required placeholder="0" />
             </div>
           </div>
 
@@ -494,6 +494,7 @@ export default function Products({ products, updateProduct, deleteProduct, suppl
                       <span className="font-medium text-indigo-700">Trong bể:</span>
                       <input 
                         type="number" 
+                        min="0"
                         value={poolQty} 
                         onChange={(e) => handleUpdateQuantity(product.id, Number(e.target.value))}
                         className="w-14 sm:w-20 text-right border border-indigo-200 rounded px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-bold text-indigo-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none bg-white"

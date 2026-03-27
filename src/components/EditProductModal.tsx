@@ -158,6 +158,7 @@ export default function EditProductModal({ product, onClose, onSave }: EditProdu
                 <label className="block text-sm font-medium text-slate-700 mb-1">Tên sản phẩm</label>
                 <input
                   type="text"
+                  required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -169,6 +170,8 @@ export default function EditProductModal({ product, onClose, onSave }: EditProdu
                   <label className="block text-sm font-medium text-slate-700 mb-1">Giá vốn</label>
                   <input
                     type="text"
+                    required
+                    min="0"
                     value={cost}
                     onChange={(e) => setCost(formatCurrency(e.target.value))}
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -178,6 +181,8 @@ export default function EditProductModal({ product, onClose, onSave }: EditProdu
                   <label className="block text-sm font-medium text-slate-700 mb-1">Giá bán lẻ</label>
                   <input
                     type="text"
+                    required
+                    min="0"
                     value={retailPrice}
                     onChange={(e) => setRetailPrice(formatCurrency(e.target.value))}
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -190,6 +195,8 @@ export default function EditProductModal({ product, onClose, onSave }: EditProdu
                   <label className="block text-sm font-medium text-slate-700 mb-1">SL trong kho</label>
                   <input
                     type="number"
+                    required
+                    min="0"
                     value={warehouseQuantity}
                     onChange={(e) => setWarehouseQuantity(e.target.value)}
                     disabled={product.isCombo}
@@ -200,6 +207,8 @@ export default function EditProductModal({ product, onClose, onSave }: EditProdu
                   <label className="block text-sm font-medium text-slate-700 mb-1">SL trong bể</label>
                   <input
                     type="number"
+                    required
+                    min="0"
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
                     disabled={product.isCombo}

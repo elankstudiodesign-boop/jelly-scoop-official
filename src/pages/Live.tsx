@@ -456,6 +456,7 @@ export default function Live({
                     <label className="text-sm font-semibold text-slate-700">Vận chuyển (đ)</label>
                     <input
                       type="text"
+                      min="0"
                       value={shippingCost}
                       onChange={e => setShippingCost(formatCurrency(parseCurrency(e.target.value)))}
                       placeholder="0"
@@ -466,6 +467,7 @@ export default function Live({
                     <label className="text-sm font-semibold text-slate-700">Giảm giá (đ)</label>
                     <input
                       type="text"
+                      min="0"
                       value={discount}
                       onChange={e => setDiscount(formatCurrency(parseCurrency(e.target.value)))}
                       placeholder="0"
@@ -480,6 +482,7 @@ export default function Live({
                     <label className="text-sm font-semibold text-slate-700">Chi phí bao bì (đ)</label>
                     <input
                       type="text"
+                      min="0"
                       value={retailPackagingCost}
                       onChange={e => setRetailPackagingCost(formatCurrency(parseCurrency(e.target.value)))}
                       placeholder="VD: 5,000 (Tùy chọn)"
@@ -490,6 +493,7 @@ export default function Live({
                     <label className="text-sm font-semibold text-slate-700">Vận chuyển (đ)</label>
                     <input
                       type="text"
+                      min="0"
                       value={shippingCost}
                       onChange={e => setShippingCost(formatCurrency(parseCurrency(e.target.value)))}
                       placeholder="0"
@@ -500,6 +504,7 @@ export default function Live({
                     <label className="text-sm font-semibold text-slate-700">Giảm giá (đ)</label>
                     <input
                       type="text"
+                      min="0"
                       value={discount}
                       onChange={e => setDiscount(formatCurrency(parseCurrency(e.target.value)))}
                       placeholder="0"
