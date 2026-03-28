@@ -13,6 +13,8 @@ export interface DraftOrderState {
   scannedPackagingItems: { item: PackagingItem, quantity: number }[];
   shippingCost: string;
   discount: string;
+  customScoopPrice: string;
+  scoopQuantity: number;
 }
 
 export function useDraftOrderSync(

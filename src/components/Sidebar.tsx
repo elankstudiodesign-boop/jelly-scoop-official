@@ -10,7 +10,6 @@ export default function Sidebar() {
     { path: '/products', label: 'Kho hàng hoá', icon: <Package className="w-5 h-5" /> },
     { path: '/pool-distribution', label: 'Phân bổ bể', icon: <Droplets className="w-5 h-5" /> },
     { path: '/import', label: 'Nhập kho', icon: <ArrowDownToLine className="w-5 h-5" /> },
-    { path: '/simulator', label: 'Mô phỏng', icon: <Calculator className="w-5 h-5" /> },
     { path: '/live', label: 'Đơn hàng', icon: <ShoppingCart className="w-5 h-5" /> },
     { path: '/finance', label: 'Tài chính', icon: <Wallet className="w-5 h-5" /> },
     { path: '/settings', label: 'Cài đặt', icon: <Settings className="w-5 h-5" /> },

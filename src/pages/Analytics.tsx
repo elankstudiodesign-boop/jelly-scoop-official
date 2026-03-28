@@ -4,13 +4,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { formatCurrency, parseCurrency } from '../lib/format';
 import PoolDistribution from './PoolDistribution';
-import Simulator from './Simulator';
-import { BarChart3, Droplets, Calculator, Trash2, PlusCircle, Calendar as CalendarIcon, Loader2, TrendingUp, TrendingDown, DollarSign, ShoppingBag, Package, Percent } from 'lucide-react';
+import { BarChart3, Droplets, Trash2, PlusCircle, Calendar as CalendarIcon, Loader2, TrendingUp, TrendingDown, DollarSign, ShoppingBag, Package, Percent } from 'lucide-react';
 import CurrencyInput from '../components/CurrencyInput';
 import ConfirmModal from '../components/ConfirmModal';
 
 export default function Analytics({ products, transactions }: { products: Product[], transactions: Transaction[] }) {
-  const [activeTab, setActiveTab] = useState<'stats' | 'pool' | 'simulator'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'pool'>('stats');
 
   // Calculate stats from transactions
   const chartData = React.useMemo(() => {
@@ -101,13 +100,6 @@ export default function Analytics({ products, transactions }: { products: Produc
           >
             <Droplets className="w-4 h-4" />
             Phân bổ
-          </button>
-          <button
-            onClick={() => setActiveTab('simulator')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'simulator' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
-          >
-            <Calculator className="w-4 h-4" />
-            Mô phỏng
           </button>
         </div>
       </div>
@@ -214,7 +206,7 @@ export default function Analytics({ products, transactions }: { products: Produc
                 <div className="space-y-4 flex-1">
                   <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
                     <h4 className="text-sm font-bold text-indigo-900 mb-2 flex items-center gap-2">
-                      <Calculator className="w-4 h-4" />
+                      <BarChart3 className="w-4 h-4" />
                       Cách tính toán
                     </h4>
                     <ul className="text-xs text-indigo-700 space-y-2 list-disc list-inside">
@@ -295,12 +287,6 @@ export default function Analytics({ products, transactions }: { products: Produc
       {activeTab === 'pool' && (
         <div className="md:hidden">
           <PoolDistribution products={products} />
-        </div>
-      )}
-
-      {activeTab === 'simulator' && (
-        <div className="md:hidden">
-          <Simulator products={products} />
         </div>
       )}
     </div>
