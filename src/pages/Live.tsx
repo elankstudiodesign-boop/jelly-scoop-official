@@ -437,14 +437,21 @@ export default function Live({
           const pdf = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
-            format: [80, 150] // Receipt size roughly
+            format: [80, 100]
           });
           
           const imgProps = pdf.getImageProperties(imgData);
           const pdfWidth = pdf.internal.pageSize.getWidth();
           const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
           
-          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+          // If content is longer than 100mm, we scale it down to fit the height
+          // while maintaining aspect ratio, or we just let it be if it fits.
+          // But user wants 80x100, so we should probably scale to fit height if needed.
+          const finalHeight = Math.min(100, pdfHeight);
+          const finalWidth = (imgProps.width * finalHeight) / imgProps.height;
+          const xOffset = (pdfWidth - finalWidth) / 2;
+
+          pdf.addImage(imgData, 'PNG', xOffset, 0, finalWidth, finalHeight);
           pdf.save(`HoaDon_JellyScoop_${new Date().getTime()}.pdf`);
           toast.success('Đã tải hoá đơn PDF!');
         } catch (error) {
@@ -1110,35 +1117,35 @@ export default function Live({
             <X className="w-6 h-6 text-slate-600" />
           </button>
 
-          <div id="print-content" style={{ backgroundColor: '#ffffff', color: '#0f172a' }} className="w-full max-w-[400px] p-8 shadow-2xl rounded-sm border-t-8 border-[#4f46e5] print:border-none print:shadow-none print:m-0">
-            <div className="text-center mb-8">
-              <h1 style={{ color: '#4f46e5' }} className="text-3xl font-black uppercase tracking-tighter">
+          <div id="print-content" style={{ backgroundColor: '#ffffff', color: '#0f172a', width: '80mm' }} className="mx-auto p-3 shadow-2xl rounded-sm border-t-2 border-[#4f46e5] print:border-none print:shadow-none print:m-0">
+            <div className="text-center mb-3">
+              <h1 style={{ color: '#4f46e5' }} className="text-xl font-black uppercase tracking-tighter mb-1">
                 Jelly Scoop
               </h1>
-              <div style={{ backgroundColor: '#4f46e5' }} className="h-1 w-12 mx-auto mt-2"></div>
-              <h2 style={{ color: '#0f172a' }} className="text-lg font-bold uppercase tracking-tight mt-4">
+              <div style={{ backgroundColor: '#4f46e5' }} className="h-0.5 w-8 mx-auto"></div>
+              <h2 style={{ color: '#0f172a' }} className="text-[10px] font-bold uppercase tracking-tight mt-2">
                 {printMode === 'CUSTOMER' ? 'Hoá đơn khách hàng' : 'Hoá đơn nội bộ'}
               </h2>
-              <p style={{ color: '#94a3b8' }} className="text-[10px] font-bold mt-1 uppercase tracking-widest">{new Date().toLocaleString('vi-VN')}</p>
+              <p style={{ color: '#94a3b8' }} className="text-[7px] font-bold mt-0.5 uppercase tracking-widest">{new Date().toLocaleString('vi-VN')}</p>
             </div>
 
-            <div style={{ borderColor: '#cbd5e1' }} className="border-t border-b border-dashed py-6 mb-8">
-              <div style={{ color: '#94a3b8' }} className="grid grid-cols-4 font-black text-[10px] uppercase tracking-widest mb-4">
+            <div style={{ borderColor: '#cbd5e1' }} className="border-t border-b border-dashed py-2 mb-2">
+              <div style={{ color: '#94a3b8' }} className="grid grid-cols-4 font-black text-[7px] uppercase tracking-widest mb-1">
                 <div className="col-span-2">Sản phẩm</div>
                 <div className="text-center">SL</div>
                 <div className="text-right">Thành tiền</div>
               </div>
               
-              <div className="space-y-3">
+              <div className="space-y-1">
                 {printMode === 'CUSTOMER' ? (
-                  <div style={{ color: '#1e293b' }} className="grid grid-cols-4 text-sm font-bold">
+                  <div style={{ color: '#1e293b' }} className="grid grid-cols-4 text-[10px] font-bold">
                     <div className="col-span-2">Scoop</div>
                     <div className="text-center">x{scoopQuantity}</div>
                     <div className="text-right">{formatCurrency(scoopPrice * scoopQuantity)}đ</div>
                   </div>
                 ) : (
                   orderItems.map((item, idx) => (
-                    <div key={idx} style={{ color: '#1e293b' }} className="grid grid-cols-4 text-sm font-bold">
+                    <div key={idx} style={{ color: '#1e293b' }} className="grid grid-cols-4 text-[10px] font-bold">
                       <div className="col-span-2">{item.product.name}</div>
                       <div className="text-center">x{item.quantity}</div>
                       <div className="text-right">{formatCurrency((item.retailPrice ?? item.product.retailPrice ?? item.product.cost) * item.quantity)}đ</div>
@@ -1148,18 +1155,18 @@ export default function Live({
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-0.5">
               {printMode === 'INTERNAL' && (
                 <>
-                  <div style={{ color: '#64748b' }} className="flex justify-between text-xs font-bold">
+                  <div style={{ color: '#64748b' }} className="flex justify-between text-[8px] font-bold">
                     <span>Tạm tính:</span>
                     <span>{formatCurrency(currentRevenue)}đ</span>
                   </div>
-                  <div style={{ color: '#64748b' }} className="flex justify-between text-xs font-bold">
+                  <div style={{ color: '#64748b' }} className="flex justify-between text-[8px] font-bold">
                     <span>Vận chuyển:</span>
                     <span>+{formatCurrency(parseCurrency(shippingCost))}đ</span>
                   </div>
-                  <div style={{ color: '#64748b' }} className="flex justify-between text-xs font-bold">
+                  <div style={{ color: '#64748b' }} className="flex justify-between text-[8px] font-bold">
                     <span>Giảm giá:</span>
                     <span>-{formatCurrency(parseCurrency(discount))}đ</span>
                   </div>
@@ -1167,32 +1174,32 @@ export default function Live({
               )}
               
               {printMode === 'CUSTOMER' && scoopNotes && (
-                <div style={{ borderTopColor: '#f1f5f9', borderBottomColor: '#f1f5f9' }} className="py-4 border-t border-b my-4">
-                  <p style={{ color: '#94a3b8' }} className="text-[10px] font-black uppercase tracking-widest mb-2">Ghi chú:</p>
-                  <p style={{ color: '#1e293b' }} className="text-sm font-medium whitespace-pre-wrap">{scoopNotes}</p>
+                <div style={{ borderTopColor: '#f1f5f9', borderBottomColor: '#f1f5f9' }} className="py-1 border-t border-b my-1">
+                  <p style={{ color: '#94a3b8' }} className="text-[7px] font-black uppercase tracking-widest mb-0.5">Ghi chú:</p>
+                  <p style={{ color: '#1e293b' }} className="text-[9px] font-medium whitespace-pre-wrap leading-tight">{scoopNotes}</p>
                 </div>
               )}
 
-              <div style={{ borderTopColor: '#0f172a', color: '#0f172a' }} className="flex justify-between text-xl font-black pt-4 border-t mt-4">
+              <div style={{ borderTopColor: '#0f172a', color: '#0f172a' }} className="flex justify-between text-base font-black pt-1 border-t mt-1">
                 <span>TỔNG CỘNG:</span>
                 <span>{formatCurrency(totalAmount)}đ</span>
               </div>
             </div>
 
-            <div style={{ borderTopColor: '#f1f5f9' }} className="mt-12 text-center border-t pt-6">
-              <p style={{ color: '#475569' }} className="text-xs font-bold italic">Cảm ơn quý khách đã ủng hộ!</p>
-              <div className="mt-6 space-y-2">
-                <p style={{ color: '#1e293b' }} className="text-sm font-black flex items-center justify-center gap-2">
+            <div style={{ borderTopColor: '#f1f5f9' }} className="mt-4 text-center border-t pt-2">
+              <p style={{ color: '#475569' }} className="text-[9px] font-bold italic">Cảm ơn quý khách đã ủng hộ!</p>
+              <div className="mt-2 space-y-0.5">
+                <p style={{ color: '#1e293b' }} className="text-[10px] font-black flex items-center justify-center gap-1">
                   <span style={{ color: '#4f46e5' }}>Zalo:</span> 0886 849 783
                 </p>
-                <p style={{ color: '#1e293b' }} className="text-sm font-black flex items-center justify-center gap-2">
+                <p style={{ color: '#1e293b' }} className="text-[10px] font-black flex items-center justify-center gap-1">
                   <span style={{ color: '#4f46e5' }}>Instagram:</span> jellystore.official
                 </p>
-                <p style={{ color: '#1e293b' }} className="text-sm font-black flex items-center justify-center gap-2">
+                <p style={{ color: '#1e293b' }} className="text-[10px] font-black flex items-center justify-center gap-1">
                   <span style={{ color: '#4f46e5' }}>TikTok:</span> jellyscoop
                 </p>
               </div>
-              <p style={{ color: '#94a3b8' }} className="text-[9px] mt-6 uppercase tracking-tighter">Hệ thống quản lý Live Order</p>
+              <p style={{ color: '#94a3b8' }} className="text-[7px] mt-2 uppercase tracking-tighter">Hệ thống quản lý Live Order</p>
             </div>
           </div>
 
