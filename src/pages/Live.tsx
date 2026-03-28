@@ -5,7 +5,7 @@ import { addOfflineOrder } from '../lib/syncQueue';
 import { useDraftOrderSync, DraftOrderState } from '../hooks/useDraftOrderSync';
 import { defaultConfigs } from '../constants';
 import { v4 as uuidv4 } from 'uuid';
-import { CheckCircle, ChevronDown, Barcode, ShoppingBag, Package, RefreshCw, Search, X, Printer, Download } from 'lucide-react';
+import { CheckCircle, ChevronDown, Barcode, ShoppingBag, Package, RefreshCw, Search, X, Printer, Download, Truck, Tag, Coins, Hash, FileText } from 'lucide-react';
 import { formatCurrency, parseCurrency, generateBarcodeNumber } from '../lib/format';
 import { toast } from 'sonner';
 import { hasSupabaseConfig } from '../lib/supabase';
@@ -42,6 +42,7 @@ export default function Live({
   const [orderType, setOrderType] = useState<'SCOOP' | 'RETAIL'>('SCOOP');
   const [selectedConfigId, setSelectedConfigId] = useState<string>(defaultConfigs[0]?.id || '');
   const [scoopQuantity, setScoopQuantity] = useState<number>(1);
+  const [scoopNotes, setScoopNotes] = useState<string>('');
   const [customScoopPrice, setCustomScoopPrice] = useState<string>('');
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string>('');
@@ -85,6 +86,7 @@ export default function Live({
     if (newState.discount !== undefined) setDiscount(newState.discount);
     if (newState.customScoopPrice !== undefined) setCustomScoopPrice(newState.customScoopPrice);
     if (newState.scoopQuantity !== undefined) setScoopQuantity(newState.scoopQuantity);
+    if (newState.scoopNotes !== undefined) setScoopNotes(newState.scoopNotes);
   }, []);
 
   const handleOrderCompleted = useCallback(() => {
@@ -102,6 +104,7 @@ export default function Live({
     setDiscount('0');
     setCustomScoopPrice('');
     setScoopQuantity(1);
+    setScoopNotes('');
     setScanResult(null);
     setIsScanning(false);
   }, []);
@@ -130,6 +133,7 @@ export default function Live({
         discount,
         customScoopPrice,
         scoopQuantity,
+        scoopNotes,
       });
     }
   }, [
@@ -145,6 +149,7 @@ export default function Live({
     discount,
     customScoopPrice,
     scoopQuantity,
+    scoopNotes,
     broadcastStateUpdate,
   ]);
 
@@ -561,48 +566,85 @@ export default function Live({
               <div className="space-y-6">
                 {orderType === 'SCOOP' ? (
                   /* Select Scoop Size */
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
-                    <div className="space-y-2 sm:col-span-1">
-                      <label className="text-xs font-bold text-indigo-900 uppercase tracking-wide">Số lượng Scoop</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={scoopQuantity}
-                        onChange={e => setScoopQuantity(Math.max(1, Number(e.target.value)))}
-                        className="w-full border border-indigo-200 rounded-lg px-4 py-3 bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all text-slate-900 font-medium"
-                      />
+                  <div className="bg-indigo-50/50 p-5 rounded-2xl border border-indigo-100 space-y-5">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-indigo-900 uppercase tracking-wider flex items-center gap-1.5 ml-1">
+                          <Hash className="w-3 h-3" />
+                          Số lượng
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="1"
+                            value={scoopQuantity}
+                            onChange={e => setScoopQuantity(Math.max(1, Number(e.target.value)))}
+                            className="w-full border border-indigo-200 rounded-xl pl-4 pr-4 py-2.5 bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all text-slate-900 font-bold text-sm"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-indigo-900 uppercase tracking-wider flex items-center gap-1.5 ml-1">
+                          <Coins className="w-3 h-3" />
+                          Giá Scoop
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            min="0"
+                            value={customScoopPrice}
+                            onChange={e => setCustomScoopPrice(formatCurrency(parseCurrency(e.target.value)))}
+                            placeholder="0"
+                            className="w-full border border-indigo-200 rounded-xl pl-4 pr-8 py-2.5 bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all text-slate-900 font-bold text-sm"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">đ</span>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-indigo-900 uppercase tracking-wider flex items-center gap-1.5 ml-1">
+                          <Truck className="w-3 h-3" />
+                          Vận chuyển
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            min="0"
+                            value={shippingCost}
+                            onChange={e => setShippingCost(formatCurrency(parseCurrency(e.target.value)))}
+                            placeholder="0"
+                            className="w-full border border-indigo-200 rounded-xl pl-4 pr-8 py-2.5 bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all text-slate-900 font-bold text-sm"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">đ</span>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-indigo-900 uppercase tracking-wider flex items-center gap-1.5 ml-1">
+                          <Tag className="w-3 h-3" />
+                          Giảm giá
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            min="0"
+                            value={discount}
+                            onChange={e => setDiscount(formatCurrency(parseCurrency(e.target.value)))}
+                            placeholder="0"
+                            className="w-full border border-indigo-200 rounded-xl pl-4 pr-8 py-2.5 bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all text-slate-900 font-bold text-sm"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">đ</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-2 sm:col-span-1">
-                      <label className="text-xs font-bold text-indigo-900 uppercase tracking-wide">Giá Scoop (đ)</label>
-                      <input
-                        type="text"
-                        min="0"
-                        value={customScoopPrice}
-                        onChange={e => setCustomScoopPrice(formatCurrency(parseCurrency(e.target.value)))}
-                        placeholder="0"
-                        className="w-full border border-indigo-200 rounded-lg px-4 py-3 bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all text-slate-900 font-medium"
-                      />
-                    </div>
-                    <div className="space-y-2 sm:col-span-1">
-                      <label className="text-xs font-bold text-indigo-900 uppercase tracking-wide">Vận chuyển (đ)</label>
-                      <input
-                        type="text"
-                        min="0"
-                        value={shippingCost}
-                        onChange={e => setShippingCost(formatCurrency(parseCurrency(e.target.value)))}
-                        placeholder="0"
-                        className="w-full border border-indigo-200 rounded-lg px-4 py-3 bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all text-slate-900 font-medium"
-                      />
-                    </div>
-                    <div className="space-y-2 sm:col-span-1">
-                      <label className="text-xs font-bold text-indigo-900 uppercase tracking-wide">Giảm giá (đ)</label>
-                      <input
-                        type="text"
-                        min="0"
-                        value={discount}
-                        onChange={e => setDiscount(formatCurrency(parseCurrency(e.target.value)))}
-                        placeholder="0"
-                        className="w-full border border-indigo-200 rounded-lg px-4 py-3 bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all text-slate-900 font-medium"
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-indigo-900 uppercase tracking-wider flex items-center gap-1.5 ml-1">
+                        <FileText className="w-3 h-3" />
+                        Ghi chú (Chỉ hiện hoá đơn khách)
+                      </label>
+                      <textarea
+                        value={scoopNotes}
+                        onChange={e => setScoopNotes(e.target.value)}
+                        placeholder="Nhập ghi chú cho đơn scoop..."
+                        className="w-full border border-indigo-200 rounded-xl px-4 py-3 bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all text-slate-900 font-medium text-sm min-h-[60px] resize-none"
                       />
                     </div>
                   </div>
@@ -1107,18 +1149,30 @@ export default function Live({
             </div>
 
             <div className="space-y-2">
-              <div style={{ color: '#64748b' }} className="flex justify-between text-xs font-bold">
-                <span>Tạm tính:</span>
-                <span>{formatCurrency(currentRevenue)}đ</span>
-              </div>
-              <div style={{ color: '#64748b' }} className="flex justify-between text-xs font-bold">
-                <span>Vận chuyển:</span>
-                <span>+{formatCurrency(parseCurrency(shippingCost))}đ</span>
-              </div>
-              <div style={{ color: '#64748b' }} className="flex justify-between text-xs font-bold">
-                <span>Giảm giá:</span>
-                <span>-{formatCurrency(parseCurrency(discount))}đ</span>
-              </div>
+              {printMode === 'INTERNAL' && (
+                <>
+                  <div style={{ color: '#64748b' }} className="flex justify-between text-xs font-bold">
+                    <span>Tạm tính:</span>
+                    <span>{formatCurrency(currentRevenue)}đ</span>
+                  </div>
+                  <div style={{ color: '#64748b' }} className="flex justify-between text-xs font-bold">
+                    <span>Vận chuyển:</span>
+                    <span>+{formatCurrency(parseCurrency(shippingCost))}đ</span>
+                  </div>
+                  <div style={{ color: '#64748b' }} className="flex justify-between text-xs font-bold">
+                    <span>Giảm giá:</span>
+                    <span>-{formatCurrency(parseCurrency(discount))}đ</span>
+                  </div>
+                </>
+              )}
+              
+              {printMode === 'CUSTOMER' && scoopNotes && (
+                <div style={{ borderTopColor: '#f1f5f9', borderBottomColor: '#f1f5f9' }} className="py-4 border-t border-b my-4">
+                  <p style={{ color: '#94a3b8' }} className="text-[10px] font-black uppercase tracking-widest mb-2">Ghi chú:</p>
+                  <p style={{ color: '#1e293b' }} className="text-sm font-medium whitespace-pre-wrap">{scoopNotes}</p>
+                </div>
+              )}
+
               <div style={{ borderTopColor: '#0f172a', color: '#0f172a' }} className="flex justify-between text-xl font-black pt-4 border-t mt-4">
                 <span>TỔNG CỘNG:</span>
                 <span>{formatCurrency(totalAmount)}đ</span>
@@ -1127,15 +1181,18 @@ export default function Live({
 
             <div style={{ borderTopColor: '#f1f5f9' }} className="mt-12 text-center border-t pt-6">
               <p style={{ color: '#475569' }} className="text-xs font-bold italic">Cảm ơn quý khách đã ủng hộ!</p>
-              <div className="mt-4 space-y-1">
-                <p style={{ color: '#64748b' }} className="text-[10px] font-bold flex items-center justify-center gap-2">
+              <div className="mt-6 space-y-2">
+                <p style={{ color: '#1e293b' }} className="text-sm font-black flex items-center justify-center gap-2">
                   <span style={{ color: '#4f46e5' }}>Zalo:</span> 0886 849 783
                 </p>
-                <p style={{ color: '#64748b' }} className="text-[10px] font-bold flex items-center justify-center gap-2">
+                <p style={{ color: '#1e293b' }} className="text-sm font-black flex items-center justify-center gap-2">
                   <span style={{ color: '#4f46e5' }}>Instagram:</span> jellystore.official
                 </p>
+                <p style={{ color: '#1e293b' }} className="text-sm font-black flex items-center justify-center gap-2">
+                  <span style={{ color: '#4f46e5' }}>TikTok:</span> jellyscoop
+                </p>
               </div>
-              <p style={{ color: '#94a3b8' }} className="text-[9px] mt-4 uppercase tracking-tighter">Hệ thống quản lý Live Order</p>
+              <p style={{ color: '#94a3b8' }} className="text-[9px] mt-6 uppercase tracking-tighter">Hệ thống quản lý Live Order</p>
             </div>
           </div>
 

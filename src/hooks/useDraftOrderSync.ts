@@ -15,6 +15,7 @@ export interface DraftOrderState {
   discount: string;
   customScoopPrice: string;
   scoopQuantity: number;
+  scoopNotes: string;
 }
 
 export function useDraftOrderSync(
