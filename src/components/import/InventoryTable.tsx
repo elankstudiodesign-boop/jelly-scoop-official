@@ -262,6 +262,7 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                   <th className="px-6 py-4 w-16">Ảnh</th>
                   <th className="px-6 py-4">Sản phẩm</th>
                   <th className="px-6 py-4 text-right">Giá vốn</th>
+                  <th className="px-6 py-4 text-right">Giá bán lẻ</th>
                   <th className="px-6 py-4 text-right">Tồn kho</th>
                   <th className="px-6 py-4 text-right">Nhà cung cấp</th>
                   <th className="px-6 py-4 text-right">Trạng thái</th>
@@ -315,6 +316,7 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                           {p.note && <div className="text-[10px] text-slate-500 mt-0.5 whitespace-pre-wrap line-clamp-1 italic">{p.note}</div>}
                         </td>
                         <td className="px-6 py-4 text-right font-black text-slate-900">{formatCurrency(p.cost)}đ</td>
+                        <td className="px-6 py-4 text-right font-black text-indigo-600">{p.retailPrice ? `${formatCurrency(p.retailPrice)}đ` : '-'}</td>
                         <td className="px-6 py-4 text-right">
                           <span className={`text-sm font-black ${wq === 0 ? 'text-red-600' : wq < 4 ? 'text-orange-600' : 'text-slate-900'}`}>
                             {wq}
@@ -444,7 +446,16 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                         </div>
 
                         <div className="mt-2 flex items-center gap-3">
-                          <span className="text-base font-black text-indigo-600">{formatCurrency(p.cost)}đ</span>
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Giá vốn</span>
+                            <span className="text-sm font-black text-slate-900">{formatCurrency(p.cost)}đ</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Giá bán lẻ</span>
+                            <span className="text-sm font-black text-indigo-600">{p.retailPrice ? `${formatCurrency(p.retailPrice)}đ` : '-'}</span>
+                          </div>
+                        </div>
+                        <div className="mt-2 flex items-center gap-3">
                           <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-100 px-2 py-1 rounded-lg">
                             <Truck className="w-3 h-3 flex-shrink-0" />
                             <span className="truncate max-w-[80px]">{supplier?.name || 'Chưa gán'}</span>
@@ -546,11 +557,15 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex flex-col">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Giá vốn</span>
-                        <span className="text-sm font-black text-slate-900">{formatCurrency(p.cost)}đ</span>
+                        <span className="text-xs font-black text-slate-900">{formatCurrency(p.cost)}đ</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Giá bán</span>
+                        <span className="text-xs font-black text-indigo-600">{p.retailPrice ? `${formatCurrency(p.retailPrice)}đ` : '-'}</span>
                       </div>
                       <div className="flex flex-col items-end">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tồn kho</span>
-                        <span className={`text-sm font-black ${wq === 0 ? 'text-red-600' : wq < 4 ? 'text-orange-600' : 'text-slate-900'}`}>
+                        <span className={`text-xs font-black ${wq === 0 ? 'text-red-600' : wq < 4 ? 'text-orange-600' : 'text-slate-900'}`}>
                           {wq}
                         </span>
                       </div>

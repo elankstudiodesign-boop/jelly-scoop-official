@@ -43,6 +43,7 @@ export function useImportManager({
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('');
   const [quantity, setQuantity] = useState<string>('');
   const [unitCost, setUnitCost] = useState<string>('');
+  const [retailPrice, setRetailPrice] = useState<string>('');
   const [totalCost, setTotalCost] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [note, setNote] = useState<string>('');
@@ -162,6 +163,11 @@ export function useImportManager({
     }
   };
 
+  const handleRetailPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setRetailPrice(formatCurrency(val));
+  };
+
   const handleTotalCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     const formatted = formatCurrency(val);
@@ -193,6 +199,7 @@ export function useImportManager({
     const numQuantity = Number(quantity);
     const numTotalCost = parseCurrency(totalCost);
     const numUnitCost = parseCurrency(unitCost);
+    const numRetailPrice = retailPrice ? parseCurrency(retailPrice) : undefined;
     const derivedPriceGroup = priceGroupFromUnitCost(numUnitCost);
     if (numQuantity <= 0 || numTotalCost <= 0 || numUnitCost <= 0) {
       alert('Số lượng, giá vốn và tổng chi phí phải lớn hơn 0');
@@ -252,6 +259,7 @@ export function useImportManager({
         priceGroup: derivedPriceGroup,
         note: note,
         supplierId: finalSupplierId,
+        retailPrice: numRetailPrice,
         isCombo: productToUpdate.isCombo,
         comboItems: productToUpdate.comboItems
       };
@@ -267,6 +275,7 @@ export function useImportManager({
         priceGroup: derivedPriceGroup,
         quantity: 0,
         warehouseQuantity: numQuantity,
+        retailPrice: numRetailPrice,
         note: note,
         supplierId: finalSupplierId || undefined
       };
@@ -279,13 +288,14 @@ export function useImportManager({
       amount: numTotalCost,
       description: description || `Nhập kho: ${numQuantity} x ${productName}`,
       date: new Date().toISOString(),
-      items: [{ productId: productToUpdate ? productToUpdate.id : productIdForImage, quantity: numQuantity }],
+      items: [{ productId: productToUpdate ? productToUpdate.id : productIdForImage, quantity: numQuantity, retailPrice: numRetailPrice }],
       supplierId: finalSupplierId || undefined
     });
     setSelectedProductId('');
     setSelectedSupplierId('');
     setQuantity('');
     setUnitCost('');
+    setRetailPrice('');
     setTotalCost('');
     setDescription('');
     setNote('');
@@ -439,6 +449,7 @@ export function useImportManager({
     selectedSupplierId, setSelectedSupplierId,
     quantity, setQuantity,
     unitCost, setUnitCost,
+    retailPrice, setRetailPrice,
     totalCost, setTotalCost,
     description, setDescription,
     note, setNote,
@@ -472,7 +483,7 @@ export function useImportManager({
     showPackagingForm, setShowPackagingForm,
     fileInputRef, selectAllRef, imageDropzoneRef,
     filteredProducts, selectedProduct,
-    handleQuantityChange, handleUnitCostChange, handleTotalCostChange,
+    handleQuantityChange, handleUnitCostChange, handleRetailPriceChange, handleTotalCostChange,
     handleImageUpload, handleImport, handleSupplierSubmit, handlePackagingSubmit,
     handleDeleteMany, handlePrintBarcodes, handleClipboardPaste, handlePaste
   };
