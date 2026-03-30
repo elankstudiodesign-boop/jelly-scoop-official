@@ -260,13 +260,13 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                 <tr>
                   {isSelectionMode && <th className="px-6 py-4 w-12"></th>}
                   <th className="px-6 py-4 w-16">Ảnh</th>
-                  <th className="px-6 py-4">Sản phẩm</th>
-                  <th className="px-6 py-4 text-right">Giá vốn</th>
-                  <th className="px-6 py-4 text-right">Giá bán lẻ</th>
-                  <th className="px-6 py-4 text-right">Tồn kho</th>
-                  <th className="px-6 py-4 text-right">Nhà cung cấp</th>
-                  <th className="px-6 py-4 text-right">Trạng thái</th>
-                  <th className="px-6 py-4 text-center">Thao tác</th>
+                  <th className="px-4 py-4">Sản phẩm</th>
+                  <th className="px-4 py-4 text-right">Giá vốn</th>
+                  <th className="px-4 py-4 text-right">Giá bán lẻ</th>
+                  <th className="px-4 py-4 text-right">Tồn kho</th>
+                  <th className="px-4 py-4 text-right">Nhà cung cấp</th>
+                  <th className="px-4 py-4 text-right">Trạng thái</th>
+                  <th className="px-4 py-4 text-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -311,18 +311,18 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-4">
                           <div className="font-bold text-slate-900">{p.name}</div>
                           {p.note && <div className="text-[10px] text-slate-500 mt-0.5 whitespace-pre-wrap line-clamp-1 italic">{p.note}</div>}
                         </td>
-                        <td className="px-6 py-4 text-right font-black text-slate-900">{formatCurrency(p.cost)}đ</td>
-                        <td className="px-6 py-4 text-right font-black text-indigo-600">{p.retailPrice ? `${formatCurrency(p.retailPrice)}đ` : '-'}</td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-4 py-4 text-right font-black text-slate-900">{formatCurrency(p.cost)}đ</td>
+                        <td className="px-4 py-4 text-right font-black text-indigo-600">{p.retailPrice ? `${formatCurrency(p.retailPrice)}đ` : '-'}</td>
+                        <td className="px-4 py-4 text-right">
                           <span className={`text-sm font-black ${wq === 0 ? 'text-red-600' : wq < 4 ? 'text-orange-600' : 'text-slate-900'}`}>
                             {wq}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-4 py-4 text-right">
                           {supplier ? (
                             <div className="flex flex-col items-end">
                               <span className="text-slate-900 font-bold text-xs">{supplier.name}</span>
@@ -345,10 +345,10 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                             </div>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-4 py-4 text-right">
                           {renderProductStatus(wq)}
                         </td>
-                        <td className="px-6 py-4 text-center">
+                        <td className="px-4 py-4 text-center">
                           <div className="flex items-center justify-center gap-1">
                             <button
                               onClick={() => downloadBarcode(p)}
@@ -423,23 +423,23 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start gap-2">
-                          <div>
+                        <div className="flex justify-between items-start gap-3">
+                          <div className="flex-1 min-w-0">
                             <h3 className="font-black text-slate-900 text-sm leading-tight truncate pr-1">{p.name}</h3>
                           </div>
-                          <div className="flex items-center gap-1 flex-shrink-0">
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
                             <button
                               onClick={() => downloadBarcode(p)}
-                              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all border border-slate-200"
+                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all border border-slate-200"
                             >
-                              <Barcode className="w-4 h-4" />
+                              <Barcode className="w-3.5 h-3.5" />
                             </button>
                             {!isSelectionMode && (
                               <button
                                 onClick={() => setDeleteConfirmIds([p.id])}
-                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all border border-slate-200"
+                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all border border-slate-200"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             )}
                           </div>
