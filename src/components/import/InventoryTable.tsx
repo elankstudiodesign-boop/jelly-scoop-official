@@ -1,6 +1,6 @@
 import React from 'react';
 import { Product, Supplier } from '../../types';
-import { Search, Barcode, Trash2, Edit2, AlertCircle, Truck, X, ImageIcon, Filter, Grid, List, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { Search, Barcode, Trash2, Edit2, AlertCircle, Truck, X, ImageIcon, Filter, ChevronDown, CheckCircle2 } from 'lucide-react';
 import { formatCurrency } from '../../lib/format';
 import { downloadBarcode } from '../../lib/barcodeUtils';
 
@@ -9,13 +9,14 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
     inventorySearchTerm, setInventorySearchTerm,
     inventoryTab, setInventoryTab,
     inventoryStockFilter, setInventoryStockFilter,
-    viewMode, setViewMode,
+    inventoryPriceGroupFilter, setInventoryPriceGroupFilter,
     isSelectionMode, setIsSelectionMode,
     selectedIds, setSelectedIds,
     handlePrintBarcodes,
     setDeleteConfirmIds,
     setAssigningSupplierForProductId,
-    setModalSupplierId
+    setModalSupplierId,
+    setEditingProductId
   } = manager;
 
   const [showFilters, setShowFilters] = React.useState(false);
@@ -36,9 +37,15 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
       : inventoryStockFilter === 'low'
         ? wq > 0 && wq < 4
         : wq === 0;
+
+    const matchesPriceGroup = inventoryPriceGroupFilter === 'all' || p.priceGroup === inventoryPriceGroupFilter;
         
-    return matchesSearch && matchesTab && matchesStock;
+    return matchesSearch && matchesTab && matchesStock && matchesPriceGroup;
   });
+
+  const getPriceGroupCount = (group: string) => {
+    return products.filter(p => p.priceGroup === group).length;
+  };
 
   const allSelected = filteredInventoryProducts.length > 0 && selectedIds.size === filteredInventoryProducts.length;
   const someSelected = selectedIds.size > 0 && !allSelected;
@@ -92,7 +99,7 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-8">
-      <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col gap-4">
+      <div className="p-4 md:p-5 border-b border-slate-100 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h2 className="text-xl font-black text-slate-900 tracking-tight">Tồn kho hiện tại</h2>
@@ -147,25 +154,6 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-200">
-                  <button 
-                    type="button"
-                    onClick={() => setViewMode('grid')}
-                    className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                    title="Chế độ lưới"
-                  >
-                    <Grid className="w-4 h-4" />
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => setViewMode('list')}
-                    className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                    title="Chế độ danh sách"
-                  >
-                    <List className="w-4 h-4" />
-                  </button>
-                </div>
-                
                 <button
                   type="button"
                   onClick={() => setIsSelectionMode(true)}
@@ -203,14 +191,14 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
-                showFilters || inventoryStockFilter !== 'all'
+                showFilters || inventoryStockFilter !== 'all' || inventoryPriceGroupFilter !== 'all'
                   ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
                   : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
             >
               <Filter className="w-4 h-4" />
               Lọc
-              {inventoryStockFilter !== 'all' && (
+              {(inventoryStockFilter !== 'all' || inventoryPriceGroupFilter !== 'all') && (
                 <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
               )}
             </button>
@@ -234,8 +222,8 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
         </div>
 
         {showFilters && (
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-in fade-in slide-in-from-top-2 duration-200">
-            <div className="space-y-1.5">
+          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-in fade-in slide-in-from-top-2 duration-200 flex flex-col md:flex-row gap-4">
+            <div className="flex-1 space-y-1.5">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider ml-1">Tình trạng kho</label>
               <select
                 value={inventoryStockFilter}
@@ -247,351 +235,280 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                 <option value="out">Hết hàng (0)</option>
               </select>
             </div>
+
+            <div className="flex-1 space-y-1.5">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider ml-1">Danh mục sản phẩm</label>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                <button
+                  onClick={() => setInventoryPriceGroupFilter('all')}
+                  className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all ${
+                    inventoryPriceGroupFilter === 'all'
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                      : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300'
+                  }`}
+                >
+                  Tất cả ({products.length})
+                </button>
+                {(['Thấp', 'Trung', 'Cao', 'Cao cấp'] as const).map(group => (
+                  <button
+                    key={group}
+                    onClick={() => setInventoryPriceGroupFilter(group)}
+                    className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all ${
+                      inventoryPriceGroupFilter === group
+                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300'
+                    }`}
+                  >
+                    {group} ({getPriceGroupCount(group)})
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>
 
-      {viewMode === 'list' ? (
-        <>
-          {/* Desktop Table View */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-600">
-              <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-500 border-b border-slate-200">
-                <tr>
-                  {isSelectionMode && <th className="px-6 py-4 w-12"></th>}
-                  <th className="px-6 py-4 w-16">Ảnh</th>
-                  <th className="px-4 py-4">Sản phẩm</th>
-                  <th className="px-4 py-4 text-right">Giá vốn</th>
-                  <th className="px-4 py-4 text-right">Giá bán lẻ</th>
-                  <th className="px-4 py-4 text-right">Tồn kho</th>
-                  <th className="px-4 py-4 text-right">Nhà cung cấp</th>
-                  <th className="px-4 py-4 text-right">Trạng thái</th>
-                  <th className="px-4 py-4 text-center">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredInventoryProducts.length === 0 ? (
-                  <tr>
-                    <td colSpan={isSelectionMode ? 8 : 7} className="px-6 py-12 text-center">
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center">
-                          <Search className="w-6 h-6 text-slate-300" />
-                        </div>
-                        <p className="text-slate-500 font-medium">
-                          {inventorySearchTerm || inventoryStockFilter !== 'all' 
-                            ? 'Không tìm thấy sản phẩm phù hợp' 
-                            : 'Kho hàng trống'}
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredInventoryProducts.map(p => {
-                    const wq = p.warehouseQuantity || 0;
-                    const checked = selectedIds.has(p.id);
-                    const supplier = suppliers.find(s => s.id === p.supplierId);
-                    return (
-                      <tr key={p.id} className={`hover:bg-slate-50 transition-colors ${checked ? 'bg-indigo-50/30' : ''}`}>
-                        {isSelectionMode && (
-                          <td className="px-6 py-4">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleSelected(p.id)}
-                              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                            />
-                          </td>
-                        )}
-                        <td className="px-6 py-4">
-                          <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 shadow-sm">
-                            {p.imageUrl ? (
-                              <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                            ) : (
-                              <ImageIcon className="w-5 h-5 m-2.5 text-slate-400" />
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="font-bold text-slate-900">{p.name}</div>
-                          {p.note && <div className="text-[10px] text-slate-500 mt-0.5 whitespace-pre-wrap line-clamp-1 italic">{p.note}</div>}
-                        </td>
-                        <td className="px-4 py-4 text-right font-black text-slate-900">{formatCurrency(p.cost)}đ</td>
-                        <td className="px-4 py-4 text-right font-black text-indigo-600">{p.retailPrice ? `${formatCurrency(p.retailPrice)}đ` : '-'}</td>
-                        <td className="px-4 py-4 text-right">
-                          <span className={`text-sm font-black ${wq === 0 ? 'text-red-600' : wq < 4 ? 'text-orange-600' : 'text-slate-900'}`}>
-                            {wq}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4 text-right">
-                          {supplier ? (
-                            <div className="flex flex-col items-end">
-                              <span className="text-slate-900 font-bold text-xs">{supplier.name}</span>
-                              <button 
-                                onClick={() => openAssignModal(p.id)}
-                                className="text-[10px] text-indigo-600 hover:underline mt-0.5"
-                              >
-                                Thay đổi
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col items-end">
-                              <span className="text-slate-400 italic text-xs">Chưa gán</span>
-                              <button 
-                                onClick={() => openAssignModal(p.id)}
-                                className="text-[10px] text-indigo-600 hover:underline mt-0.5"
-                              >
-                                Gán ngay
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-4 py-4 text-right">
-                          {renderProductStatus(wq)}
-                        </td>
-                        <td className="px-4 py-4 text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => downloadBarcode(p)}
-                              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                              title="Tải mã vạch"
-                            >
-                              <Barcode className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirmIds([p.id])}
-                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                              title="Xoá sản phẩm"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile List View */}
-          <div className="md:hidden divide-y divide-slate-100">
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-left text-sm text-slate-600">
+          <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-500 border-b border-slate-200">
+            <tr>
+              {isSelectionMode && <th className="px-6 py-4 w-12"></th>}
+              <th className="px-6 py-4 w-16">Ảnh</th>
+              <th className="px-4 py-4">Sản phẩm</th>
+              <th className="px-4 py-4 text-right">Giá vốn</th>
+              <th className="px-4 py-4 text-right">Giá bán lẻ</th>
+              <th className="px-4 py-4 text-right">Tồn kho</th>
+              <th className="px-4 py-4 text-right">Nhà cung cấp</th>
+              <th className="px-4 py-4 text-right">Trạng thái</th>
+              <th className="px-4 py-4 text-center">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
             {filteredInventoryProducts.length === 0 ? (
-              <div className="p-12 text-center">
-                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Search className="w-8 h-8 text-slate-300" />
-                </div>
-                <p className="text-slate-500 font-medium">
-                  {inventorySearchTerm || inventoryStockFilter !== 'all' 
-                    ? 'Không tìm thấy sản phẩm phù hợp' 
-                    : 'Kho hàng trống'}
-                </p>
-              </div>
+              <tr>
+                <td colSpan={isSelectionMode ? 9 : 8} className="px-6 py-12 text-center">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center">
+                      <Search className="w-6 h-6 text-slate-300" />
+                    </div>
+                    <p className="text-slate-500 font-medium">
+                      {inventorySearchTerm || inventoryStockFilter !== 'all' 
+                        ? 'Không tìm thấy sản phẩm phù hợp' 
+                        : 'Kho hàng trống'}
+                    </p>
+                  </div>
+                </td>
+              </tr>
             ) : (
               filteredInventoryProducts.map(p => {
                 const wq = p.warehouseQuantity || 0;
                 const checked = selectedIds.has(p.id);
                 const supplier = suppliers.find(s => s.id === p.supplierId);
-                
                 return (
-                  <div key={p.id} className={`p-4 transition-all ${checked ? 'bg-indigo-50/50' : 'hover:bg-slate-50'}`}>
-                    <div className="flex items-start gap-4">
-                      {isSelectionMode && (
-                        <div className="pt-2">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleSelected(p.id)}
-                            className="h-5 w-5 rounded-md border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all"
-                          />
-                        </div>
-                      )}
-                      
-                      <div className="relative flex-shrink-0">
-                        <div className="w-20 h-20 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shadow-sm">
-                          {p.imageUrl ? (
-                            <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <ImageIcon className="w-8 h-8 text-slate-300" />
-                            </div>
-                          )}
-                        </div>
-                        {wq < 4 && (
-                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white shadow-sm" />
+                  <tr key={p.id} className={`hover:bg-slate-50 transition-colors ${checked ? 'bg-indigo-50/30' : ''}`}>
+                    {isSelectionMode && (
+                      <td className="px-6 py-4">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleSelected(p.id)}
+                          className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                      </td>
+                    )}
+                    <td className="px-6 py-4">
+                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 shadow-sm">
+                        {p.imageUrl ? (
+                          <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <ImageIcon className="w-5 h-5 m-2.5 text-slate-400" />
                         )}
                       </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start gap-3">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-black text-slate-900 text-sm leading-tight truncate pr-1">{p.name}</h3>
-                          </div>
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
-                            <button
-                              onClick={() => downloadBarcode(p)}
-                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all border border-slate-200"
-                            >
-                              <Barcode className="w-3.5 h-3.5" />
-                            </button>
-                            {!isSelectionMode && (
-                              <button
-                                onClick={() => setDeleteConfirmIds([p.id])}
-                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all border border-slate-200"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="font-bold text-slate-900">{p.name}</div>
+                      {p.note && <div className="text-[10px] text-slate-500 mt-0.5 whitespace-pre-wrap line-clamp-1 italic">{p.note}</div>}
+                    </td>
+                    <td className="px-4 py-4 text-right font-black text-slate-900">{formatCurrency(p.cost)}đ</td>
+                    <td className="px-4 py-4 text-right font-black text-indigo-600">{p.retailPrice ? `${formatCurrency(p.retailPrice)}đ` : '-'}</td>
+                    <td className="px-4 py-4 text-right">
+                      <span className={`text-sm font-black ${wq === 0 ? 'text-red-600' : wq < 4 ? 'text-orange-600' : 'text-slate-900'}`}>
+                        {wq}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      {supplier ? (
+                        <div className="flex flex-col items-end">
+                          <span className="text-slate-900 font-bold text-xs">{supplier.name}</span>
+                          <button 
+                            onClick={() => openAssignModal(p.id)}
+                            className="text-[10px] text-indigo-600 hover:underline mt-0.5"
+                          >
+                            Thay đổi
+                          </button>
                         </div>
-
-                        <div className="mt-2 flex items-center gap-3">
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Giá vốn</span>
-                            <span className="text-sm font-black text-slate-900">{formatCurrency(p.cost)}đ</span>
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Giá bán lẻ</span>
-                            <span className="text-sm font-black text-indigo-600">{p.retailPrice ? `${formatCurrency(p.retailPrice)}đ` : '-'}</span>
-                          </div>
+                      ) : (
+                        <div className="flex flex-col items-end">
+                          <span className="text-slate-400 italic text-xs">Chưa gán</span>
+                          <button 
+                            onClick={() => openAssignModal(p.id)}
+                            className="text-[10px] text-indigo-600 hover:underline mt-0.5"
+                          >
+                            Gán ngay
+                          </button>
                         </div>
-                        <div className="mt-2 flex items-center gap-3">
-                          <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-100 px-2 py-1 rounded-lg">
-                            <Truck className="w-3 h-3 flex-shrink-0" />
-                            <span className="truncate max-w-[80px]">{supplier?.name || 'Chưa gán'}</span>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Tồn kho:</span>
-                            <span className={`text-base font-black ${wq === 0 ? 'text-red-600' : wq < 4 ? 'text-orange-600' : 'text-slate-900'}`}>
-                              {wq}
-                            </span>
-                          </div>
-                          
-                          <div>
-                            {renderProductStatus(wq)}
-                          </div>
-                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      {renderProductStatus(wq)}
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => setEditingProductId(p.id)}
+                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                          title="Chỉnh sửa sản phẩm"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => downloadBarcode(p)}
+                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                          title="Tải mã vạch"
+                        >
+                          <Barcode className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirmIds([p.id])}
+                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                          title="Xoá sản phẩm"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
-                    </div>
-                  </div>
+                    </td>
+                  </tr>
                 );
               })
             )}
-          </div>
-        </>
-      ) : (
-        /* Grid View */
-        <div className="p-4 md:p-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {filteredInventoryProducts.length === 0 ? (
-            <div className="col-span-full py-12 text-center">
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto">
-                  <Search className="w-6 h-6 text-slate-300" />
-                </div>
-                <p className="text-slate-500 font-medium">Không tìm thấy sản phẩm phù hợp</p>
-              </div>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile List View */}
+      <div className="md:hidden divide-y divide-slate-100">
+        {filteredInventoryProducts.length === 0 ? (
+          <div className="p-12 text-center">
+            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Search className="w-8 h-8 text-slate-300" />
             </div>
-          ) : (
-            filteredInventoryProducts.map(p => {
-              const wq = p.warehouseQuantity || 0;
-              const checked = selectedIds.has(p.id);
-              const supplier = suppliers.find(s => s.id === p.supplierId);
-              
-              return (
-                <div 
-                  key={p.id} 
-                  className={`relative group bg-white rounded-2xl border transition-all duration-200 ${
-                    checked 
-                      ? 'border-indigo-500 ring-2 ring-indigo-500/10 shadow-lg' 
-                      : 'border-slate-200 hover:border-indigo-300 hover:shadow-md'
-                  }`}
-                >
+            <p className="text-slate-500 font-medium">
+              {inventorySearchTerm || inventoryStockFilter !== 'all' 
+                ? 'Không tìm thấy sản phẩm phù hợp' 
+                : 'Kho hàng trống'}
+            </p>
+          </div>
+        ) : (
+          filteredInventoryProducts.map(p => {
+            const wq = p.warehouseQuantity || 0;
+            const checked = selectedIds.has(p.id);
+            const supplier = suppliers.find(s => s.id === p.supplierId);
+            
+            return (
+              <div key={p.id} className={`p-4 transition-all ${checked ? 'bg-indigo-50/50' : 'hover:bg-slate-50'}`}>
+                <div className="flex items-start gap-4">
                   {isSelectionMode && (
-                    <div className="absolute top-3 left-3 z-10">
+                    <div className="pt-2">
                       <input
                         type="checkbox"
                         checked={checked}
                         onChange={() => toggleSelected(p.id)}
-                        className="h-5 w-5 rounded-md border-slate-300 text-indigo-600 focus:ring-indigo-500 shadow-sm"
+                        className="h-5 w-5 rounded-md border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all"
                       />
                     </div>
                   )}
-
-                  <div className="aspect-square relative overflow-hidden rounded-t-2xl bg-slate-50">
-                    {p.imageUrl ? (
-                      <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" referrerPolicy="no-referrer" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <ImageIcon className="w-10 h-10 text-slate-200" />
-                      </div>
-                    )}
-                    
-                    <div className="absolute top-3 right-3 flex flex-col gap-1.5">
-                      <button
-                        onClick={() => downloadBarcode(p)}
-                        className="p-2 bg-white/90 backdrop-blur-sm text-slate-600 hover:text-indigo-600 rounded-xl shadow-sm transition-all hover:scale-110"
-                      >
-                        <Barcode className="w-4 h-4" />
-                      </button>
-                      {!isSelectionMode && (
-                        <button
-                          onClick={() => setDeleteConfirmIds([p.id])}
-                          className="p-2 bg-white/90 backdrop-blur-sm text-slate-600 hover:text-red-600 rounded-xl shadow-sm transition-all hover:scale-110"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                  
+                  <div className="relative flex-shrink-0">
+                    <div className="w-20 h-20 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shadow-sm">
+                      {p.imageUrl ? (
+                        <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <ImageIcon className="w-8 h-8 text-slate-300" />
+                        </div>
                       )}
                     </div>
-
-                    <div className="absolute bottom-3 left-3 right-3">
-                      {renderProductStatus(wq)}
-                    </div>
+                    {wq < 4 && (
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white shadow-sm" />
+                    )}
                   </div>
 
-                  <div className="p-4">
-                    <h3 className="font-bold text-slate-900 text-sm line-clamp-2 min-h-[2.5rem] leading-tight mb-2">{p.name}</h3>
-                    
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Giá vốn</span>
-                        <span className="text-xs font-black text-slate-900">{formatCurrency(p.cost)}đ</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-black text-slate-900 text-sm leading-tight truncate pr-1">{p.name}</h3>
                       </div>
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Giá bán</span>
-                        <span className="text-xs font-black text-indigo-600">{p.retailPrice ? `${formatCurrency(p.retailPrice)}đ` : '-'}</span>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <button
+                          onClick={() => setEditingProductId(p.id)}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all border border-slate-200"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => downloadBarcode(p)}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all border border-slate-200"
+                        >
+                          <Barcode className="w-3.5 h-3.5" />
+                        </button>
+                        {!isSelectionMode && (
+                          <button
+                            onClick={() => setDeleteConfirmIds([p.id])}
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all border border-slate-200"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
-                      <div className="flex flex-col items-end">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tồn kho</span>
-                        <span className={`text-xs font-black ${wq === 0 ? 'text-red-600' : wq < 4 ? 'text-orange-600' : 'text-slate-900'}`}>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Giá vốn</span>
+                        <span className="block text-sm font-black text-slate-900">{formatCurrency(p.cost)}đ</span>
+                      </div>
+                      <div className="bg-indigo-50/30 p-2 rounded-xl border border-indigo-100/30">
+                        <span className="block text-[9px] font-bold text-indigo-400 uppercase tracking-wider mb-0.5">Giá bán lẻ</span>
+                        <span className="block text-sm font-black text-indigo-600">{p.retailPrice ? `${formatCurrency(p.retailPrice)}đ` : '-'}</span>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center gap-3">
+                      <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-100 px-2 py-1 rounded-lg">
+                        <Truck className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate max-w-[80px]">{supplier?.name || 'Chưa gán'}</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Tồn kho:</span>
+                        <span className={`text-base font-black ${wq === 0 ? 'text-red-600' : wq < 4 ? 'text-orange-600' : 'text-slate-900'}`}>
                           {wq}
                         </span>
                       </div>
-                    </div>
-
-                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <Truck className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">
-                          {supplier?.name || 'Chưa gán'}
-                        </span>
+                      
+                      <div>
+                        {renderProductStatus(wq)}
                       </div>
-                      <button 
-                        onClick={() => openAssignModal(p.id)}
-                        className="text-[10px] font-black text-indigo-600 hover:text-indigo-700 uppercase tracking-wider whitespace-nowrap"
-                      >
-                        {p.supplierId ? 'Sửa' : 'Gán'}
-                      </button>
                     </div>
                   </div>
                 </div>
-              );
-            })
-          )}
-        </div>
-      )}
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }

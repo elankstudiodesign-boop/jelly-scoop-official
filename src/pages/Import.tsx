@@ -8,6 +8,7 @@ import { PackagingForm } from '../components/import/PackagingForm';
 import { InventoryTable } from '../components/import/InventoryTable';
 import { SupplierDetailModal } from '../components/import/SupplierDetailModal';
 import { AssignSupplierModal } from '../components/import/AssignSupplierModal';
+import EditProductModal from '../components/EditProductModal';
 import BarcodePrintModal from '../components/BarcodePrintModal';
 import ComboTab from '../components/ComboTab';
 
@@ -83,7 +84,7 @@ export default function Import({
   };
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8 py-2 sm:py-8">
+    <div className="w-full px-2 sm:px-4 lg:px-4 py-2 sm:py-8">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 px-4 sm:px-0">
         <div className="flex items-center justify-between w-full md:w-auto">
@@ -329,6 +330,25 @@ export default function Import({
         <BarcodePrintModal
           initialItems={printItems}
           onClose={() => setShowBarcodeModal(false)}
+        />
+      )}
+      
+      {manager.editingProductId && (
+        <EditProductModal
+          product={products.find(p => p.id === manager.editingProductId)!}
+          onClose={() => manager.setEditingProductId(null)}
+          onSave={async (id, updates) => {
+            try {
+              await updateProduct(id, updates);
+              manager.setEditingProductId(null);
+              manager.setNotification({ type: 'success', message: 'Cập nhật sản phẩm thành công!' });
+              setTimeout(() => manager.setNotification(null), 3000);
+            } catch (err) {
+              console.error('Lỗi cập nhật sản phẩm:', err);
+              manager.setNotification({ type: 'error', message: 'Lỗi khi cập nhật sản phẩm. Vui lòng thử lại.' });
+              setTimeout(() => manager.setNotification(null), 3000);
+            }
+          }}
         />
       )}
 

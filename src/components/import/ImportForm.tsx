@@ -50,7 +50,7 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
       </div>
       
       {isExpanded && (
-        <div className="p-4 md:p-8 animate-in slide-in-from-top-2 duration-200">
+        <div className="p-4 md:p-6 animate-in slide-in-from-top-2 duration-200">
           <form onSubmit={handleImport} className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Left Column: Form Fields */}

@@ -58,9 +58,10 @@ export function useImportManager({
   const [inventorySearchTerm, setInventorySearchTerm] = useState('');
   const [inventoryTab, setInventoryTab] = useState<'all' | 'single' | 'combo'>('all');
   const [inventoryStockFilter, setInventoryStockFilter] = useState<'all' | 'low' | 'out'>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [inventoryPriceGroupFilter, setInventoryPriceGroupFilter] = useState<PriceGroup | 'all'>('all');
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [printItems, setPrintItems] = useState<PrintItem[]>([]);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
 
   // Supplier Form State
   const [supplierName, setSupplierName] = useState('');
@@ -463,9 +464,10 @@ export function useImportManager({
     inventorySearchTerm, setInventorySearchTerm,
     inventoryTab, setInventoryTab,
     inventoryStockFilter, setInventoryStockFilter,
-    viewMode, setViewMode,
+    inventoryPriceGroupFilter, setInventoryPriceGroupFilter,
     showBarcodeModal, setShowBarcodeModal,
     printItems, setPrintItems,
+    editingProductId, setEditingProductId,
     supplierName, setSupplierName,
     supplierPhone, setSupplierPhone,
     supplierAddress, setSupplierAddress,
