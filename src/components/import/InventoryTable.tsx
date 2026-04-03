@@ -445,61 +445,65 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-black text-slate-900 text-sm leading-tight truncate pr-1">{p.name}</h3>
+                    <div className="flex flex-col h-full">
+                      <div className="flex justify-between items-start gap-3 mb-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-black text-slate-900 text-sm leading-tight truncate pr-1">{p.name}</h3>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <button
-                          onClick={() => setEditingProductId(p.id)}
-                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all border border-slate-200"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => downloadBarcode(p)}
-                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all border border-slate-200"
-                        >
-                          <Barcode className="w-3.5 h-3.5" />
-                        </button>
-                        {!isSelectionMode && (
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
+                          <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Giá vốn</span>
+                          <span className="block text-sm font-black text-slate-900">{formatCurrency(p.cost)}đ</span>
+                        </div>
+                        <div className="bg-indigo-50/30 p-2 rounded-xl border border-indigo-100/30">
+                          <span className="block text-[9px] font-bold text-indigo-400 uppercase tracking-wider mb-0.5">Giá bán lẻ</span>
+                          <span className="block text-sm font-black text-indigo-600">{p.retailPrice ? `${formatCurrency(p.retailPrice)}đ` : '-'}</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-100 px-2 py-1 rounded-lg truncate">
+                          <Truck className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate max-w-[80px]">{supplier?.name || 'Chưa gán'}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-1.5">
                           <button
-                            onClick={() => setDeleteConfirmIds([p.id])}
-                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all border border-slate-200"
+                            onClick={() => setEditingProductId(p.id)}
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all border border-slate-200"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Edit2 className="w-3.5 h-3.5" />
                           </button>
-                        )}
+                          <button
+                            onClick={() => downloadBarcode(p)}
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all border border-slate-200"
+                          >
+                            <Barcode className="w-3.5 h-3.5" />
+                          </button>
+                          {!isSelectionMode && (
+                            <button
+                              onClick={() => setDeleteConfirmIds([p.id])}
+                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all border border-slate-200"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
-                        <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Giá vốn</span>
-                        <span className="block text-sm font-black text-slate-900">{formatCurrency(p.cost)}đ</span>
-                      </div>
-                      <div className="bg-indigo-50/30 p-2 rounded-xl border border-indigo-100/30">
-                        <span className="block text-[9px] font-bold text-indigo-400 uppercase tracking-wider mb-0.5">Giá bán lẻ</span>
-                        <span className="block text-sm font-black text-indigo-600">{p.retailPrice ? `${formatCurrency(p.retailPrice)}đ` : '-'}</span>
-                      </div>
-                    </div>
-                    <div className="mt-2 flex items-center gap-3">
-                      <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-100 px-2 py-1 rounded-lg">
-                        <Truck className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate max-w-[80px]">{supplier?.name || 'Chưa gán'}</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Tồn kho:</span>
-                        <span className={`text-base font-black ${wq === 0 ? 'text-red-600' : wq < 4 ? 'text-orange-600' : 'text-slate-900'}`}>
-                          {wq}
-                        </span>
-                      </div>
-                      
-                      <div>
-                        {renderProductStatus(wq)}
+                      <div className="mt-3 flex items-center justify-between border-t border-slate-50 pt-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Tồn kho:</span>
+                          <span className={`text-base font-black ${wq === 0 ? 'text-red-600' : wq < 4 ? 'text-orange-600' : 'text-slate-900'}`}>
+                            {wq}
+                          </span>
+                        </div>
+                        
+                        <div>
+                          {renderProductStatus(wq)}
+                        </div>
                       </div>
                     </div>
                   </div>

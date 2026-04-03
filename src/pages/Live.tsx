@@ -41,7 +41,7 @@ export default function Live({
   const [activeTab, setActiveTab] = useState<'CREATE' | 'LIST'>('CREATE');
   const [orderType, setOrderType] = useState<'SCOOP' | 'RETAIL'>('SCOOP');
   const [selectedConfigId, setSelectedConfigId] = useState<string>(defaultConfigs[0]?.id || '');
-  const [scoopQuantity, setScoopQuantity] = useState<number>(1);
+  const [scoopQuantity, setScoopQuantity] = useState<string>('1');
   const [scoopNotes, setScoopNotes] = useState<string>('');
   const [customScoopPrice, setCustomScoopPrice] = useState<string>('');
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
@@ -103,7 +103,7 @@ export default function Live({
     setShippingCost('0');
     setDiscount('0');
     setCustomScoopPrice('');
-    setScoopQuantity(1);
+    setScoopQuantity('1');
     setScoopNotes('');
     setScanResult(null);
     setIsScanning(false);
@@ -253,11 +253,12 @@ export default function Live({
   // Derived state
   const selectedConfig = configs.find(c => c.id === selectedConfigId);
   const scoopPrice = customScoopPrice ? parseCurrency(customScoopPrice) : (selectedConfig?.price || 0);
+  const numScoopQuantity = Number(scoopQuantity) || 0;
   const totalItemsCount = orderItems.reduce((sum, item) => sum + item.quantity, 0);
   const totalCost = orderItems.reduce((sum, item) => sum + (item.product.cost * item.quantity), 0);
   const totalRetail = orderItems.reduce((sum, item) => sum + ((item.retailPrice ?? item.product.retailPrice ?? item.product.cost) * item.quantity), 0);
   
-  const currentRevenue = orderType === 'SCOOP' ? (scoopPrice * scoopQuantity) : totalRetail;
+  const currentRevenue = orderType === 'SCOOP' ? (scoopPrice * numScoopQuantity) : totalRetail;
   
   // Calculate packaging cost from scanned items
   const scannedPackagingCost = scannedPackagingItems.reduce((sum, p) => sum + (p.item.price * p.quantity), 0);
@@ -299,9 +300,10 @@ export default function Live({
     if (orderItems.length === 0) return;
 
     const now = new Date().toISOString();
+    const numScoopQuantity = Number(scoopQuantity) || 0;
 
     const description = orderType === 'SCOOP' 
-      ? `Đơn hàng Scoop x${scoopQuantity} (${totalItemsCount} món)` 
+      ? `Đơn hàng Scoop x${numScoopQuantity} (${totalItemsCount} món)` 
       : `Đơn hàng lẻ: ${orderItems.map(i => `${i.product.name} x${i.quantity}`).join(', ')}`;
 
     const incomeTx: Transaction = {
@@ -322,18 +324,18 @@ export default function Live({
       type: 'OUT',
       category: 'PACKAGING',
       amount: scannedPackagingCost,
-      description: orderType === 'SCOOP' ? `Chi phí bao bì đơn hàng Scoop x${scoopQuantity}` : `Chi phí bao bì đơn hàng lẻ`,
+      description: orderType === 'SCOOP' ? `Chi phí bao bì đơn hàng Scoop x${numScoopQuantity}` : `Chi phí bao bì đơn hàng lẻ`,
       date: now
     } : null;
 
     const sessionObj: LiveSession | null = orderType === 'SCOOP' ? {
       id: uuidv4(),
       date: now,
-      scoopsSold: scoopQuantity,
-      revenue: scoopPrice * scoopQuantity,
+      scoopsSold: numScoopQuantity,
+      revenue: scoopPrice * numScoopQuantity,
       tiktokFeePercent: 0,
-      packagingCostPerScoop: currentPackagingCost / scoopQuantity,
-      averageScoopCost: totalCost / scoopQuantity
+      packagingCostPerScoop: numScoopQuantity > 0 ? currentPackagingCost / numScoopQuantity : 0,
+      averageScoopCost: numScoopQuantity > 0 ? totalCost / numScoopQuantity : 0
     } : null;
 
     // 1. Cập nhật giao diện ngay lập tức (Optimistic UI)
@@ -582,10 +584,27 @@ export default function Live({
                         </label>
                         <div className="relative">
                           <input
-                            type="number"
-                            min="1"
+                            type="text"
+                            inputMode="numeric"
                             value={scoopQuantity}
-                            onChange={e => setScoopQuantity(Math.max(1, Number(e.target.value)))}
+                            onChange={e => {
+                              const val = e.target.value;
+                              if (val === '') {
+                                setScoopQuantity('');
+                                return;
+                              }
+                              // Only allow integers
+                              const num = parseInt(val.replace(/[^0-9]/g, ''));
+                              if (!isNaN(num)) {
+                                // Limit to 10000
+                                setScoopQuantity(Math.min(10000, num).toString());
+                              }
+                            }}
+                            onBlur={() => {
+                              if (scoopQuantity === '' || Number(scoopQuantity) < 1) {
+                                setScoopQuantity('1');
+                              }
+                            }}
                             className="w-full border border-indigo-200 rounded-xl pl-4 pr-4 py-2.5 bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all text-slate-900 font-bold text-sm"
                           />
                         </div>
@@ -1053,7 +1072,7 @@ export default function Live({
                   <>
                     <button
                       onClick={handleDownloadCustomerPDF}
-                      disabled={scoopQuantity <= 0}
+                      disabled={Number(scoopQuantity) <= 0}
                       className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-md transform active:scale-[0.98] transition-all disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:active:scale-100 bg-white border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50"
                     >
                       <div className="flex items-center justify-center gap-3">
@@ -1140,8 +1159,8 @@ export default function Live({
                 {printMode === 'CUSTOMER' ? (
                   <div style={{ color: '#1e293b' }} className="grid grid-cols-4 text-[10px] font-bold">
                     <div className="col-span-2">Scoop</div>
-                    <div className="text-center">x{scoopQuantity}</div>
-                    <div className="text-right">{formatCurrency(scoopPrice * scoopQuantity)}đ</div>
+                    <div className="text-center">x{Number(scoopQuantity)}</div>
+                    <div className="text-right">{formatCurrency(scoopPrice * (Number(scoopQuantity) || 0))}đ</div>
                   </div>
                 ) : (
                   orderItems.map((item, idx) => (

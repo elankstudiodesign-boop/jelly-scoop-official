@@ -14,7 +14,7 @@ export interface DraftOrderState {
   shippingCost: string;
   discount: string;
   customScoopPrice: string;
-  scoopQuantity: number;
+  scoopQuantity: string;
   scoopNotes: string;
 }
 
