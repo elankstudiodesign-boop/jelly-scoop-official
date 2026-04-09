@@ -40,6 +40,7 @@ export default function Live({
   
   const [activeTab, setActiveTab] = useState<'CREATE' | 'LIST'>('CREATE');
   const [orderType, setOrderType] = useState<'SCOOP' | 'RETAIL'>('SCOOP');
+  const [retailPricingMode, setRetailPricingMode] = useState<'ITEM' | 'SCOOP'>('ITEM');
   const [selectedConfigId, setSelectedConfigId] = useState<string>(defaultConfigs[0]?.id || '');
   const [scoopQuantity, setScoopQuantity] = useState<string>('1');
   const [scoopNotes, setScoopNotes] = useState<string>('');
@@ -75,6 +76,7 @@ export default function Live({
 
   const handleStateChange = useCallback((newState: Partial<DraftOrderState>) => {
     if (newState.orderType !== undefined) setOrderType(newState.orderType);
+    if (newState.retailPricingMode !== undefined) setRetailPricingMode(newState.retailPricingMode);
     if (newState.selectedConfigId !== undefined) setSelectedConfigId(newState.selectedConfigId);
     if (newState.orderItems !== undefined) setOrderItems(newState.orderItems);
     if (newState.retailPackagingCost !== undefined) setRetailPackagingCost(newState.retailPackagingCost);
@@ -95,6 +97,7 @@ export default function Live({
     setCustomerPhone('');
     setCustomerAddress('');
     setRetailPackagingCost('');
+    setRetailPricingMode('ITEM');
     setScannedPackagingItems([]);
     setSelectedProductId('');
     setProductSearch('');
@@ -122,6 +125,7 @@ export default function Live({
     if (!isLocalUpdateRef.current) {
       broadcastStateUpdate({
         orderType,
+        retailPricingMode,
         selectedConfigId,
         orderItems,
         retailPackagingCost,
@@ -138,6 +142,7 @@ export default function Live({
     }
   }, [
     orderType,
+    retailPricingMode,
     selectedConfigId,
     orderItems,
     retailPackagingCost,
@@ -258,7 +263,8 @@ export default function Live({
   const totalCost = orderItems.reduce((sum, item) => sum + (item.product.cost * item.quantity), 0);
   const totalRetail = orderItems.reduce((sum, item) => sum + ((item.retailPrice ?? item.product.retailPrice ?? item.product.cost) * item.quantity), 0);
   
-  const currentRevenue = orderType === 'SCOOP' ? (scoopPrice * numScoopQuantity) : totalRetail;
+  const isScoopPricing = orderType === 'SCOOP' || (orderType === 'RETAIL' && retailPricingMode === 'SCOOP');
+  const currentRevenue = isScoopPricing ? (scoopPrice * numScoopQuantity) : totalRetail;
   
   // Calculate packaging cost from scanned items
   const scannedPackagingCost = scannedPackagingItems.reduce((sum, p) => sum + (p.item.price * p.quantity), 0);
@@ -301,8 +307,9 @@ export default function Live({
 
     const now = new Date().toISOString();
     const numScoopQuantity = Number(scoopQuantity) || 0;
+    const isScoopPricing = orderType === 'SCOOP' || (orderType === 'RETAIL' && retailPricingMode === 'SCOOP');
 
-    const description = orderType === 'SCOOP' 
+    const description = isScoopPricing 
       ? `Đơn hàng Scoop x${numScoopQuantity} (${totalItemsCount} món)` 
       : `Đơn hàng lẻ: ${orderItems.map(i => `${i.product.name} x${i.quantity}`).join(', ')}`;
 
@@ -324,11 +331,11 @@ export default function Live({
       type: 'OUT',
       category: 'PACKAGING',
       amount: scannedPackagingCost,
-      description: orderType === 'SCOOP' ? `Chi phí bao bì đơn hàng Scoop x${numScoopQuantity}` : `Chi phí bao bì đơn hàng lẻ`,
+      description: isScoopPricing ? `Chi phí bao bì đơn hàng Scoop x${numScoopQuantity}` : `Chi phí bao bì đơn hàng lẻ`,
       date: now
     } : null;
 
-    const sessionObj: LiveSession | null = orderType === 'SCOOP' ? {
+    const sessionObj: LiveSession | null = isScoopPricing ? {
       id: uuidv4(),
       date: now,
       scoopsSold: numScoopQuantity,
@@ -676,39 +683,112 @@ export default function Live({
                   </div>
                 ) : (
                   /* Retail Order Inputs */
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-emerald-900 uppercase tracking-wide">Bao bì (đ)</label>
-                      <input
-                        type="text"
-                        min="0"
-                        value={retailPackagingCost}
-                        onChange={e => setRetailPackagingCost(formatCurrency(parseCurrency(e.target.value)))}
-                        placeholder="0"
-                        className="w-full border border-emerald-200 rounded-lg px-4 py-3 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-slate-900 font-medium"
-                      />
+                  <div className="space-y-4">
+                    <div className="flex bg-emerald-100/50 p-1 rounded-lg">
+                      <button
+                        onClick={() => setRetailPricingMode('ITEM')}
+                        className={`flex-1 py-2 px-3 rounded-md text-xs font-bold transition-all ${
+                          retailPricingMode === 'ITEM' 
+                            ? 'bg-emerald-600 text-white shadow-sm' 
+                            : 'text-emerald-700 hover:bg-emerald-200/50'
+                        }`}
+                      >
+                        Tính theo món
+                      </button>
+                      <button
+                        onClick={() => setRetailPricingMode('SCOOP')}
+                        className={`flex-1 py-2 px-3 rounded-md text-xs font-bold transition-all ${
+                          retailPricingMode === 'SCOOP' 
+                            ? 'bg-emerald-600 text-white shadow-sm' 
+                            : 'text-emerald-700 hover:bg-emerald-200/50'
+                        }`}
+                      >
+                        Tính theo Scoop
+                      </button>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-emerald-900 uppercase tracking-wide">Vận chuyển (đ)</label>
-                      <input
-                        type="text"
-                        min="0"
-                        value={shippingCost}
-                        onChange={e => setShippingCost(formatCurrency(parseCurrency(e.target.value)))}
-                        placeholder="0"
-                        className="w-full border border-emerald-200 rounded-lg px-4 py-3 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-slate-900 font-medium"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-emerald-900 uppercase tracking-wide">Giảm giá (đ)</label>
-                      <input
-                        type="text"
-                        min="0"
-                        value={discount}
-                        onChange={e => setDiscount(formatCurrency(parseCurrency(e.target.value)))}
-                        placeholder="0"
-                        className="w-full border border-emerald-200 rounded-lg px-4 py-3 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-slate-900 font-medium"
-                      />
+
+                    {retailPricingMode === 'SCOOP' && (
+                      <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-emerald-900 uppercase tracking-wider flex items-center gap-1.5 ml-1">
+                            <Hash className="w-3 h-3" />
+                            Số lượng Scoop
+                          </label>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={scoopQuantity}
+                            onChange={e => {
+                              const val = e.target.value;
+                              if (val === '') {
+                                setScoopQuantity('');
+                                return;
+                              }
+                              const num = parseInt(val.replace(/[^0-9]/g, ''));
+                              if (!isNaN(num)) {
+                                setScoopQuantity(Math.min(10000, num).toString());
+                              }
+                            }}
+                            onBlur={() => {
+                              if (scoopQuantity === '' || Number(scoopQuantity) < 1) {
+                                setScoopQuantity('1');
+                              }
+                            }}
+                            className="w-full border border-emerald-200 rounded-xl px-4 py-2.5 bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all text-slate-900 font-bold text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-emerald-900 uppercase tracking-wider flex items-center gap-1.5 ml-1">
+                            <Coins className="w-3 h-3" />
+                            Giá mỗi Scoop
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              value={customScoopPrice}
+                              onChange={e => setCustomScoopPrice(formatCurrency(parseCurrency(e.target.value)))}
+                              className="w-full border border-emerald-200 rounded-xl pl-4 pr-8 py-2.5 bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all text-slate-900 font-bold text-sm"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">đ</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-emerald-900 uppercase tracking-wide">Bao bì (đ)</label>
+                        <input
+                          type="text"
+                          min="0"
+                          value={retailPackagingCost}
+                          onChange={e => setRetailPackagingCost(formatCurrency(parseCurrency(e.target.value)))}
+                          placeholder="0"
+                          className="w-full border border-emerald-200 rounded-lg px-4 py-3 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-slate-900 font-medium"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-emerald-900 uppercase tracking-wide">Vận chuyển (đ)</label>
+                        <input
+                          type="text"
+                          min="0"
+                          value={shippingCost}
+                          onChange={e => setShippingCost(formatCurrency(parseCurrency(e.target.value)))}
+                          placeholder="0"
+                          className="w-full border border-emerald-200 rounded-lg px-4 py-3 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-slate-900 font-medium"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-emerald-900 uppercase tracking-wide">Giảm giá (đ)</label>
+                        <input
+                          type="text"
+                          min="0"
+                          value={discount}
+                          onChange={e => setDiscount(formatCurrency(parseCurrency(e.target.value)))}
+                          placeholder="0"
+                          className="w-full border border-emerald-200 rounded-lg px-4 py-3 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-slate-900 font-medium"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1067,42 +1147,46 @@ export default function Live({
               )}
 
               {/* Complete Order Button */}
+              {/* Complete Order Buttons */}
               <div className="pt-6 space-y-3">
-                {orderType === 'SCOOP' ? (
-                  <>
-                    <button
-                      onClick={handleDownloadCustomerPDF}
-                      disabled={Number(scoopQuantity) <= 0}
-                      className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-md transform active:scale-[0.98] transition-all disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:active:scale-100 bg-white border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50"
-                    >
-                      <div className="flex items-center justify-center gap-3">
-                        <Download className="w-5 h-5" />
-                        <span>Tải hoá đơn khách (PDF)</span>
-                      </div>
-                    </button>
-                    <button
-                      onClick={handlePrintInternal}
-                      disabled={orderItems.length === 0}
-                      className="w-full py-5 rounded-2xl font-black text-lg uppercase tracking-widest shadow-lg transform active:scale-[0.98] transition-all disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:active:scale-100 bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200"
-                    >
-                      <div className="flex items-center justify-center gap-3">
-                        <CheckCircle className="w-6 h-6" />
-                        <span>Hoàn tất & In nội bộ</span>
-                      </div>
-                    </button>
-                  </>
-                ) : (
+                <button
+                  onClick={handleDownloadCustomerPDF}
+                  disabled={orderItems.length === 0 || (orderType === 'SCOOP' && Number(scoopQuantity) <= 0)}
+                  className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-md transform active:scale-[0.98] transition-all disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:active:scale-100 bg-white border-2 ${
+                    orderType === 'SCOOP' ? 'border-indigo-600 text-indigo-600 hover:bg-indigo-50' : 'border-emerald-600 text-emerald-600 hover:bg-emerald-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-3">
+                    <Download className="w-5 h-5" />
+                    <span>Tải hoá đơn khách (PDF)</span>
+                  </div>
+                </button>
+
+                <button
+                  onClick={handlePrintInternal}
+                  disabled={orderItems.length === 0}
+                  className={`w-full py-5 rounded-2xl font-black text-lg uppercase tracking-widest shadow-lg transform active:scale-[0.98] transition-all disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:active:scale-100 text-white ${
+                    orderType === 'SCOOP' 
+                      ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200' 
+                      : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-3">
+                    <CheckCircle className="w-6 h-6" />
+                    <span>Hoàn tất & In nội bộ</span>
+                  </div>
+                </button>
+
+                {orderType === 'RETAIL' && (
                   <button
                     onClick={handleCompleteOrder}
-                    disabled={orderItems.length === 0 || (orderType === 'RETAIL' && currentRevenue <= 0)}
-                    className="w-full py-5 rounded-2xl font-black text-lg uppercase tracking-widest shadow-lg transform active:scale-[0.98] transition-all disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:active:scale-100 bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200"
+                    disabled={orderItems.length === 0 || currentRevenue <= 0}
+                    className="w-full py-3 rounded-xl font-bold text-xs uppercase tracking-widest text-emerald-700 hover:bg-emerald-50 transition-colors"
                   >
-                    <div className="flex items-center justify-center gap-3">
-                      <CheckCircle className="w-6 h-6" />
-                      <span>Hoàn tất đơn hàng</span>
-                    </div>
+                    Chỉ hoàn tất (Không in)
                   </button>
                 )}
+                
                 <p className="text-[10px] text-center text-slate-400 mt-4 font-bold uppercase tracking-tighter">
                   Vui lòng kiểm tra kỹ thông tin trước khi hoàn tất
                 </p>
@@ -1149,47 +1233,79 @@ export default function Live({
             </div>
 
             <div style={{ borderColor: '#cbd5e1' }} className="border-t border-b border-dashed py-2 mb-2">
-              <div style={{ color: '#94a3b8' }} className="grid grid-cols-4 font-black text-[7px] uppercase tracking-widest mb-1">
-                <div className="col-span-2">Sản phẩm</div>
-                <div className="text-center">SL</div>
-                <div className="text-right">Thành tiền</div>
+              <div style={{ color: '#94a3b8' }} className="grid grid-cols-12 font-black text-[7px] uppercase tracking-widest mb-1">
+                <div className="col-span-5">Sản phẩm</div>
+                <div className="col-span-3 text-right">Đơn giá</div>
+                <div className="col-span-1 text-center">SL</div>
+                <div className="col-span-3 text-right">T.Tiền</div>
               </div>
               
               <div className="space-y-1">
-                {printMode === 'CUSTOMER' ? (
-                  <div style={{ color: '#1e293b' }} className="grid grid-cols-4 text-[10px] font-bold">
-                    <div className="col-span-2">Scoop</div>
-                    <div className="text-center">x{Number(scoopQuantity)}</div>
-                    <div className="text-right">{formatCurrency(scoopPrice * (Number(scoopQuantity) || 0))}đ</div>
+                {/* Always show items for Retail orders or Internal mode */}
+                {(orderType === 'RETAIL' || printMode === 'INTERNAL') && orderItems.map((item, idx) => (
+                  <div key={idx} style={{ color: '#1e293b' }} className="grid grid-cols-12 text-[9px] font-bold leading-normal py-0.5">
+                    <div className="col-span-5 break-words">{item.product.name}</div>
+                    <div className="col-span-3 text-right">{formatCurrency(item.retailPrice ?? item.product.retailPrice ?? item.product.cost)}</div>
+                    <div className="col-span-1 text-center">x{item.quantity}</div>
+                    <div className="col-span-3 text-right">{formatCurrency((item.retailPrice ?? item.product.retailPrice ?? item.product.cost) * item.quantity)}đ</div>
                   </div>
-                ) : (
-                  orderItems.map((item, idx) => (
-                    <div key={idx} style={{ color: '#1e293b' }} className="grid grid-cols-4 text-[10px] font-bold">
-                      <div className="col-span-2">{item.product.name}</div>
-                      <div className="text-center">x{item.quantity}</div>
-                      <div className="text-right">{formatCurrency((item.retailPrice ?? item.product.retailPrice ?? item.product.cost) * item.quantity)}đ</div>
-                    </div>
-                  ))
-                )}
+                ))}
               </div>
             </div>
 
-            <div className="space-y-0.5">
-              {printMode === 'INTERNAL' && (
+            <div className="space-y-1">
+              {/* Summary Section */}
+              <div style={{ color: '#64748b' }} className="flex justify-between text-[8px] font-bold pt-1">
+                <span>Tổng số lượng món:</span>
+                <span>{totalItemsCount} món</span>
+              </div>
+
+              {isScoopPricing && orderType === 'RETAIL' && (
                 <>
+                  <div style={{ color: '#64748b' }} className="flex justify-between text-[8px] font-bold">
+                    <span>Tổng đơn hàng (giá lẻ):</span>
+                    <span>{formatCurrency(totalRetail)}đ</span>
+                  </div>
+                  <div style={{ color: '#4f46e5' }} className="flex justify-between text-[9px] font-black">
+                    <span>Giá ưu đãi Scoop:</span>
+                    <span>{formatCurrency(currentRevenue)}đ</span>
+                  </div>
+                  {totalRetail > currentRevenue && (
+                    <div style={{ color: '#059669' }} className="flex justify-between text-[9px] font-black italic">
+                      <span>Tiết kiệm được:</span>
+                      <span>{formatCurrency(totalRetail - currentRevenue)}đ</span>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Standard Scoop Pricing (Scoop Order Type) */}
+              {orderType === 'SCOOP' && (
+                <div style={{ color: '#1e293b' }} className="flex justify-between text-[10px] font-black pt-1 border-t border-slate-100 mt-1">
+                  <span>Giá Scoop (x{Number(scoopQuantity)}):</span>
+                  <span>{formatCurrency(scoopPrice * (Number(scoopQuantity) || 0))}đ</span>
+                </div>
+              )}
+
+              {(printMode === 'INTERNAL' || (printMode === 'CUSTOMER' && (parseCurrency(shippingCost) > 0 || parseCurrency(discount) > 0))) && (
+                <div className="space-y-0.5 pt-1 border-t border-slate-100 mt-1">
                   <div style={{ color: '#64748b' }} className="flex justify-between text-[8px] font-bold">
                     <span>Tạm tính:</span>
                     <span>{formatCurrency(currentRevenue)}đ</span>
                   </div>
-                  <div style={{ color: '#64748b' }} className="flex justify-between text-[8px] font-bold">
-                    <span>Vận chuyển:</span>
-                    <span>+{formatCurrency(parseCurrency(shippingCost))}đ</span>
-                  </div>
-                  <div style={{ color: '#64748b' }} className="flex justify-between text-[8px] font-bold">
-                    <span>Giảm giá:</span>
-                    <span>-{formatCurrency(parseCurrency(discount))}đ</span>
-                  </div>
-                </>
+                  {parseCurrency(shippingCost) > 0 && (
+                    <div style={{ color: '#64748b' }} className="flex justify-between text-[8px] font-bold">
+                      <span>Vận chuyển:</span>
+                      <span>+{formatCurrency(parseCurrency(shippingCost))}đ</span>
+                    </div>
+                  )}
+                  {parseCurrency(discount) > 0 && (
+                    <div style={{ color: '#64748b' }} className="flex justify-between text-[8px] font-bold">
+                      <span>Giảm giá:</span>
+                      <span>-{formatCurrency(parseCurrency(discount))}đ</span>
+                    </div>
+                  )}
+                </div>
               )}
               
               {printMode === 'CUSTOMER' && scoopNotes && (

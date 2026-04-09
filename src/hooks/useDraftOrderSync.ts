@@ -4,6 +4,7 @@ import { OrderItem, PackagingItem } from '../types';
 
 export interface DraftOrderState {
   orderType: 'SCOOP' | 'RETAIL';
+  retailPricingMode: 'ITEM' | 'SCOOP';
   selectedConfigId: string;
   orderItems: OrderItem[];
   retailPackagingCost: string;
