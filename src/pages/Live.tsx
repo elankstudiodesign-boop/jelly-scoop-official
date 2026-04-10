@@ -5,11 +5,11 @@ import { addOfflineOrder } from '../lib/syncQueue';
 import { useDraftOrderSync, DraftOrderState } from '../hooks/useDraftOrderSync';
 import { defaultConfigs } from '../constants';
 import { v4 as uuidv4 } from 'uuid';
-import { CheckCircle, ChevronDown, Barcode, ShoppingBag, Package, RefreshCw, Search, X, Printer, Download, Truck, Tag, Coins, Hash, FileText } from 'lucide-react';
+import { CheckCircle, ChevronDown, Barcode, ShoppingBag, Package, RefreshCw, Search, X, Printer, Download, Truck, Tag, Coins, Hash, FileText, Video, Store } from 'lucide-react';
 import { formatCurrency, parseCurrency, generateBarcodeNumber } from '../lib/format';
 import { toast } from 'sonner';
 import { hasSupabaseConfig } from '../lib/supabase';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import { jsPDF } from 'jspdf';
 
 import OrderList from '../components/OrderList';
@@ -304,15 +304,19 @@ export default function Live({
   };
 
   const handleCompleteOrder = async () => {
-    if (orderItems.length === 0) return;
+    if (orderItems.length === 0 && orderType !== 'SCOOP') return;
 
     const now = new Date().toISOString();
     const numScoopQuantity = Number(scoopQuantity) || 0;
     const isScoopPricing = orderType === 'SCOOP' || (orderType === 'RETAIL' && retailPricingMode === 'SCOOP');
 
-    const description = isScoopPricing 
+    let description = isScoopPricing 
       ? `Đơn hàng Scoop x${numScoopQuantity} (${totalItemsCount} món)` 
       : `Đơn hàng lẻ: ${orderItems.map(i => `${i.product.name} x${i.quantity}`).join(', ')}`;
+      
+    if (isScoopPricing && scoopNotes.trim()) {
+      description += ` - Ghi chú: ${scoopNotes.trim()}`;
+    }
 
     const incomeTx: Transaction = {
       id: uuidv4(),
@@ -522,27 +526,30 @@ export default function Live({
       {activeTab === 'CREATE' ? (
         <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
           {/* Mobile View Toggle */}
-          <div className="lg:hidden flex bg-slate-100 p-1 rounded-xl shrink-0">
-            <button
-              onClick={() => setMobileView('PRODUCTS')}
-              className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${mobileView === 'PRODUCTS' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Sản phẩm
-            </button>
-            <button
-              onClick={() => setMobileView('CART')}
-              className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${mobileView === 'CART' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Giỏ hàng
-              {orderItems.length > 0 && (
-                <span className="bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded-full">{orderItems.reduce((sum, item) => sum + item.quantity, 0)}</span>
-              )}
-            </button>
-          </div>
+          {orderType !== 'SCOOP' && (
+            <div className="lg:hidden flex bg-slate-100 p-1 rounded-xl shrink-0">
+              <button
+                onClick={() => setMobileView('PRODUCTS')}
+                className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${mobileView === 'PRODUCTS' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Sản phẩm
+              </button>
+              <button
+                onClick={() => setMobileView('CART')}
+                className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${mobileView === 'CART' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Giỏ hàng
+                {orderItems.length > 0 && (
+                  <span className="bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded-full">{orderItems.reduce((sum, item) => sum + item.quantity, 0)}</span>
+                )}
+              </button>
+            </div>
+          )}
 
           {/* Left Column: Product Grid (POS) */}
-          <div className={`flex-1 flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-0 ${mobileView === 'PRODUCTS' ? 'flex' : 'hidden lg:flex'}`}>
-            {/* Search & Scanner Header */}
+          {orderType !== 'SCOOP' && (
+            <div className={`flex-1 flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-0 ${mobileView === 'PRODUCTS' ? 'flex' : 'hidden lg:flex'}`}>
+              {/* Search & Scanner Header */}
             <div className="p-4 border-b border-slate-100 bg-slate-50 flex gap-3 items-center">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -616,78 +623,110 @@ export default function Live({
               )}
             </div>
           </div>
+          )}
 
           {/* Right Column: Cart Panel */}
-          <div className={`w-full lg:w-[400px] xl:w-[450px] flex-1 lg:flex-none flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden shrink-0 min-h-0 lg:h-full ${mobileView === 'CART' ? 'flex' : 'hidden lg:flex'}`}>
+          <div className={`w-full ${orderType === 'SCOOP' ? 'max-w-2xl mx-auto' : 'lg:w-[400px] xl:w-[450px]'} flex-1 lg:flex-none flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden shrink-0 min-h-0 lg:h-full ${mobileView === 'CART' || orderType === 'SCOOP' ? 'flex' : 'hidden lg:flex'}`}>
             
             {/* Header: Order Type Toggle & Clear */}
-            <div className="p-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between gap-3">
-              <div className="flex bg-slate-200/50 p-1 rounded-lg flex-1">
+            <div className="p-3 sm:p-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 sm:gap-4">
+              <div className="flex bg-slate-100 p-1.5 rounded-xl flex-1">
                 <button
                   onClick={() => { setOrderType('SCOOP'); handleClearOrder(); }}
-                  className={`flex-1 py-1.5 px-2 rounded-md text-xs font-bold transition-all ${
-                    orderType === 'SCOOP' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-200'
+                  className={`flex-1 py-2.5 px-2 sm:px-3 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 sm:gap-2 ${
+                    orderType === 'SCOOP' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
                   }`}
                 >
-                  Đơn Scoop
+                  <Video className="w-4 h-4" />
+                  Đơn Video
                 </button>
                 <button
                   onClick={() => { setOrderType('RETAIL'); handleClearOrder(); }}
-                  className={`flex-1 py-1.5 px-2 rounded-md text-xs font-bold transition-all ${
-                    orderType === 'RETAIL' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-200'
+                  className={`flex-1 py-2.5 px-2 sm:px-3 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 sm:gap-2 ${
+                    orderType === 'RETAIL' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
                   }`}
                 >
+                  <Store className="w-4 h-4" />
                   Đơn Lẻ
                 </button>
               </div>
               <button 
                 onClick={handleClearOrder}
-                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                className="p-2.5 sm:p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors shrink-0"
                 title="Làm mới đơn hàng"
               >
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className="w-5 h-5" />
               </button>
             </div>
 
             {/* Scrollable Cart Area */}
-            <div className="flex-1 lg:overflow-y-auto p-2 sm:p-4 space-y-4 sm:space-y-6 bg-slate-50/30">
+            <div className="flex-1 overflow-y-auto bg-slate-50/30 flex flex-col relative">
+              <div className="p-2 sm:p-4 space-y-4 sm:space-y-6 flex-1 lg:flex-none">
               
-              {/* Order Items List */}
-              {orderItems.length > 0 ? (
-                <div className="space-y-2">
-                  {orderItems.map((item) => (
-                    <div key={item.product.id} className="flex gap-2 sm:gap-3 p-2 sm:p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm">
-                      <img src={item.product.imageUrl} alt={item.product.name} className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover border border-slate-100 shrink-0" />
-                      <div className="flex-1 flex flex-col justify-between">
-                        <div className="flex justify-between items-start">
-                          <p className="font-bold text-slate-800 text-xs leading-tight line-clamp-2 pr-2">{item.product.name}</p>
-                          <button onClick={() => handleUpdateQuantity(item.product.id, -item.quantity)} className="text-slate-300 hover:text-red-500">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <div className="flex items-center justify-between mt-1">
-                          <p className="text-xs font-black text-indigo-600">
-                            {formatCurrency(item.retailPrice ?? item.product.retailPrice ?? item.product.cost)}đ
-                          </p>
-                          <div className="flex items-center bg-slate-100 rounded-lg overflow-hidden">
-                            <button onClick={() => handleUpdateQuantity(item.product.id, -1)} className="px-2.5 sm:px-3 py-1 text-slate-600 hover:bg-slate-200 font-bold">-</button>
-                            <span className="w-6 sm:w-8 text-center text-xs font-bold text-slate-900">{item.quantity}</span>
-                            <button onClick={() => handleUpdateQuantity(item.product.id, 1)} className="px-2.5 sm:px-3 py-1 text-slate-600 hover:bg-slate-200 font-bold">+</button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-8 text-center text-slate-400">
-                  <ShoppingBag className="w-10 h-10 mx-auto mb-2 opacity-20" />
-                  <p className="text-sm font-bold">Chưa có sản phẩm</p>
+              {/* Video Mode Banner */}
+              {orderType === 'SCOOP' && (
+                <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex items-start gap-3">
+                  <div className="bg-indigo-100 p-2 rounded-lg text-indigo-600 shrink-0">
+                    <Video className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-indigo-900">Chế độ Đơn Video</h3>
+                    <p className="text-xs text-indigo-700 mt-0.5">Chỉ tạo hoá đơn PDF, không trừ kho sản phẩm.</p>
+                  </div>
                 </div>
               )}
 
+              {/* Retail Mode Banner */}
+              {orderType === 'RETAIL' && (
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 flex items-start gap-3">
+                  <div className="bg-emerald-100 p-2 rounded-lg text-emerald-600 shrink-0">
+                    <Store className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-emerald-900">Chế độ Đơn Lẻ</h3>
+                    <p className="text-xs text-emerald-700 mt-0.5">Bán lẻ sản phẩm, trừ trực tiếp vào kho.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Order Items List */}
+              {orderType !== 'SCOOP' && (
+                orderItems.length > 0 ? (
+                  <div className="space-y-2">
+                    {orderItems.map((item) => (
+                      <div key={item.product.id} className="flex gap-2 sm:gap-3 p-2 sm:p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm">
+                        <img src={item.product.imageUrl} alt={item.product.name} className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover border border-slate-100 shrink-0" />
+                        <div className="flex-1 flex flex-col justify-between">
+                          <div className="flex justify-between items-start">
+                            <p className="font-bold text-slate-800 text-xs leading-tight line-clamp-2 pr-2">{item.product.name}</p>
+                            <button onClick={() => handleUpdateQuantity(item.product.id, -item.quantity)} className="text-slate-300 hover:text-red-500">
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <div className="flex items-center justify-between mt-1">
+                            <p className="text-xs font-black text-indigo-600">
+                              {formatCurrency(item.retailPrice ?? item.product.retailPrice ?? item.product.cost)}đ
+                            </p>
+                            <div className="flex items-center bg-slate-100 rounded-lg overflow-hidden">
+                              <button onClick={() => handleUpdateQuantity(item.product.id, -1)} className="px-2.5 sm:px-3 py-1 text-slate-600 hover:bg-slate-200 font-bold">-</button>
+                              <span className="w-6 sm:w-8 text-center text-xs font-bold text-slate-900">{item.quantity}</span>
+                              <button onClick={() => handleUpdateQuantity(item.product.id, 1)} className="px-2.5 sm:px-3 py-1 text-slate-600 hover:bg-slate-200 font-bold">+</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-8 text-center text-slate-400">
+                    <ShoppingBag className="w-10 h-10 mx-auto mb-2 opacity-20" />
+                    <p className="text-sm font-bold">Chưa có sản phẩm</p>
+                  </div>
+                )
+              )}
+
               {/* Scanned Packaging Items */}
-              {scannedPackagingItems.length > 0 && (
+              {orderType !== 'SCOOP' && scannedPackagingItems.length > 0 && (
                 <div className="space-y-2">
                   <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Bao bì đã quét</h4>
                   {scannedPackagingItems.map((p) => (
@@ -722,7 +761,7 @@ export default function Live({
                   <>
                     <div className="grid grid-cols-2 gap-2 sm:gap-3">
                       <div className="space-y-1 sm:space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Số lượng Scoop</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Số lượng Video</label>
                         <input
                           type="text"
                           inputMode="numeric"
@@ -738,7 +777,7 @@ export default function Live({
                         />
                       </div>
                       <div className="space-y-1 sm:space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Giá Scoop</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Giá Video</label>
                         <input
                           type="text"
                           value={customScoopPrice}
@@ -774,13 +813,13 @@ export default function Live({
                           retailPricingMode === 'SCOOP' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-200'
                         }`}
                       >
-                        Tính theo Scoop
+                        Tính theo Video
                       </button>
                     </div>
                     {retailPricingMode === 'SCOOP' && (
                       <div className="grid grid-cols-2 gap-2 sm:gap-3">
                         <div className="space-y-1 sm:space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Số lượng Scoop</label>
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Số lượng Video</label>
                           <input
                             type="text"
                             inputMode="numeric"
@@ -796,7 +835,7 @@ export default function Live({
                           />
                         </div>
                         <div className="space-y-1 sm:space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Giá Scoop</label>
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Giá Video</label>
                           <input
                             type="text"
                             value={customScoopPrice}
@@ -866,11 +905,10 @@ export default function Live({
                   />
                 </div>
               </div>
-              
-            </div>
+              </div>
 
             {/* Sticky Footer: Summary & Pay */}
-            <div className="p-4 border-t border-slate-200 bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
+            <div className="sticky bottom-0 lg:static p-4 lg:p-4 lg:mx-4 lg:mb-4 border-t lg:border border-slate-200 bg-white lg:rounded-xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] lg:shadow-sm z-10 mt-auto lg:mt-0">
               <div className="flex justify-between items-end mb-4">
                 <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">Tổng thanh toán</span>
                 <span className={`text-2xl font-black ${orderType === 'SCOOP' ? 'text-indigo-600' : 'text-emerald-600'}`}>
@@ -878,26 +916,35 @@ export default function Live({
                 </span>
               </div>
               
-              <div className="grid grid-cols-2 gap-2">
+              {orderType === 'SCOOP' ? (
                 <button
                   onClick={handleDownloadCustomerPDF}
-                  disabled={orderItems.length === 0 || (orderType === 'SCOOP' && Number(scoopQuantity) <= 0)}
-                  className="py-3 rounded-xl font-bold text-xs uppercase tracking-wider border-2 border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  disabled={Number(scoopQuantity) <= 0}
+                  className="w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wider text-white bg-indigo-600 hover:bg-indigo-700 shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   <Download className="w-4 h-4" />
                   Tải PDF
                 </button>
-                <button
-                  onClick={handlePrintInternal}
-                  disabled={orderItems.length === 0}
-                  className={`py-3 rounded-xl font-bold text-xs uppercase tracking-wider text-white shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
-                    orderType === 'SCOOP' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'
-                  }`}
-                >
-                  <Printer className="w-4 h-4" />
-                  In & Hoàn tất
-                </button>
-              </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={handleDownloadCustomerPDF}
+                    disabled={orderItems.length === 0}
+                    className="py-3 rounded-xl font-bold text-xs uppercase tracking-wider border-2 border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Tải PDF
+                  </button>
+                  <button
+                    onClick={handlePrintInternal}
+                    disabled={orderItems.length === 0}
+                    className="py-3 rounded-xl font-bold text-xs uppercase tracking-wider text-white shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    <Printer className="w-4 h-4" />
+                    In & Hoàn tất
+                  </button>
+                </div>
+              )}
               {orderType === 'RETAIL' && (
                 <button
                   onClick={handleCompleteOrder}
@@ -907,6 +954,7 @@ export default function Live({
                   Chỉ hoàn tất (Không in)
                 </button>
               )}
+            </div>
             </div>
           </div>
         </div>
@@ -965,6 +1013,16 @@ export default function Live({
                     <div className="col-span-3 text-right">{formatCurrency((item.retailPrice ?? item.product.retailPrice ?? item.product.cost) * item.quantity)}đ</div>
                   </div>
                 ))}
+                
+                {/* Scoop item row for Scoop orders */}
+                {orderType === 'SCOOP' && (
+                  <div style={{ color: '#1e293b' }} className="grid grid-cols-12 text-[9px] font-bold leading-normal py-0.5">
+                    <div className="col-span-5 break-words">Video</div>
+                    <div className="col-span-3 text-right">{formatCurrency(scoopPrice)}</div>
+                    <div className="col-span-1 text-center">x{Number(scoopQuantity) || 0}</div>
+                    <div className="col-span-3 text-right">{formatCurrency(scoopPrice * (Number(scoopQuantity) || 0))}đ</div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -972,7 +1030,7 @@ export default function Live({
               {/* Summary Section */}
               <div style={{ color: '#64748b' }} className="flex justify-between text-[8px] font-bold pt-1">
                 <span>Tổng số lượng món:</span>
-                <span>{totalItemsCount} món</span>
+                <span>{orderType === 'SCOOP' ? (Number(scoopQuantity) || 0) : totalItemsCount} món</span>
               </div>
 
               {isScoopPricing && orderType === 'RETAIL' && (
@@ -982,7 +1040,7 @@ export default function Live({
                     <span>{formatCurrency(totalRetail)}đ</span>
                   </div>
                   <div style={{ color: '#4f46e5' }} className="flex justify-between text-[9px] font-black">
-                    <span>Giá ưu đãi Scoop:</span>
+                    <span>Giá ưu đãi Video:</span>
                     <span>{formatCurrency(currentRevenue)}đ</span>
                   </div>
                   {totalRetail > currentRevenue && (
@@ -992,14 +1050,6 @@ export default function Live({
                     </div>
                   )}
                 </>
-              )}
-
-              {/* Standard Scoop Pricing (Scoop Order Type) */}
-              {orderType === 'SCOOP' && (
-                <div style={{ color: '#1e293b' }} className="flex justify-between text-[10px] font-black pt-1 border-t border-slate-100 mt-1">
-                  <span>Giá Scoop (x{Number(scoopQuantity)}):</span>
-                  <span>{formatCurrency(scoopPrice * (Number(scoopQuantity) || 0))}đ</span>
-                </div>
               )}
 
               {(printMode === 'INTERNAL' || (printMode === 'CUSTOMER' && (parseCurrency(shippingCost) > 0 || parseCurrency(discount) > 0))) && (
@@ -1023,7 +1073,7 @@ export default function Live({
                 </div>
               )}
               
-              {printMode === 'CUSTOMER' && scoopNotes && (
+              {scoopNotes && (
                 <div style={{ borderTopColor: '#f1f5f9', borderBottomColor: '#f1f5f9' }} className="py-1 border-t border-b my-1">
                   <p style={{ color: '#94a3b8' }} className="text-[7px] font-black uppercase tracking-widest mb-0.5">Ghi chú:</p>
                   <p style={{ color: '#1e293b' }} className="text-[9px] font-medium whitespace-pre-wrap leading-tight">{scoopNotes}</p>
