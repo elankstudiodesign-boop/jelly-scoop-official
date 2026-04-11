@@ -5,7 +5,7 @@ import { addOfflineOrder } from '../lib/syncQueue';
 import { useDraftOrderSync, DraftOrderState } from '../hooks/useDraftOrderSync';
 import { defaultConfigs } from '../constants';
 import { v4 as uuidv4 } from 'uuid';
-import { CheckCircle, ChevronDown, Barcode, ShoppingBag, Package, RefreshCw, Search, X, Printer, Download, Truck, Tag, Coins, Hash, FileText, Video, Store } from 'lucide-react';
+import { CheckCircle, ChevronDown, Barcode, ShoppingBag, Package, RefreshCw, Search, X, Printer, Download, Truck, Tag, Coins, Hash, FileText, Store } from 'lucide-react';
 import { formatCurrency, parseCurrency, generateBarcodeNumber } from '../lib/format';
 import { toast } from 'sonner';
 import { hasSupabaseConfig } from '../lib/supabase';
@@ -202,17 +202,14 @@ export default function Live({
           alert(`Chỉ còn ${availableQty} sản phẩm trong ${orderType === 'RETAIL' ? 'kho' : 'bể'}`);
           return prev;
         }
-        return prev.map(item => 
-          item.product.id === product.id 
-            ? { ...item, quantity: item.quantity + 1, retailPrice: parsedRetailPrice ?? item.retailPrice } 
-            : item
-        );
+        const updatedItem = { ...existing, quantity: existing.quantity + 1, retailPrice: parsedRetailPrice ?? existing.retailPrice };
+        return [updatedItem, ...prev.filter(item => item.product.id !== product.id)];
       }
       if (availableQty <= 0) {
         alert(`Sản phẩm đã hết trong ${orderType === 'RETAIL' ? 'kho' : 'bể'}`);
         return prev;
       }
-      return [...prev, { product, quantity: 1, retailPrice: parsedRetailPrice }];
+      return [{ product, quantity: 1, retailPrice: parsedRetailPrice }, ...prev];
     });
     setSelectedProductId('');
     setItemRetailPrice('');
@@ -637,8 +634,8 @@ export default function Live({
                     orderType === 'SCOOP' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
                   }`}
                 >
-                  <Video className="w-4 h-4" />
-                  Đơn Video
+                  <ShoppingBag className="w-4 h-4" />
+                  Đơn Scoop
                 </button>
                 <button
                   onClick={() => { setOrderType('RETAIL'); handleClearOrder(); }}
@@ -663,14 +660,14 @@ export default function Live({
             <div className="flex-1 overflow-y-auto bg-slate-50/30 flex flex-col relative">
               <div className="p-2 sm:p-4 space-y-4 sm:space-y-6 flex-1 lg:flex-none">
               
-              {/* Video Mode Banner */}
+              {/* Scoop Mode Banner */}
               {orderType === 'SCOOP' && (
                 <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex items-start gap-3">
                   <div className="bg-indigo-100 p-2 rounded-lg text-indigo-600 shrink-0">
-                    <Video className="w-5 h-5" />
+                    <ShoppingBag className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-indigo-900">Chế độ Đơn Video</h3>
+                    <h3 className="text-sm font-bold text-indigo-900">Chế độ Đơn Scoop</h3>
                     <p className="text-xs text-indigo-700 mt-0.5">Chỉ tạo hoá đơn PDF, không trừ kho sản phẩm.</p>
                   </div>
                 </div>
@@ -761,7 +758,7 @@ export default function Live({
                   <>
                     <div className="grid grid-cols-2 gap-2 sm:gap-3">
                       <div className="space-y-1 sm:space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Số lượng Video</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Số lượng Scoop</label>
                         <input
                           type="text"
                           inputMode="numeric"
@@ -777,7 +774,7 @@ export default function Live({
                         />
                       </div>
                       <div className="space-y-1 sm:space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Giá Video</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Giá Scoop</label>
                         <input
                           type="text"
                           value={customScoopPrice}
@@ -813,13 +810,13 @@ export default function Live({
                           retailPricingMode === 'SCOOP' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-200'
                         }`}
                       >
-                        Tính theo Video
+                        Tính theo Scoop
                       </button>
                     </div>
                     {retailPricingMode === 'SCOOP' && (
                       <div className="grid grid-cols-2 gap-2 sm:gap-3">
                         <div className="space-y-1 sm:space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Số lượng Video</label>
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Số lượng Scoop</label>
                           <input
                             type="text"
                             inputMode="numeric"
@@ -835,7 +832,7 @@ export default function Live({
                           />
                         </div>
                         <div className="space-y-1 sm:space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Giá Video</label>
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Giá Scoop</label>
                           <input
                             type="text"
                             value={customScoopPrice}
@@ -1017,7 +1014,7 @@ export default function Live({
                 {/* Scoop item row for Scoop orders */}
                 {orderType === 'SCOOP' && (
                   <div style={{ color: '#1e293b' }} className="grid grid-cols-12 text-[9px] font-bold leading-normal py-0.5">
-                    <div className="col-span-5 break-words">Video</div>
+                    <div className="col-span-5 break-words">Scoop</div>
                     <div className="col-span-3 text-right">{formatCurrency(scoopPrice)}</div>
                     <div className="col-span-1 text-center">x{Number(scoopQuantity) || 0}</div>
                     <div className="col-span-3 text-right">{formatCurrency(scoopPrice * (Number(scoopQuantity) || 0))}đ</div>
@@ -1040,7 +1037,7 @@ export default function Live({
                     <span>{formatCurrency(totalRetail)}đ</span>
                   </div>
                   <div style={{ color: '#4f46e5' }} className="flex justify-between text-[9px] font-black">
-                    <span>Giá ưu đãi Video:</span>
+                    <span>Giá ưu đãi Scoop:</span>
                     <span>{formatCurrency(currentRevenue)}đ</span>
                   </div>
                   {totalRetail > currentRevenue && (
