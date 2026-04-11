@@ -118,7 +118,15 @@ export default function OrderList({ transactions, products, deleteTransaction }:
     const totalRetail = m?.totalRetail || 0;
     const currentRevenue = (m?.scoopPrice || 0) * (m?.scoopQuantity || 0);
     
-    let summaryHtml = '';
+    const totalItemsCount = order.items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+    const displayQuantity = (isScoopPricing && displayMode === 'SCOOP_TOTAL') ? (m?.scoopQuantity || 0) : totalItemsCount;
+    
+    let summaryHtml = `
+      <div class="summary-row" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+        <span>Tổng số lượng sản phẩm</span>
+        <span>${displayQuantity}</span>
+      </div>
+    `;
     
     if (isScoopPricing && displayMode === 'SCOOP_TOTAL') {
       summaryHtml += `
@@ -143,32 +151,34 @@ export default function OrderList({ transactions, products, deleteTransaction }:
     
     const subtotal = showRetailTotal ? totalRetail : (isScoopPricing ? currentRevenue : order.amount - shipping + discount);
     
-    summaryHtml += `
-      <div class="summary-row title" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
-        <span>Tạm tính</span>
-        <span>${formatCurrency(subtotal)}</span>
-      </div>
-    `;
-    
-    if (discount > 0) {
+    if (!showRetailTotal) {
       summaryHtml += `
-        <div class="summary-row">
-          <span>Giảm giá</span>
-          <span>-${formatCurrency(discount)}</span>
+        <div class="summary-row title" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+          <span>Tạm tính</span>
+          <span>${formatCurrency(subtotal)}</span>
         </div>
       `;
+      
+      if (discount > 0) {
+        summaryHtml += `
+          <div class="summary-row">
+            <span>Giảm giá</span>
+            <span>-${formatCurrency(discount)}</span>
+          </div>
+        `;
+      }
+      
+      if (shipping > 0) {
+        summaryHtml += `
+          <div class="summary-row">
+            <span>Vận chuyển</span>
+            <span>+${formatCurrency(shipping)}</span>
+          </div>
+        `;
+      }
     }
     
-    if (shipping > 0) {
-      summaryHtml += `
-        <div class="summary-row">
-          <span>Vận chuyển</span>
-          <span>+${formatCurrency(shipping)}</span>
-        </div>
-      `;
-    }
-    
-    const finalTotal = showRetailTotal ? (totalRetail + shipping - discount) : order.amount;
+    const finalTotal = showRetailTotal ? totalRetail : order.amount;
 
     return `
       <div class="invoice-page">

@@ -1047,7 +1047,7 @@ export default function Live({
             <div className="space-y-1">
               {/* Summary Section */}
               <div style={{ color: '#64748b' }} className="flex justify-between text-[8px] font-bold pt-1">
-                <span>Tổng số lượng món:</span>
+                <span>Tổng số lượng sản phẩm:</span>
                 <span>{orderType === 'SCOOP' ? (Number(scoopQuantity) || 0) : totalItemsCount} món</span>
               </div>
 
@@ -1070,11 +1070,11 @@ export default function Live({
                 </>
               )}
 
-              {(printMode === 'INTERNAL' || (printMode === 'CUSTOMER' && (parseCurrency(shippingCost) > 0 || parseCurrency(discount) > 0))) && (
+              {!(isScoopPricing && orderType === 'RETAIL' && invoiceDisplayMode === 'RETAIL_TOTAL') && (printMode === 'INTERNAL' || (printMode === 'CUSTOMER' && (parseCurrency(shippingCost) > 0 || parseCurrency(discount) > 0))) && (
                 <div className="space-y-0.5 pt-1 border-t border-slate-100 mt-1">
                   <div style={{ color: '#64748b' }} className="flex justify-between text-[8px] font-bold">
                     <span>Tạm tính:</span>
-                    <span>{formatCurrency(invoiceDisplayMode === 'RETAIL_TOTAL' && isScoopPricing && orderType === 'RETAIL' ? totalRetail : currentRevenue)}đ</span>
+                    <span>{formatCurrency(currentRevenue)}đ</span>
                   </div>
                   {parseCurrency(shippingCost) > 0 && (
                     <div style={{ color: '#64748b' }} className="flex justify-between text-[8px] font-bold">
@@ -1100,7 +1100,7 @@ export default function Live({
 
               <div style={{ borderTopColor: '#0f172a', color: '#0f172a' }} className="flex justify-between text-base font-black pt-1 border-t mt-1">
                 <span>TỔNG CỘNG:</span>
-                <span>{formatCurrency(invoiceDisplayMode === 'RETAIL_TOTAL' && isScoopPricing && orderType === 'RETAIL' ? totalRetail + parseCurrency(shippingCost) - parseCurrency(discount) : totalAmount)}đ</span>
+                <span>{formatCurrency(invoiceDisplayMode === 'RETAIL_TOTAL' && isScoopPricing && orderType === 'RETAIL' ? totalRetail : totalAmount)}đ</span>
               </div>
             </div>
 
