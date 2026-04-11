@@ -79,19 +79,96 @@ export default function OrderList({ transactions, products, deleteTransaction }:
   };
 
   const generateInvoiceHtml = (order: Transaction) => {
-    const orderItemsHtml = order.items?.map(item => {
-      const product = products.find(p => p.id === item.productId);
-      const name = product ? product.name : 'Sản phẩm không xác định';
-      const price = item.retailPrice ?? (product?.retailPrice ?? product?.cost ?? 0);
-      return `
+    const m = order.metadata;
+    const isScoopPricing = m?.isScoopPricing;
+    const displayMode = m?.invoiceDisplayMode || 'SCOOP_TOTAL';
+    const showRetailTotal = isScoopPricing && displayMode === 'RETAIL_TOTAL';
+    
+    let orderItemsHtml = '';
+    
+    if (order.items && order.items.length > 0) {
+      orderItemsHtml = order.items.map(item => {
+        const product = products.find(p => p.id === item.productId);
+        const name = product ? product.name : 'Sản phẩm không xác định';
+        const price = item.retailPrice ?? (product?.retailPrice ?? product?.cost ?? 0);
+        return `
+          <tr>
+            <td class="left">${name}</td>
+            <td class="center">${item.quantity}</td>
+            <td class="right">${formatCurrency(price)}</td>
+            <td class="right">${formatCurrency(price * item.quantity)}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+    
+    if (isScoopPricing && displayMode === 'SCOOP_TOTAL') {
+      orderItemsHtml += `
         <tr>
-          <td class="left">${name}</td>
-          <td class="center">${item.quantity}</td>
-          <td class="right">${formatCurrency(price)}</td>
-          <td class="right">${formatCurrency(price * item.quantity)}</td>
+          <td class="left">Scoop</td>
+          <td class="center">${m?.scoopQuantity || 0}</td>
+          <td class="right">${formatCurrency(m?.scoopPrice || 0)}</td>
+          <td class="right">${formatCurrency((m?.scoopPrice || 0) * (m?.scoopQuantity || 0))}</td>
         </tr>
       `;
-    }).join('') || '';
+    }
+
+    const discount = m?.discount || 0;
+    const shipping = m?.shippingCost || 0;
+    const totalRetail = m?.totalRetail || 0;
+    const currentRevenue = (m?.scoopPrice || 0) * (m?.scoopQuantity || 0);
+    
+    let summaryHtml = '';
+    
+    if (isScoopPricing && displayMode === 'SCOOP_TOTAL') {
+      summaryHtml += `
+        <div class="summary-row">
+          <span>Tổng đơn hàng (giá lẻ)</span>
+          <span>${formatCurrency(totalRetail)}</span>
+        </div>
+        <div class="summary-row">
+          <span style="color: #4f46e5; font-weight: bold;">Giá ưu đãi Scoop</span>
+          <span style="color: #4f46e5; font-weight: bold;">${formatCurrency(currentRevenue)}</span>
+        </div>
+      `;
+      if (totalRetail > currentRevenue) {
+        summaryHtml += `
+          <div class="summary-row">
+            <span style="color: #059669; font-style: italic;">Tiết kiệm được</span>
+            <span style="color: #059669; font-style: italic;">${formatCurrency(totalRetail - currentRevenue)}</span>
+          </div>
+        `;
+      }
+    }
+    
+    const subtotal = showRetailTotal ? totalRetail : (isScoopPricing ? currentRevenue : order.amount - shipping + discount);
+    
+    summaryHtml += `
+      <div class="summary-row title" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+        <span>Tạm tính</span>
+        <span>${formatCurrency(subtotal)}</span>
+      </div>
+    `;
+    
+    if (discount > 0) {
+      summaryHtml += `
+        <div class="summary-row">
+          <span>Giảm giá</span>
+          <span>-${formatCurrency(discount)}</span>
+        </div>
+      `;
+    }
+    
+    if (shipping > 0) {
+      summaryHtml += `
+        <div class="summary-row">
+          <span>Vận chuyển</span>
+          <span>+${formatCurrency(shipping)}</span>
+        </div>
+      `;
+    }
+    
+    const finalTotal = showRetailTotal ? (totalRetail + shipping - discount) : order.amount;
 
     return `
       <div class="invoice-page">
@@ -170,24 +247,10 @@ export default function OrderList({ transactions, products, deleteTransaction }:
             </div>
           </div>
           <div class="summary">
-            <div class="summary-row title">
-              <span>TỔNG PHỤ</span>
-            </div>
-            <div class="summary-row">
-              <span>Giảm giá</span>
-              <span>0</span>
-            </div>
-            <div class="summary-row">
-              <span>Thuế</span>
-              <span>0</span>
-            </div>
-            <div class="summary-row">
-              <span>Vận chuyển</span>
-              <span>0</span>
-            </div>
+            ${summaryHtml}
             <div class="summary-row total">
               <span>TỔNG CỘNG</span>
-              <span>${formatCurrency(order.amount)} VNĐ</span>
+              <span>${formatCurrency(finalTotal)} VNĐ</span>
             </div>
           </div>
         </div>

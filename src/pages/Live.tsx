@@ -55,6 +55,7 @@ export default function Live({
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
+  const [invoiceDisplayMode, setInvoiceDisplayMode] = useState<'RETAIL_TOTAL' | 'SCOOP_TOTAL'>('SCOOP_TOTAL');
   const [shippingCost, setShippingCost] = useState<string>('0');
   const [discount, setDiscount] = useState<string>('0');
   const [isScanning, setIsScanning] = useState(false);
@@ -325,7 +326,16 @@ export default function Live({
       items: orderItems.map(item => ({ productId: item.product.id, quantity: item.quantity, retailPrice: item.retailPrice })),
       customerName: customerName.trim() || undefined,
       customerPhone: customerPhone.trim() || undefined,
-      customerAddress: customerAddress.trim() || undefined
+      customerAddress: customerAddress.trim() || undefined,
+      metadata: {
+        shippingCost: parseCurrency(shippingCost),
+        discount: parseCurrency(discount),
+        totalRetail,
+        isScoopPricing,
+        scoopQuantity: numScoopQuantity,
+        scoopPrice,
+        invoiceDisplayMode
+      }
     };
 
     const expenseTx: Transaction | null = scannedPackagingCost > 0 ? {
@@ -445,25 +455,22 @@ export default function Live({
             backgroundColor: '#ffffff'
           });
           const imgData = canvas.toDataURL('image/png');
-          const pdf = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: [80, 100]
-          });
           
-          const imgProps = pdf.getImageProperties(imgData);
-          const pdfWidth = pdf.internal.pageSize.getWidth();
+          // Use a temporary jsPDF instance just to get image properties
+          const tempPdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 100] });
+          const imgProps = tempPdf.getImageProperties(imgData);
+          const pdfWidth = 80;
           const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
           
-          // If content is longer than 100mm, we scale it down to fit the height
-          // while maintaining aspect ratio, or we just let it be if it fits.
-          // But user wants 80x100, so we should probably scale to fit height if needed.
-          const finalHeight = Math.min(100, pdfHeight);
-          const finalWidth = (imgProps.width * finalHeight) / imgProps.height;
-          const xOffset = (pdfWidth - finalWidth) / 2;
+          // Create a new PDF with dynamic height based on content
+          const finalPdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: [80, Math.max(100, pdfHeight)]
+          });
 
-          pdf.addImage(imgData, 'PNG', xOffset, 0, finalWidth, finalHeight);
-          pdf.save(`HoaDon_JellyScoop_${new Date().getTime()}.pdf`);
+          finalPdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+          finalPdf.save(`HoaDon_JellyScoop_${new Date().getTime()}.pdf`);
           toast.success('Đã tải hoá đơn PDF!');
         } catch (error) {
           console.error('PDF Error:', error);
@@ -906,6 +913,20 @@ export default function Live({
 
             {/* Sticky Footer: Summary & Pay */}
             <div className="sticky bottom-0 lg:static p-4 lg:p-4 lg:mx-4 lg:mb-4 border-t lg:border border-slate-200 bg-white lg:rounded-xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] lg:shadow-sm z-10 mt-auto lg:mt-0">
+              {isScoopPricing && orderType === 'RETAIL' && (
+                <div className="mb-3 flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                  <input
+                    type="checkbox"
+                    id="invoiceDisplayMode"
+                    checked={invoiceDisplayMode === 'RETAIL_TOTAL'}
+                    onChange={(e) => setInvoiceDisplayMode(e.target.checked ? 'RETAIL_TOTAL' : 'SCOOP_TOTAL')}
+                    className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+                  />
+                  <label htmlFor="invoiceDisplayMode" className="text-xs font-medium text-slate-700 cursor-pointer select-none">
+                    In hoá đơn theo giá bán lẻ (ẩn giá Scoop)
+                  </label>
+                </div>
+              )}
               <div className="flex justify-between items-end mb-4">
                 <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">Tổng thanh toán</span>
                 <span className={`text-2xl font-black ${orderType === 'SCOOP' ? 'text-indigo-600' : 'text-emerald-600'}`}>
@@ -1030,7 +1051,7 @@ export default function Live({
                 <span>{orderType === 'SCOOP' ? (Number(scoopQuantity) || 0) : totalItemsCount} món</span>
               </div>
 
-              {isScoopPricing && orderType === 'RETAIL' && (
+              {isScoopPricing && orderType === 'RETAIL' && invoiceDisplayMode === 'SCOOP_TOTAL' && (
                 <>
                   <div style={{ color: '#64748b' }} className="flex justify-between text-[8px] font-bold">
                     <span>Tổng đơn hàng (giá lẻ):</span>
@@ -1053,7 +1074,7 @@ export default function Live({
                 <div className="space-y-0.5 pt-1 border-t border-slate-100 mt-1">
                   <div style={{ color: '#64748b' }} className="flex justify-between text-[8px] font-bold">
                     <span>Tạm tính:</span>
-                    <span>{formatCurrency(currentRevenue)}đ</span>
+                    <span>{formatCurrency(invoiceDisplayMode === 'RETAIL_TOTAL' && isScoopPricing && orderType === 'RETAIL' ? totalRetail : currentRevenue)}đ</span>
                   </div>
                   {parseCurrency(shippingCost) > 0 && (
                     <div style={{ color: '#64748b' }} className="flex justify-between text-[8px] font-bold">
@@ -1079,7 +1100,7 @@ export default function Live({
 
               <div style={{ borderTopColor: '#0f172a', color: '#0f172a' }} className="flex justify-between text-base font-black pt-1 border-t mt-1">
                 <span>TỔNG CỘNG:</span>
-                <span>{formatCurrency(totalAmount)}đ</span>
+                <span>{formatCurrency(invoiceDisplayMode === 'RETAIL_TOTAL' && isScoopPricing && orderType === 'RETAIL' ? totalRetail + parseCurrency(shippingCost) - parseCurrency(discount) : totalAmount)}đ</span>
               </div>
             </div>
 

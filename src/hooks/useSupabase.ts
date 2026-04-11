@@ -307,7 +307,10 @@ export function mapTransactionToDB(t: Partial<Transaction>) {
   
   // Strip old items marker from description if present
   if (t.description !== undefined) {
-    res.description = t.description.split('|||__ITEMS__|||')[0].split('|||')[0].trim();
+    res.description = t.description.split('|||__ITEMS__|||')[0].split('|||__METADATA__|||')[0].trim();
+    if (t.metadata) {
+      res.description = `${res.description} |||__METADATA__||| ${JSON.stringify(t.metadata)}`;
+    }
   }
   
   if (t.customerName !== undefined) { res.customer_name = t.customerName; delete res.customerName; }
@@ -321,6 +324,18 @@ export function mapTransactionToDB(t: Partial<Transaction>) {
 export function mapTransactionFromDB(t: any): Transaction {
   let description = t.description || '';
   let items: { productId: string; quantity: number, retailPrice?: number }[] | undefined = t.items || undefined;
+  let metadata: any = undefined;
+
+  // Extract metadata if present
+  if (description.includes('|||__METADATA__|||')) {
+    const parts = description.split('|||__METADATA__|||');
+    description = parts[0].trim();
+    try {
+      metadata = JSON.parse(parts[1]);
+    } catch (e) {
+      console.error('Failed to parse metadata from description', e);
+    }
+  }
 
   // Fallback for old data format stored in description
   if ((!items || items.length === 0) && description.includes('|||__ITEMS__|||')) {
@@ -352,7 +367,8 @@ export function mapTransactionFromDB(t: any): Transaction {
     customerName: t.customer_name,
     customerPhone: t.customer_phone,
     customerAddress: t.customer_address,
-    supplierId: t.supplier_id
+    supplierId: t.supplier_id,
+    metadata
   };
 }
 

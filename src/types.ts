@@ -50,6 +50,16 @@ export interface ScoopConfig {
   ratioHigh: number;
 }
 
+export interface TransactionMetadata {
+  shippingCost?: number;
+  discount?: number;
+  totalRetail?: number;
+  isScoopPricing?: boolean;
+  scoopQuantity?: number;
+  scoopPrice?: number;
+  invoiceDisplayMode?: 'RETAIL_TOTAL' | 'SCOOP_TOTAL';
+}
+
 export interface Transaction {
   id: string;
   type: 'IN' | 'OUT';
@@ -62,6 +72,7 @@ export interface Transaction {
   customerPhone?: string;
   customerAddress?: string;
   supplierId?: string | null;
+  metadata?: TransactionMetadata;
 }
 
 export interface Supplier {
