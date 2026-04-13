@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { Package, Truck, Box, Layers, AlertCircle, CheckCircle2, RefreshCw, X, TrendingUp, DollarSign, ChevronDown, ChevronUp } from 'lucide-react';
 import { Product, Transaction, Supplier, PackagingItem } from '../types';
 import { useImportManager } from '../hooks/useImportManager';
@@ -86,169 +87,156 @@ export default function Import({
   return (
     <div className="w-full px-2 sm:px-4 lg:px-4 py-2 sm:py-8">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 px-4 sm:px-0">
-        <div className="flex items-center justify-between w-full md:w-auto">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">QUẢN LÝ KHO HÀNG</h1>
-            <p className="text-slate-500 text-xs sm:text-sm mt-1 font-medium">Theo dõi tồn kho, nhập hàng và in mã vạch</p>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-10">
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+              <RefreshCw className="w-6 h-6" />
+            </div>
+            <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">Quản Lý Kho Hàng</h1>
           </div>
-          <button 
-            onClick={handleSync}
-            className="md:hidden p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all border border-slate-200"
-            title="Đồng bộ lại"
-          >
-            <RefreshCw className="w-5 h-5" />
-          </button>
+          <p className="text-slate-500 font-medium text-lg ml-1">Theo dõi tồn kho, nhập hàng và in mã vạch chuyên nghiệp.</p>
         </div>
         
-        <div className="flex items-center gap-2">
-          <div className="flex bg-slate-100 p-1 rounded-xl self-start overflow-x-auto no-scrollbar max-w-full scroll-smooth flex-1 md:flex-none">
-          <button
-            onClick={() => setActiveTab('import')}
-            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-              activeTab === 'import' 
-                ? 'bg-white text-indigo-600 shadow-sm' 
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            Nhập kho
-          </button>
-          <button
-            onClick={() => setActiveTab('suppliers')}
-            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-              activeTab === 'suppliers' 
-                ? 'bg-white text-indigo-600 shadow-sm' 
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            Nhà cung cấp
-          </button>
-          <button
-            onClick={() => setActiveTab('packaging')}
-            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-              activeTab === 'packaging' 
-                ? 'bg-white text-indigo-600 shadow-sm' 
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Box className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            Bao bì
-          </button>
-          <button
-            onClick={() => setActiveTab('combo')}
-            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-              activeTab === 'combo' 
-                ? 'bg-white text-indigo-600 shadow-sm' 
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            Combo
-          </button>
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
+          {/* Segmented Control Tabs */}
+          <div className="relative flex bg-slate-200/40 p-1.5 rounded-[24px] border border-slate-200/50 w-full sm:w-auto overflow-x-auto no-scrollbar shadow-inner backdrop-blur-sm">
+            <div className="flex min-w-full sm:min-w-0 gap-1">
+              {[
+                { id: 'import', label: 'Nhập kho', icon: Package },
+                { id: 'suppliers', label: 'Nhà cung cấp', icon: Truck },
+                { id: 'packaging', label: 'Bao bì', icon: Box },
+                { id: 'combo', label: 'Combo', icon: Layers },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`relative flex items-center justify-center gap-2.5 px-6 py-3 text-xs md:text-sm font-black rounded-2xl transition-all whitespace-nowrap z-10 flex-1 sm:flex-none ${
+                    activeTab === tab.id ? 'text-white' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  {activeTab === tab.id && (
+                    <motion.div
+                      layoutId="importActiveTab"
+                      className="absolute inset-0 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-200"
+                      transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+                    />
+                  )}
+                  <tab.icon className={`relative w-4 h-4 z-20 ${activeTab === tab.id ? 'text-white' : 'text-slate-400'}`} />
+                  <span className="relative z-20">{tab.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <button 
             onClick={handleSync}
-            className="hidden md:flex items-center gap-2 px-4 py-2 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all border border-slate-200 font-bold text-sm"
+            className="flex items-center justify-center gap-2 px-6 py-3.5 bg-white text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-[22px] transition-all border border-slate-200 font-black text-sm shadow-sm active:scale-95 w-full sm:w-auto"
           >
             <RefreshCw className="w-4 h-4" />
-            Đồng bộ
+            <span className="hidden sm:inline">Đồng bộ dữ liệu</span>
+            <span className="sm:hidden">Đồng bộ</span>
           </button>
         </div>
       </div>
-    </div>
 
       {/* Warehouse Stats - Only on Import Tab */}
       {activeTab === 'import' && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8 px-4 sm:px-0">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-10">
           <div 
             onClick={() => setInventoryStockFilter('all')}
-            className={`p-4 sm:p-6 rounded-2xl border transition-all cursor-pointer hover:shadow-md active:scale-95 ${
+            className={`group p-5 sm:p-6 rounded-3xl border transition-all duration-300 cursor-pointer hover:shadow-xl active:scale-95 ${
               inventoryStockFilter === 'all' 
-                ? 'bg-indigo-50 border-indigo-200 ring-2 ring-indigo-100' 
-                : 'bg-white border-slate-200 shadow-sm'
+                ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-200' 
+                : 'bg-white border-slate-200 shadow-sm hover:border-indigo-100'
             }`}
           >
-            <div className="flex items-center gap-3 mb-2">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                inventoryStockFilter === 'all' ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600'
+            <div className="flex items-center justify-between mb-4">
+              <div className={`p-2.5 rounded-2xl transition-colors duration-300 ${
+                inventoryStockFilter === 'all' ? 'bg-white/20 text-white' : 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white'
               }`}>
-                <Package className="w-4 h-4" />
+                <Package className="w-5 h-5" />
               </div>
-              <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider ${
-                inventoryStockFilter === 'all' ? 'text-indigo-700' : 'text-slate-500'
+              <span className={`text-[11px] font-black uppercase tracking-widest ${
+                inventoryStockFilter === 'all' ? 'text-indigo-100' : 'text-slate-400'
               }`}>Tổng tồn kho</span>
             </div>
             <div className="flex items-baseline gap-1">
-              <span className={`text-xl sm:text-2xl font-black ${
-                inventoryStockFilter === 'all' ? 'text-indigo-700' : 'text-slate-900'
+              <span className={`text-3xl font-black tracking-tight ${
+                inventoryStockFilter === 'all' ? 'text-white' : 'text-slate-900'
               }`}>{warehouseStats.totalItems}</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Sản phẩm</span>
+              <span className={`text-xs font-bold uppercase ${
+                inventoryStockFilter === 'all' ? 'text-indigo-200' : 'text-slate-400'
+              }`}>Món</span>
             </div>
           </div>
 
           <div 
             onClick={() => setInventoryStockFilter('low')}
-            className={`p-4 sm:p-6 rounded-2xl border transition-all cursor-pointer hover:shadow-md active:scale-95 ${
+            className={`group p-5 sm:p-6 rounded-3xl border transition-all duration-300 cursor-pointer hover:shadow-xl active:scale-95 ${
               inventoryStockFilter === 'low' 
-                ? 'bg-orange-50 border-orange-200 ring-2 ring-orange-100' 
-                : 'bg-white border-slate-200 shadow-sm'
+                ? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-200' 
+                : 'bg-white border-slate-200 shadow-sm hover:border-orange-100'
             }`}
           >
-            <div className="flex items-center gap-3 mb-2">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                inventoryStockFilter === 'low' ? 'bg-orange-600 text-white' : 'bg-orange-50 text-orange-600'
+            <div className="flex items-center justify-between mb-4">
+              <div className={`p-2.5 rounded-2xl transition-colors duration-300 ${
+                inventoryStockFilter === 'low' ? 'bg-white/20 text-white' : 'bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white'
               }`}>
-                <AlertCircle className="w-4 h-4" />
+                <AlertCircle className="w-5 h-5" />
               </div>
-              <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider ${
-                inventoryStockFilter === 'low' ? 'text-orange-700' : 'text-slate-500'
+              <span className={`text-[11px] font-black uppercase tracking-widest ${
+                inventoryStockFilter === 'low' ? 'text-orange-100' : 'text-slate-400'
               }`}>Sắp hết hàng</span>
             </div>
             <div className="flex items-baseline gap-1">
-              <span className={`text-xl sm:text-2xl font-black ${
-                inventoryStockFilter === 'low' ? 'text-orange-700' : 'text-orange-600'
+              <span className={`text-3xl font-black tracking-tight ${
+                inventoryStockFilter === 'low' ? 'text-white' : 'text-slate-900'
               }`}>{warehouseStats.lowStock}</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Mã hàng</span>
+              <span className={`text-xs font-bold uppercase ${
+                inventoryStockFilter === 'low' ? 'text-orange-200' : 'text-slate-400'
+              }`}>Mã hàng</span>
             </div>
           </div>
 
           <div 
             onClick={() => setInventoryStockFilter('out')}
-            className={`p-4 sm:p-6 rounded-2xl border transition-all cursor-pointer hover:shadow-md active:scale-95 ${
+            className={`group p-5 sm:p-6 rounded-3xl border transition-all duration-300 cursor-pointer hover:shadow-xl active:scale-95 ${
               inventoryStockFilter === 'out' 
-                ? 'bg-red-50 border-red-200 ring-2 ring-red-100' 
-                : 'bg-white border-slate-200 shadow-sm'
+                ? 'bg-rose-600 border-rose-600 text-white shadow-lg shadow-rose-200' 
+                : 'bg-white border-slate-200 shadow-sm hover:border-rose-100'
             }`}
           >
-            <div className="flex items-center gap-3 mb-2">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                inventoryStockFilter === 'out' ? 'bg-red-600 text-white' : 'bg-red-50 text-red-600'
+            <div className="flex items-center justify-between mb-4">
+              <div className={`p-2.5 rounded-2xl transition-colors duration-300 ${
+                inventoryStockFilter === 'out' ? 'bg-white/20 text-white' : 'bg-rose-50 text-rose-600 group-hover:bg-rose-600 group-hover:text-white'
               }`}>
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </div>
-              <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider ${
-                inventoryStockFilter === 'out' ? 'text-red-700' : 'text-slate-500'
+              <span className={`text-[11px] font-black uppercase tracking-widest ${
+                inventoryStockFilter === 'out' ? 'text-rose-100' : 'text-slate-400'
               }`}>Hết hàng</span>
             </div>
             <div className="flex items-baseline gap-1">
-              <span className={`text-xl sm:text-2xl font-black ${
-                inventoryStockFilter === 'out' ? 'text-red-700' : 'text-red-600'
+              <span className={`text-3xl font-black tracking-tight ${
+                inventoryStockFilter === 'out' ? 'text-white' : 'text-slate-900'
               }`}>{warehouseStats.outOfStock}</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Mã hàng</span>
+              <span className={`text-xs font-bold uppercase ${
+                inventoryStockFilter === 'out' ? 'text-rose-200' : 'text-slate-400'
+              }`}>Mã hàng</span>
             </div>
           </div>
 
-          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
-                <Box className="w-4 h-4 text-emerald-600" />
+          <div className="group bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-emerald-100 transition-all duration-300">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-2.5 bg-emerald-50 rounded-2xl group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300">
+                <Box className="w-5 h-5 text-emerald-600 group-hover:text-white" />
               </div>
-              <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Giá trị kho</span>
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Giá trị kho</span>
             </div>
             <div className="flex items-baseline gap-1">
-              <span className="text-xl sm:text-2xl font-black text-slate-900">{new Intl.NumberFormat('vi-VN').format(warehouseStats.totalValue)}</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">đ</span>
+              <span className="text-2xl font-black text-slate-900 tracking-tight">{new Intl.NumberFormat('vi-VN').format(warehouseStats.totalValue)}</span>
+              <span className="text-xs font-bold text-slate-400 uppercase">đ</span>
             </div>
           </div>
         </div>

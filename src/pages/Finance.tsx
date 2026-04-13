@@ -73,51 +73,61 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
     }
   };
 
-  const handleDeleteConfirmed = () => {
-    if (!deleteConfirmIds) return;
-    
-    const ids = deleteConfirmIds;
-    
-    // Restore inventory for each transaction
-    const productUpdates: Record<string, number> = {};
-    
-    ids.forEach(id => {
-      const tx = paginatedTransactions.find(t => t.id === id);
-      if (tx && tx.items && tx.items.length > 0) {
-        tx.items.forEach(item => {
-          // If it's an IN transaction (e.g., ORDER), we sold items, so deleting it means we add them back.
-          // If it's an OUT transaction (e.g., IMPORT), we bought items, so deleting it means we remove them.
-          const quantityChange = tx.type === 'IN' ? item.quantity : -item.quantity;
-          productUpdates[item.productId] = (productUpdates[item.productId] || 0) + quantityChange;
-        });
-      }
-      deleteTransaction(id);
-    });
+  const [isDeleting, setIsDeleting] = useState(false);
 
-    // Apply updates
-    Object.entries(productUpdates).forEach(([productId, change]) => {
-      const product = products.find(p => p.id === productId);
-      if (product) {
-        const newQuantity = Math.max(0, (product.warehouseQuantity || 0) + change);
-        updateProduct(product.id, { warehouseQuantity: newQuantity });
-      }
-    });
+  const handleDeleteConfirmed = async () => {
+    if (!deleteConfirmIds || isDeleting) return;
+    
+    setIsDeleting(true);
+    try {
+      const ids = deleteConfirmIds;
+      
+      // Restore inventory for each transaction
+      const productUpdates: Record<string, number> = {};
+      
+      ids.forEach(id => {
+        // Use the full transactions list to ensure we find the transaction even if not on current page
+        const tx = transactions.find(t => t.id === id);
+        if (tx && tx.items && tx.items.length > 0) {
+          tx.items.forEach(item => {
+            // If it's an IN transaction (e.g., ORDER), we sold items, so deleting it means we add them back.
+            // If it's an OUT transaction (e.g., IMPORT), we bought items, so deleting it means we remove them.
+            const quantityChange = tx.type === 'IN' ? item.quantity : -item.quantity;
+            productUpdates[item.productId] = (productUpdates[item.productId] || 0) + quantityChange;
+          });
+        }
+        deleteTransaction(id);
+      });
 
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      ids.forEach(id => next.delete(id));
-      return next;
-    });
-    setDeleteConfirmIds(null);
+      // Apply updates
+      for (const [productId, change] of Object.entries(productUpdates)) {
+        const product = products.find(p => p.id === productId);
+        if (product) {
+          const newQuantity = Math.max(0, (product.warehouseQuantity || 0) + change);
+          await updateProduct(product.id, { warehouseQuantity: newQuantity });
+        }
+      }
+
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        ids.forEach(id => next.delete(id));
+        return next;
+      });
+    } catch (error) {
+      console.error('Error deleting transactions:', error);
+    } finally {
+      setIsDeleting(false);
+      setDeleteConfirmIds(null);
+    }
   };
 
-  const { totalRevenue, totalExpense, netProfit, dailySummaries, monthlySummaries } = useMemo(() => {
+  const { totalRevenue, totalExpense, netProfit, totalCost: totalCOGS, dailySummaries, monthlySummaries } = useMemo(() => {
     const daily: Record<string, { revenue: number, expense: number, cost: number }> = {};
     const monthly: Record<string, { revenue: number, expense: number, cost: number }> = {};
     
     let rev = 0;
     let exp = 0;
-    let totalCost = 0;
+    let totalCostVal = 0;
 
     transactions.forEach(t => {
       const date = t.date.split('T')[0];
@@ -137,7 +147,7 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
             const product = products.find(p => p.id === item.productId);
             if (product) {
               const itemCost = (product.cost || 0) * item.quantity;
-              totalCost += itemCost;
+              totalCostVal += itemCost;
               daily[date].cost += itemCost;
               monthly[month].cost += itemCost;
             }
@@ -145,8 +155,6 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
         }
       } else {
         // For profit calculation, we exclude IMPORT if we use COGS
-        // But for "Total Expense" card, we might want to show all OUT transactions?
-        // Let's match Analytics: profit = revenue - (COGS + OUT where category != IMPORT)
         if (t.category !== 'IMPORT') {
           exp += t.amount;
           daily[date].expense += t.amount;
@@ -159,6 +167,7 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
       summary_date: date,
       total_revenue: data.revenue,
       total_expense: data.expense + data.cost, // Include COGS in daily expense for consistency
+      total_cost: data.cost,
       net_profit: data.revenue - (data.expense + data.cost),
       transaction_count: 0 // Not used in UI
     })).sort((a, b) => b.summary_date.localeCompare(a.summary_date)).slice(0, 30);
@@ -167,14 +176,16 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
       summary_month: month + '-01',
       total_revenue: data.revenue,
       total_expense: data.expense + data.cost,
+      total_cost: data.cost,
       net_profit: data.revenue - (data.expense + data.cost),
       transaction_count: 0
     })).sort((a, b) => b.summary_month.localeCompare(a.summary_month));
 
     return {
       totalRevenue: rev,
-      totalExpense: exp + totalCost,
-      netProfit: rev - (exp + totalCost),
+      totalExpense: exp + totalCostVal,
+      totalCost: totalCostVal,
+      netProfit: rev - (exp + totalCostVal),
       dailySummaries: dailyList,
       monthlySummaries: monthlyList
     };
@@ -279,21 +290,31 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-500 mb-1">Tổng doanh thu (Toàn thời gian)</p>
+            <p className="text-sm font-medium text-slate-500 mb-1">Tổng doanh thu</p>
             <p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalRevenue)}đ</p>
           </div>
           <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
             <TrendingUp className="w-6 h-6" />
           </div>
         </div>
+
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-slate-500 mb-1">Tổng giá vốn (COGS)</p>
+            <p className="text-2xl font-bold text-amber-600">{formatCurrency(totalCOGS)}đ</p>
+          </div>
+          <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
+            <BarChart3 className="w-6 h-6" />
+          </div>
+        </div>
         
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-500 mb-1">Tổng chi phí (Toàn thời gian)</p>
-            <p className="text-2xl font-bold text-rose-600">{formatCurrency(totalExpense)}đ</p>
+            <p className="text-sm font-medium text-slate-500 mb-1">Chi phí vận hành</p>
+            <p className="text-2xl font-bold text-rose-600">{formatCurrency(totalExpense - totalCOGS)}đ</p>
           </div>
           <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-600">
             <TrendingDown className="w-6 h-6" />
@@ -302,7 +323,7 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
 
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-500 mb-1">Lợi nhuận ròng (Toàn thời gian)</p>
+            <p className="text-sm font-medium text-slate-500 mb-1">Lợi nhuận ròng</p>
             <p className={`text-2xl font-bold ${netProfit >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
               {formatCurrency(netProfit)}đ
             </p>
@@ -326,6 +347,7 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
                 <tr className="bg-slate-50 border-b border-slate-200 text-sm">
                   <th className="p-3 font-medium text-slate-600">Ngày</th>
                   <th className="p-3 font-medium text-slate-600 text-right">Doanh thu</th>
+                  <th className="p-3 font-medium text-slate-600 text-right">Giá vốn</th>
                   <th className="p-3 font-medium text-slate-600 text-right">Chi phí</th>
                   <th className="p-3 font-medium text-slate-600 text-right">Lợi nhuận ròng</th>
                 </tr>
@@ -344,7 +366,8 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
                         {new Date(day.summary_date).toLocaleDateString('vi-VN')}
                       </td>
                       <td className="p-3 text-right text-emerald-600 font-medium">{formatCurrency(day.total_revenue)}đ</td>
-                      <td className="p-3 text-right text-rose-600 font-medium">{formatCurrency(day.total_expense)}đ</td>
+                      <td className="p-3 text-right text-amber-600 font-medium">{formatCurrency(dailySummaries.find(d => d.summary_date === day.summary_date)?.total_cost || 0)}đ</td>
+                      <td className="p-3 text-right text-rose-600 font-medium">{formatCurrency(day.total_expense - (dailySummaries.find(d => d.summary_date === day.summary_date)?.total_cost || 0))}đ</td>
                       <td className={`p-3 text-right font-bold ${day.net_profit >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
                         {formatCurrency(day.net_profit)}đ
                       </td>
@@ -367,6 +390,7 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
                 <tr className="bg-slate-50 border-b border-slate-200 text-sm">
                   <th className="p-3 font-medium text-slate-600">Tháng</th>
                   <th className="p-3 font-medium text-slate-600 text-right">Doanh thu</th>
+                  <th className="p-3 font-medium text-slate-600 text-right">Giá vốn</th>
                   <th className="p-3 font-medium text-slate-600 text-right">Chi phí</th>
                   <th className="p-3 font-medium text-slate-600 text-right">Lợi nhuận ròng</th>
                 </tr>
@@ -387,7 +411,8 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
                           Tháng {date.getMonth() + 1}/{date.getFullYear()}
                         </td>
                         <td className="p-3 text-right text-emerald-600 font-medium">{formatCurrency(month.total_revenue)}đ</td>
-                        <td className="p-3 text-right text-rose-600 font-medium">{formatCurrency(month.total_expense)}đ</td>
+                        <td className="p-3 text-right text-amber-600 font-medium">{formatCurrency(monthlySummaries.find(m => m.summary_month === month.summary_month)?.total_cost || 0)}đ</td>
+                        <td className="p-3 text-right text-rose-600 font-medium">{formatCurrency(month.total_expense - (monthlySummaries.find(m => m.summary_month === month.summary_month)?.total_cost || 0))}đ</td>
                         <td className={`p-3 text-right font-bold ${month.net_profit >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
                           {formatCurrency(month.net_profit)}đ
                         </td>

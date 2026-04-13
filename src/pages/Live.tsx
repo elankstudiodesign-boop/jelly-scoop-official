@@ -760,12 +760,17 @@ export default function Live({
               )}
 
               {/* Order Settings (Scoop / Retail) */}
-              <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm space-y-3 sm:space-y-4">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-4 bg-emerald-500 rounded-full"></div>
+                  <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Cấu hình đơn hàng</h4>
+                </div>
+                
                 {orderType === 'SCOOP' ? (
                   <>
-                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                      <div className="space-y-1 sm:space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Số lượng Scoop</label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Số lượng Scoop</label>
                         <input
                           type="text"
                           inputMode="numeric"
@@ -777,53 +782,53 @@ export default function Live({
                             if (!isNaN(num)) setScoopQuantity(Math.min(10000, num).toString());
                           }}
                           onBlur={() => { if (scoopQuantity === '' || Number(scoopQuantity) < 1) setScoopQuantity('1'); }}
-                          className="w-full border border-slate-200 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm font-bold focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
+                          className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
                         />
                       </div>
-                      <div className="space-y-1 sm:space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Giá Scoop</label>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Giá Scoop</label>
                         <input
                           type="text"
                           value={customScoopPrice}
                           onChange={e => setCustomScoopPrice(formatCurrency(parseCurrency(e.target.value)))}
-                          className="w-full border border-slate-200 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm font-bold focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
+                          className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
                         />
                       </div>
                     </div>
-                    <div className="space-y-1 sm:space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Ghi chú</label>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ghi chú</label>
                       <textarea
                         value={scoopNotes}
                         onChange={e => setScoopNotes(e.target.value)}
                         placeholder="Ghi chú hoá đơn..."
-                        className="w-full border border-slate-200 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm font-medium focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none resize-none h-12 sm:h-16"
+                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all placeholder:text-slate-300 resize-none h-20"
                       />
                     </div>
                   </>
                 ) : (
                   <>
-                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                    <div className="flex bg-slate-100/80 p-1 rounded-xl">
                       <button
                         onClick={() => setRetailPricingMode('ITEM')}
-                        className={`flex-1 py-1.5 px-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
-                          retailPricingMode === 'ITEM' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-200'
+                        className={`flex-1 py-2 px-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                          retailPricingMode === 'ITEM' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                         }`}
                       >
                         Tính theo món
                       </button>
                       <button
                         onClick={() => setRetailPricingMode('SCOOP')}
-                        className={`flex-1 py-1.5 px-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
-                          retailPricingMode === 'SCOOP' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-200'
+                        className={`flex-1 py-2 px-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                          retailPricingMode === 'SCOOP' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                         }`}
                       >
                         Tính theo Scoop
                       </button>
                     </div>
                     {retailPricingMode === 'SCOOP' && (
-                      <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                        <div className="space-y-1 sm:space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Số lượng Scoop</label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Số lượng Scoop</label>
                           <input
                             type="text"
                             inputMode="numeric"
@@ -835,46 +840,46 @@ export default function Live({
                               if (!isNaN(num)) setScoopQuantity(Math.min(10000, num).toString());
                             }}
                             onBlur={() => { if (scoopQuantity === '' || Number(scoopQuantity) < 1) setScoopQuantity('1'); }}
-                            className="w-full border border-slate-200 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm font-bold focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none"
+                            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
                           />
                         </div>
-                        <div className="space-y-1 sm:space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Giá Scoop</label>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Giá Scoop</label>
                           <input
                             type="text"
                             value={customScoopPrice}
                             onChange={e => setCustomScoopPrice(formatCurrency(parseCurrency(e.target.value)))}
-                            className="w-full border border-slate-200 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm font-bold focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none"
+                            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
                           />
                         </div>
                       </div>
                     )}
-                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                      <div className="space-y-1 sm:space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Bao bì (đ)</label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bao bì (đ)</label>
                         <input
                           type="text"
                           value={retailPackagingCost}
                           onChange={e => setRetailPackagingCost(formatCurrency(parseCurrency(e.target.value)))}
-                          className="w-full border border-slate-200 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm font-bold focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none"
+                          className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
                         />
                       </div>
-                      <div className="space-y-1 sm:space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Vận chuyển (đ)</label>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vận chuyển (đ)</label>
                         <input
                           type="text"
                           value={shippingCost}
                           onChange={e => setShippingCost(formatCurrency(parseCurrency(e.target.value)))}
-                          className="w-full border border-slate-200 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm font-bold focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none"
+                          className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
                         />
                       </div>
-                      <div className="col-span-2 space-y-1 sm:space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Giảm giá (đ)</label>
+                      <div className="col-span-2 space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Giảm giá (đ)</label>
                         <input
                           type="text"
                           value={discount}
                           onChange={e => setDiscount(formatCurrency(parseCurrency(e.target.value)))}
-                          className="w-full border border-slate-200 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm font-bold focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none"
+                          className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
                         />
                       </div>
                     </div>
@@ -883,95 +888,121 @@ export default function Live({
               </div>
 
               {/* Customer Info */}
-              <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm space-y-2 sm:space-y-3">
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Khách hàng</h4>
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="Tên khách hàng"
-                    className="w-full border border-slate-200 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm font-medium focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
-                  />
-                  <input
-                    type="text"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="Số điện thoại"
-                    className="w-full border border-slate-200 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm font-medium focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
-                  />
-                  <input
-                    type="text"
-                    value={customerAddress}
-                    onChange={(e) => setCustomerAddress(e.target.value)}
-                    placeholder="Địa chỉ"
-                    className="w-full border border-slate-200 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm font-medium focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
-                  />
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-4 bg-indigo-500 rounded-full"></div>
+                  <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Thông tin khách hàng</h4>
+                </div>
+                <div className="space-y-3">
+                  <div className="relative group">
+                    <input
+                      type="text"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="Tên khách hàng"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all placeholder:text-slate-300"
+                    />
+                  </div>
+                  <div className="relative group">
+                    <input
+                      type="text"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      placeholder="Số điện thoại"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all placeholder:text-slate-300"
+                    />
+                  </div>
+                  <div className="relative group">
+                    <textarea
+                      value={customerAddress}
+                      onChange={(e) => setCustomerAddress(e.target.value)}
+                      placeholder="Địa chỉ giao hàng"
+                      rows={2}
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all placeholder:text-slate-300 resize-none"
+                    />
+                  </div>
                 </div>
               </div>
               </div>
 
             {/* Sticky Footer: Summary & Pay */}
-            <div className="sticky bottom-0 lg:static p-4 lg:p-4 lg:mx-4 lg:mb-4 border-t lg:border border-slate-200 bg-white lg:rounded-xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] lg:shadow-sm z-10 mt-auto lg:mt-0">
+            <div className="sticky bottom-0 lg:static p-5 lg:p-6 lg:mx-4 lg:mb-6 border-t lg:border border-slate-200 bg-white lg:rounded-2xl shadow-[0_-8px_30px_rgb(0,0,0,0.04)] lg:shadow-sm z-10 mt-auto lg:mt-0">
               {isScoopPricing && orderType === 'RETAIL' && (
-                <div className="mb-3 flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                  <input
-                    type="checkbox"
-                    id="invoiceDisplayMode"
-                    checked={invoiceDisplayMode === 'RETAIL_TOTAL'}
-                    onChange={(e) => setInvoiceDisplayMode(e.target.checked ? 'RETAIL_TOTAL' : 'SCOOP_TOTAL')}
-                    className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
-                  />
-                  <label htmlFor="invoiceDisplayMode" className="text-xs font-medium text-slate-700 cursor-pointer select-none">
+                <div className="mb-4 flex items-center gap-3 bg-slate-50/80 p-3 rounded-xl border border-slate-100 backdrop-blur-sm">
+                  <div className="relative flex items-center">
+                    <input
+                      type="checkbox"
+                      id="invoiceDisplayMode"
+                      checked={invoiceDisplayMode === 'RETAIL_TOTAL'}
+                      onChange={(e) => setInvoiceDisplayMode(e.target.checked ? 'RETAIL_TOTAL' : 'SCOOP_TOTAL')}
+                      className="w-5 h-5 text-indigo-600 rounded-lg border-slate-300 focus:ring-indigo-500/20 transition-all cursor-pointer"
+                    />
+                  </div>
+                  <label htmlFor="invoiceDisplayMode" className="text-[11px] font-bold text-slate-600 cursor-pointer select-none uppercase tracking-tight">
                     In hoá đơn theo giá bán lẻ (ẩn giá Scoop)
                   </label>
                 </div>
               )}
-              <div className="flex justify-between items-end mb-4">
-                <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">Tổng thanh toán</span>
-                <span className={`text-2xl font-black ${orderType === 'SCOOP' ? 'text-indigo-600' : 'text-emerald-600'}`}>
-                  {formatCurrency(totalAmount)}đ
-                </span>
+
+              <div className="space-y-3 mb-6">
+                <div className="flex justify-between items-center">
+                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Tổng giá vốn</span>
+                  <span className="text-sm font-bold text-slate-500 tabular-nums">
+                    {formatCurrency(totalCost)}đ
+                  </span>
+                </div>
+                <div className="flex justify-between items-end pt-2 border-t border-slate-50">
+                  <span className="text-xs font-black text-slate-500 uppercase tracking-widest pb-1">Tổng thanh toán</span>
+                  <div className="text-right">
+                    <span className={`text-3xl font-black tracking-tighter tabular-nums ${orderType === 'SCOOP' ? 'text-indigo-600' : 'text-emerald-600'}`}>
+                      {formatCurrency(totalAmount)}
+                    </span>
+                    <span className={`text-sm font-black ml-1 ${orderType === 'SCOOP' ? 'text-indigo-400' : 'text-emerald-400'}`}>đ</span>
+                  </div>
+                </div>
               </div>
               
-              {orderType === 'SCOOP' ? (
-                <button
-                  onClick={handleDownloadCustomerPDF}
-                  disabled={Number(scoopQuantity) <= 0}
-                  className="w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wider text-white bg-indigo-600 hover:bg-indigo-700 shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Tải PDF
-                </button>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-3">
+                {orderType === 'SCOOP' ? (
                   <button
                     onClick={handleDownloadCustomerPDF}
-                    disabled={orderItems.length === 0}
-                    className="py-3 rounded-xl font-bold text-xs uppercase tracking-wider border-2 border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    disabled={Number(scoopQuantity) <= 0}
+                    className="w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest text-white bg-indigo-600 hover:bg-indigo-700 shadow-[0_4px_12px_rgba(79,70,229,0.3)] hover:shadow-[0_6px_20px_rgba(79,70,229,0.4)] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     <Download className="w-4 h-4" />
-                    Tải PDF
+                    Tải PDF đơn hàng
                   </button>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={handleDownloadCustomerPDF}
+                      disabled={orderItems.length === 0}
+                      className="py-4 rounded-xl font-black text-xs uppercase tracking-widest border-2 border-slate-100 text-slate-500 hover:bg-slate-50 hover:border-slate-200 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      Tải PDF
+                    </button>
+                    <button
+                      onClick={handlePrintInternal}
+                      disabled={orderItems.length === 0}
+                      className="py-4 rounded-xl font-black text-xs uppercase tracking-widest text-white shadow-[0_4px_12px_rgba(5,150,105,0.3)] hover:shadow-[0_6px_20px_rgba(5,150,105,0.4)] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      <Printer className="w-4 h-4" />
+                      In & Hoàn tất
+                    </button>
+                  </div>
+                )}
+                
+                {orderType === 'RETAIL' && (
                   <button
-                    onClick={handlePrintInternal}
-                    disabled={orderItems.length === 0}
-                    className="py-3 rounded-xl font-bold text-xs uppercase tracking-wider text-white shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700"
+                    onClick={handleCompleteOrder}
+                    disabled={orderItems.length === 0 || currentRevenue <= 0}
+                    className="w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-400 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50 border border-transparent hover:border-emerald-100 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Printer className="w-4 h-4" />
-                    In & Hoàn tất
+                    Chỉ hoàn tất (Không in hoá đơn)
                   </button>
-                </div>
-              )}
-              {orderType === 'RETAIL' && (
-                <button
-                  onClick={handleCompleteOrder}
-                  disabled={orderItems.length === 0 || currentRevenue <= 0}
-                  className="w-full mt-2 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Chỉ hoàn tất (Không in)
-                </button>
-              )}
+                )}
+              </div>
             </div>
             </div>
           </div>
