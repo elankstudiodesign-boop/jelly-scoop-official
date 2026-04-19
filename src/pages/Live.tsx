@@ -1041,7 +1041,7 @@ export default function Live({
               <h2 style={{ color: '#0f172a' }} className="text-[10px] font-bold uppercase tracking-tight mt-2">
                 {printMode === 'CUSTOMER' ? 'Hoá đơn khách hàng' : 'Hoá đơn nội bộ'}
               </h2>
-              <p style={{ color: '#94a3b8' }} className="text-[7px] font-bold mt-0.5 uppercase tracking-widest">{new Date().toLocaleString('vi-VN')}</p>
+              <p style={{ color: '#94a3b8' }} className="text-[7px] font-bold mt-0.5 uppercase tracking-widest">{new Date().toLocaleDateString('vi-VN')}</p>
             </div>
 
             <div style={{ borderColor: '#cbd5e1' }} className="border-t border-b border-dashed py-2 mb-2">

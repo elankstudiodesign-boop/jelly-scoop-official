@@ -734,7 +734,7 @@ export default function OrderList({ transactions, products, deleteTransaction }:
                 )}
               </div>
               <div className="flex justify-between items-center pt-2 border-t border-slate-100">
-                <div className="text-xs text-slate-500">{new Date(order.date).toLocaleString('vi-VN')}</div>
+                <div className="text-xs text-slate-500">{new Date(order.date).toLocaleDateString('vi-VN')}</div>
                 <div className="flex items-center gap-1">
                   {!isSelectionMode && (
                     <>
@@ -820,7 +820,6 @@ export default function OrderList({ transactions, products, deleteTransaction }:
                     <td className="p-4 font-mono text-xs text-slate-500">{order.id.slice(0, 8).toUpperCase()}</td>
                     <td className="p-4">
                       <div className="text-sm text-slate-900">{new Date(order.date).toLocaleDateString('vi-VN')}</div>
-                      <div className="text-xs text-slate-500">{new Date(order.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div>
                     </td>
                     <td className="p-4">
                       {order.customerName ? (
@@ -909,7 +908,7 @@ export default function OrderList({ transactions, products, deleteTransaction }:
                   <h3 className="text-sm font-medium text-slate-500 mb-1">Thông tin chung</h3>
                   <div className="space-y-1 text-sm">
                     <p><span className="text-slate-500">Mã ĐH:</span> <span className="font-mono">{selectedOrder.id.slice(0, 8).toUpperCase()}</span></p>
-                    <p><span className="text-slate-500">Ngày:</span> {new Date(selectedOrder.date).toLocaleString('vi-VN')}</p>
+                    <p><span className="text-slate-500">Ngày:</span> {new Date(selectedOrder.date).toLocaleDateString('vi-VN')}</p>
                     <p><span className="text-slate-500">Mô tả:</span> {selectedOrder.description}</p>
                   </div>
                 </div>
