@@ -161,30 +161,46 @@ function createSupabaseHook<T extends { id: string }>(
 // Mappers
 export function mapProductToDB(p: Partial<Product>, existing?: Product) {
   const res: any = { ...p };
-  if (p.retailPrice !== undefined) { res.retail_price = p.retailPrice; delete res.retailPrice; }
-  if (p.imageUrl !== undefined) { res.image_url = p.imageUrl; delete res.imageUrl; }
-  if (p.priceGroup !== undefined) { res.price_group = p.priceGroup; delete res.priceGroup; }
-  if (p.warehouseQuantity !== undefined) { res.warehouse_quantity = p.warehouseQuantity; delete res.warehouseQuantity; }
-  if (p.barcode !== undefined) { res.barcode = p.barcode; }
   
-  // Strip old combo marker from note if present
-  if (p.note !== undefined) {
-    res.note = p.note.split('|||__COMBO__|||')[0].trim();
-  } else if (existing?.note) {
-    res.note = existing.note.split('|||__COMBO__|||')[0].trim();
+  if ('retailPrice' in p) { 
+    res.retail_price = p.retailPrice; 
+    delete res.retailPrice; 
+  }
+  if ('imageUrl' in p) { 
+    res.image_url = p.imageUrl; 
+    delete res.imageUrl; 
+  }
+  if ('priceGroup' in p) { 
+    res.price_group = p.priceGroup; 
+    delete res.priceGroup; 
+  }
+  if ('warehouseQuantity' in p) { 
+    res.warehouse_quantity = p.warehouseQuantity; 
+    delete res.warehouseQuantity; 
   }
   
-  // Use explicit values if provided, otherwise fallback to existing
-  if (p.isCombo !== undefined) {
+  // note is same name as DB, but let's handle the combo marker logic
+  if ('note' in p || existing?.note) {
+    const noteToProcess = p.note !== undefined ? p.note : existing?.note;
+    if (noteToProcess) {
+      res.note = noteToProcess.split('|||__COMBO__|||')[0].trim();
+    }
+  }
+  
+  if ('isCombo' in p) {
     res.is_combo = p.isCombo;
     delete res.isCombo;
   }
-  if (p.comboItems !== undefined) {
+  if ('comboItems' in p) {
     res.combo_items = p.comboItems;
     delete res.comboItems;
   }
   
-  if ('supplierId' in p) { res.supplier_id = p.supplierId; delete res.supplierId; }
+  if ('supplierId' in p) { 
+    res.supplier_id = p.supplierId; 
+    delete res.supplierId; 
+  }
+
   return res;
 }
 
@@ -225,10 +241,10 @@ export function mapProductFromDB(p: any): Product {
 
 export function mapSessionToDB(s: Partial<LiveSession>) {
   const res: any = { ...s };
-  if (s.scoopsSold !== undefined) { res.scoops_sold = s.scoopsSold; delete res.scoopsSold; }
-  if (s.tiktokFeePercent !== undefined) { res.tiktok_fee_percent = s.tiktokFeePercent; delete res.tiktokFeePercent; }
-  if (s.packagingCostPerScoop !== undefined) { res.packaging_cost_per_scoop = s.packagingCostPerScoop; delete res.packagingCostPerScoop; }
-  if (s.averageScoopCost !== undefined) { res.average_scoop_cost = s.averageScoopCost; delete s.averageScoopCost; }
+  if ('scoopsSold' in s) { res.scoops_sold = s.scoopsSold; delete res.scoopsSold; }
+  if ('tiktokFeePercent' in s) { res.tiktok_fee_percent = s.tiktokFeePercent; delete res.tiktokFeePercent; }
+  if ('packagingCostPerScoop' in s) { res.packaging_cost_per_scoop = s.packagingCostPerScoop; delete res.packagingCostPerScoop; }
+  if ('averageScoopCost' in s) { res.average_scoop_cost = s.averageScoopCost; delete res.averageScoopCost; }
   return res;
 }
 
@@ -246,10 +262,10 @@ export function mapSessionFromDB(s: any): LiveSession {
 
 export function mapConfigToDB(c: Partial<ScoopConfig>) {
   const res: any = { ...c };
-  if (c.totalItems !== undefined) { res.total_items = c.totalItems; delete res.totalItems; }
-  if (c.ratioLow !== undefined) { res.ratio_low = c.ratioLow; delete res.ratioLow; }
-  if (c.ratioMedium !== undefined) { res.ratio_medium = c.ratioMedium; delete res.ratioMedium; }
-  if (c.ratioHigh !== undefined) { res.ratio_high = c.ratioHigh; delete res.ratioHigh; }
+  if ('totalItems' in c) { res.total_items = c.totalItems; delete res.totalItems; }
+  if ('ratioLow' in c) { res.ratio_low = c.ratioLow; delete res.ratioLow; }
+  if ('ratioMedium' in c) { res.ratio_medium = c.ratioMedium; delete res.ratioMedium; }
+  if ('ratioHigh' in c) { res.ratio_high = c.ratioHigh; delete res.ratioHigh; }
   return res;
 }
 
@@ -267,7 +283,7 @@ export function mapConfigFromDB(c: any): ScoopConfig {
 
 export function mapSupplierToDB(s: Partial<Supplier>) {
   const res: any = { ...s };
-  if (s.createdAt !== undefined) { res.created_at = s.createdAt; delete res.createdAt; }
+  if ('createdAt' in s) { res.created_at = s.createdAt; delete res.createdAt; }
   return res;
 }
 
@@ -284,7 +300,7 @@ export function mapSupplierFromDB(s: any): Supplier {
 
 export function mapPackagingItemToDB(p: Partial<PackagingItem>) {
   const res: any = { ...p };
-  if (p.createdAt !== undefined) { res.created_at = p.createdAt; delete res.createdAt; }
+  if ('createdAt' in p) { res.created_at = p.createdAt; delete res.createdAt; }
   return res;
 }
 
@@ -301,21 +317,21 @@ export function mapPackagingItemFromDB(p: any): PackagingItem {
 
 export function mapTransactionToDB(t: Partial<Transaction>) {
   const res: any = { ...t };
-  if (t.items !== undefined) {
-    res.items = t.items;
-  }
+  
+  // items is same name as DB
   
   // Strip old items marker from description if present
-  if (t.description !== undefined) {
-    res.description = t.description.split('|||__ITEMS__|||')[0].split('|||__METADATA__|||')[0].trim();
+  if ('description' in t) {
+    const desc = t.description || '';
+    res.description = desc.split('|||__ITEMS__|||')[0].split('|||__METADATA__|||')[0].trim();
     if (t.metadata) {
       res.description = `${res.description} |||__METADATA__||| ${JSON.stringify(t.metadata)}`;
     }
   }
   
-  if (t.customerName !== undefined) { res.customer_name = t.customerName; delete res.customerName; }
-  if (t.customerPhone !== undefined) { res.customer_phone = t.customerPhone; delete res.customerPhone; }
-  if (t.customerAddress !== undefined) { res.customer_address = t.customerAddress; delete res.customerAddress; }
+  if ('customerName' in t) { res.customer_name = t.customerName; delete res.customerName; }
+  if ('customerPhone' in t) { res.customer_phone = t.customerPhone; delete res.customerPhone; }
+  if ('customerAddress' in t) { res.customer_address = t.customerAddress; delete res.customerAddress; }
   if ('supplierId' in t) { res.supplier_id = t.supplierId; delete res.supplierId; }
   
   return res;

@@ -252,63 +252,72 @@ export function useImportManager({
       finalImageUrl = currentImageUrl;
     }
     const finalSupplierId = selectedSupplierId || (productToUpdate?.supplierId) || null;
-    if (productToUpdate) {
-      const newWarehouseQuantity = (productToUpdate.warehouseQuantity || 0) + numQuantity;
-      const updates: Partial<Product> = {
-        warehouseQuantity: newWarehouseQuantity,
-        cost: numUnitCost,
-        priceGroup: derivedPriceGroup,
-        note: note,
-        supplierId: finalSupplierId,
-        retailPrice: numRetailPrice,
-        isCombo: productToUpdate.isCombo,
-        comboItems: productToUpdate.comboItems
-      };
-      if (finalImageUrl) updates.imageUrl = finalImageUrl;
-      updateProduct(productToUpdate.id, updates);
-      productName = productToUpdate.name;
-    } else {
-      const newProduct: Product = {
-        id: productIdForImage,
-        name: searchTerm,
-        cost: numUnitCost,
-        imageUrl: finalImageUrl || 'https://picsum.photos/seed/' + encodeURIComponent(searchTerm) + '/200/200',
-        priceGroup: derivedPriceGroup,
-        quantity: 0,
-        warehouseQuantity: numQuantity,
-        retailPrice: numRetailPrice,
-        note: note,
+    
+    try {
+      if (productToUpdate) {
+        const newWarehouseQuantity = (productToUpdate.warehouseQuantity || 0) + numQuantity;
+        const updates: Partial<Product> = {
+          warehouseQuantity: newWarehouseQuantity,
+          cost: numUnitCost,
+          priceGroup: derivedPriceGroup,
+          note: note,
+          supplierId: finalSupplierId,
+          retailPrice: numRetailPrice,
+          isCombo: productToUpdate.isCombo,
+          comboItems: productToUpdate.comboItems
+        };
+        if (finalImageUrl) updates.imageUrl = finalImageUrl;
+        await updateProduct(productToUpdate.id, updates);
+        productName = productToUpdate.name;
+      } else {
+        const newProduct: Product = {
+          id: productIdForImage,
+          name: searchTerm,
+          cost: numUnitCost,
+          imageUrl: finalImageUrl || 'https://picsum.photos/seed/' + encodeURIComponent(searchTerm) + '/200/200',
+          priceGroup: derivedPriceGroup,
+          quantity: 0,
+          warehouseQuantity: numQuantity,
+          retailPrice: numRetailPrice,
+          note: note,
+          supplierId: finalSupplierId || undefined
+        };
+        await addProduct(newProduct);
+      }
+
+      await addTransaction({
+        id: uuidv4(),
+        type: 'OUT',
+        category: 'IMPORT',
+        amount: numTotalCost,
+        description: description || `Nhập kho: ${numQuantity} x ${productName}`,
+        date: new Date().toISOString(),
+        items: [{ productId: productToUpdate ? productToUpdate.id : productIdForImage, quantity: numQuantity, retailPrice: numRetailPrice }],
         supplierId: finalSupplierId || undefined
-      };
-      addProduct(newProduct);
+      });
+
+      setSelectedProductId('');
+      setSelectedSupplierId('');
+      setQuantity('');
+      setUnitCost('');
+      setRetailPrice('');
+      setTotalCost('');
+      setDescription('');
+      setNote('');
+      setSearchTerm('');
+      setImageUrl('');
+      setImageFile(null);
+      setShowDropdown(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (imageObjectUrlRef.current) URL.revokeObjectURL(imageObjectUrlRef.current);
+      imageObjectUrlRef.current = null;
+      setNotification({ type: 'success', message: 'Nhập kho thành công!' });
+    } catch (error: any) {
+      console.error('Lỗi nhập kho:', error);
+      setNotification({ type: 'error', message: 'Lỗi khi nhập kho: ' + (error.message || 'Vui lòng thử lại.') });
+    } finally {
+      setTimeout(() => setNotification(null), 3000);
     }
-    addTransaction({
-      id: uuidv4(),
-      type: 'OUT',
-      category: 'IMPORT',
-      amount: numTotalCost,
-      description: description || `Nhập kho: ${numQuantity} x ${productName}`,
-      date: new Date().toISOString(),
-      items: [{ productId: productToUpdate ? productToUpdate.id : productIdForImage, quantity: numQuantity, retailPrice: numRetailPrice }],
-      supplierId: finalSupplierId || undefined
-    });
-    setSelectedProductId('');
-    setSelectedSupplierId('');
-    setQuantity('');
-    setUnitCost('');
-    setRetailPrice('');
-    setTotalCost('');
-    setDescription('');
-    setNote('');
-    setSearchTerm('');
-    setImageUrl('');
-    setImageFile(null);
-    setShowDropdown(false);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    if (imageObjectUrlRef.current) URL.revokeObjectURL(imageObjectUrlRef.current);
-    imageObjectUrlRef.current = null;
-    setNotification({ type: 'success', message: 'Nhập kho thành công!' });
-    setTimeout(() => setNotification(null), 3000);
   };
 
   const handleSupplierSubmit = (e: React.FormEvent) => {
