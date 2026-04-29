@@ -278,6 +278,7 @@ export default function Import({
           updatePackagingItem={updatePackagingItem}
           addTransaction={addTransaction}
           setNotification={(notif) => manager.setNotification(notif)}
+          setEditingProductId={manager.setEditingProductId}
         />
       ) : null}
 
@@ -324,6 +325,8 @@ export default function Import({
       {manager.editingProductId && (
         <EditProductModal
           product={products.find(p => p.id === manager.editingProductId)!}
+          products={products}
+          packagingItems={packagingItems}
           onClose={() => manager.setEditingProductId(null)}
           onSave={async (id, updates) => {
             try {

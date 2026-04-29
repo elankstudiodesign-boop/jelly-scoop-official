@@ -124,6 +124,7 @@ interface ComboTabProps {
   updatePackagingItem: (id: string, updates: Partial<PackagingItem>) => Promise<void>;
   addTransaction: (transaction: Transaction) => Promise<void>;
   setNotification: (notif: { type: 'success' | 'error', message: string } | null) => void;
+  setEditingProductId: (id: string | null) => void;
 }
 
 export default function ComboTab({
@@ -134,7 +135,8 @@ export default function ComboTab({
   deleteProduct,
   updatePackagingItem,
   addTransaction,
-  setNotification
+  setNotification,
+  setEditingProductId
 }: ComboTabProps) {
   const [comboName, setComboName] = useState('');
   const [comboQuantity, setComboQuantity] = useState('1');
@@ -793,6 +795,14 @@ export default function ComboTab({
                     >
                       <Download className="w-3.5 h-3.5" />
                       Mã vạch
+                    </button>
+                    <button
+                      onClick={() => setEditingProductId(combo.id)}
+                      className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                      title="Chỉnh sửa sản phẩm và nguyên vật liệu"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                      Sửa
                     </button>
                     <button
                       onClick={() => setDeleteConfirmId(combo.id)}
