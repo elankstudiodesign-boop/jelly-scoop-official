@@ -8,7 +8,6 @@ export default function BottomNav() {
   const navItems = [
     { path: '/import', label: 'Nhập kho', icon: ArrowDownToLine },
     { path: '/live', label: 'Đơn hàng', icon: ShoppingCart },
-    { path: '/products', label: 'Kho hàng hoá', icon: Package },
   ];
 
   return (

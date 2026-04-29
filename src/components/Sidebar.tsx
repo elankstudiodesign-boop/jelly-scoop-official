@@ -7,8 +7,6 @@ export default function Sidebar() {
 
   const navItems = [
     { path: '/', label: 'Thống kê', icon: <BarChart3 className="w-5 h-5" /> },
-    { path: '/products', label: 'Kho hàng hoá', icon: <Package className="w-5 h-5" /> },
-    { path: '/pool-distribution', label: 'Phân bổ bể', icon: <Droplets className="w-5 h-5" /> },
     { path: '/import', label: 'Nhập kho', icon: <ArrowDownToLine className="w-5 h-5" /> },
     { path: '/live', label: 'Đơn hàng', icon: <ShoppingCart className="w-5 h-5" /> },
     { path: '/finance', label: 'Tài chính', icon: <Wallet className="w-5 h-5" /> },

@@ -528,7 +528,7 @@ export function useImportManager({
     showPackagingForm, setShowPackagingForm,
     fileInputRef, selectAllRef, imageDropzoneRef,
     filteredProducts, selectedProduct,
-    handleQuantityChange, handleUnitCostChange, handleRetailPriceChange, handleTotalCostChange,
+    handleRetailPriceChange, handleTotalCostChange,
     handleImageUpload, handleImport, handleSupplierSubmit, handlePackagingSubmit,
     handleDeleteMany, handlePrintBarcodes, handleClipboardPaste, handlePaste
   };

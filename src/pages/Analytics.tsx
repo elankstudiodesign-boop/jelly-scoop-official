@@ -1,16 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { LiveSession, Product, Transaction } from '../types';
-import { v4 as uuidv4 } from 'uuid';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { formatCurrency, parseCurrency } from '../lib/format';
-import PoolDistribution from './PoolDistribution';
-import { BarChart3, Droplets, Trash2, PlusCircle, Calendar as CalendarIcon, Loader2, TrendingUp, TrendingDown, DollarSign, ShoppingBag, Package, Percent } from 'lucide-react';
-import CurrencyInput from '../components/CurrencyInput';
-import ConfirmModal from '../components/ConfirmModal';
+import React, { useState } from 'react';
+import { Product, Transaction } from '../types';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { formatCurrency } from '../lib/format';
+import { BarChart3, Calendar as CalendarIcon, Loader2, TrendingUp, TrendingDown, DollarSign, ShoppingBag, Percent } from 'lucide-react';
 
 export default function Analytics({ products, transactions }: { products: Product[], transactions: Transaction[] }) {
-  const [activeTab, setActiveTab] = useState<'stats' | 'pool'>('stats');
-
   // Calculate stats from transactions
   const chartData = React.useMemo(() => {
     const dailyData: { [date: string]: { revenue: number, totalCost: number, totalPackaging: number, totalPlatformFee: number, totalOtherExpenses: number, scoopsSold: number } } = {};
@@ -84,28 +78,9 @@ export default function Analytics({ products, transactions }: { products: Produc
           <h1 className="text-2xl font-bold text-slate-900">Thống kê Doanh thu</h1>
           <p className="text-slate-500 mt-1 text-sm">Theo dõi lợi nhuận thực tế sau mỗi phiên Live.</p>
         </div>
-        
-        {/* Mobile Tabs */}
-        <div className="flex md:hidden bg-white p-1 rounded-xl border border-slate-200 shadow-sm overflow-x-auto no-scrollbar">
-          <button
-            onClick={() => setActiveTab('stats')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'stats' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
-          >
-            <BarChart3 className="w-4 h-4" />
-            Thống kê
-          </button>
-          <button
-            onClick={() => setActiveTab('pool')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'pool' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
-          >
-            <Droplets className="w-4 h-4" />
-            Phân bổ
-          </button>
-        </div>
       </div>
 
-      {activeTab === 'stats' && (
-        <div className="space-y-6">
+      <div className="space-y-6">
           {/* Main Financial Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
@@ -282,13 +257,6 @@ export default function Analytics({ products, transactions }: { products: Produc
             </div>
           </div>
         </div>
-      )}
-
-      {activeTab === 'pool' && (
-        <div className="md:hidden">
-          <PoolDistribution products={products} />
-        </div>
-      )}
-    </div>
-  );
+      </div>
+    );
 }
