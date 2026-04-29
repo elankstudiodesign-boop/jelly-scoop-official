@@ -10,6 +10,7 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
     inventoryTab, setInventoryTab,
     inventoryStockFilter, setInventoryStockFilter,
     inventoryPriceGroupFilter, setInventoryPriceGroupFilter,
+    inventoryCategoryFilter, setInventoryCategoryFilter,
     isSelectionMode, setIsSelectionMode,
     selectedIds, setSelectedIds,
     handlePrintBarcodes,
@@ -21,30 +22,51 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
 
   const [showFilters, setShowFilters] = React.useState(false);
 
-  const filteredInventoryProducts = products.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(inventorySearchTerm.toLowerCase()) ||
-      (p.note && p.note.toLowerCase().includes(inventorySearchTerm.toLowerCase()));
-    
-    const matchesTab = inventoryTab === 'all' 
-      ? true 
-      : inventoryTab === 'combo' 
-        ? p.isCombo 
-        : !p.isCombo;
+  const filteredInventoryProducts = React.useMemo(() => {
+    const filtered = products.filter(p => {
+      const matchesSearch = p.name.toLowerCase().includes(inventorySearchTerm.toLowerCase()) ||
+        (p.note && p.note.toLowerCase().includes(inventorySearchTerm.toLowerCase()));
+      
+      const matchesTab = inventoryTab === 'all' 
+        ? true 
+        : inventoryTab === 'combo' 
+          ? p.isCombo 
+          : !p.isCombo;
 
-    const wq = p.warehouseQuantity || 0;
-    const matchesStock = inventoryStockFilter === 'all'
-      ? true
-      : inventoryStockFilter === 'low'
-        ? wq > 0 && wq < 4
-        : wq === 0;
+      const wq = p.warehouseQuantity || 0;
+      const matchesStock = inventoryStockFilter === 'all'
+        ? true
+        : inventoryStockFilter === 'low'
+          ? wq > 0 && wq < 4
+          : wq === 0;
 
-    const matchesPriceGroup = inventoryPriceGroupFilter === 'all' || p.priceGroup === inventoryPriceGroupFilter;
-        
-    return matchesSearch && matchesTab && matchesStock && matchesPriceGroup;
-  });
+      const matchesPriceGroup = inventoryPriceGroupFilter === 'all' || p.priceGroup === inventoryPriceGroupFilter;
+      
+      const matchesCategory = inventoryCategoryFilter === 'all' || p.category === inventoryCategoryFilter || (!p.category && inventoryCategoryFilter === 'Sản phẩm');
+          
+      return matchesSearch && matchesTab && matchesStock && matchesPriceGroup && matchesCategory;
+    });
+
+    // Sort: Push out-of-stock to bottom
+    return [...filtered].sort((a, b) => {
+      const aQty = a.warehouseQuantity || 0;
+      const bQty = b.warehouseQuantity || 0;
+      
+      if (aQty === 0 && bQty > 0) return 1;
+      if (aQty > 0 && bQty === 0) return -1;
+      return 0; // Maintain relative order for same stock status
+    });
+  }, [products, inventorySearchTerm, inventoryTab, inventoryStockFilter, inventoryPriceGroupFilter, inventoryCategoryFilter]);
 
   const getPriceGroupCount = (group: string) => {
     return products.filter(p => p.priceGroup === group).length;
+  };
+
+  const getCategoryCount = (category: string) => {
+    if (category === 'Sản phẩm') {
+      return products.filter(p => !p.category || p.category === 'Sản phẩm').length;
+    }
+    return products.filter(p => p.category === category).length;
   };
 
   const allSelected = filteredInventoryProducts.length > 0 && selectedIds.size === filteredInventoryProducts.length;
@@ -191,14 +213,14 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
-                showFilters || inventoryStockFilter !== 'all' || inventoryPriceGroupFilter !== 'all'
+                showFilters || inventoryStockFilter !== 'all' || inventoryPriceGroupFilter !== 'all' || inventoryCategoryFilter !== 'all'
                   ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
                   : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
             >
               <Filter className="w-4 h-4" />
               Lọc
-              {(inventoryStockFilter !== 'all' || inventoryPriceGroupFilter !== 'all') && (
+              {(inventoryStockFilter !== 'all' || inventoryPriceGroupFilter !== 'all' || inventoryCategoryFilter !== 'all') && (
                 <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
               )}
             </button>
@@ -236,8 +258,38 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
               </select>
             </div>
 
-            <div className="flex-1 space-y-1.5">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider ml-1">Danh mục sản phẩm</label>
+            <div className="flex-1 space-y-1.5 mt-4 md:mt-0">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider ml-1">Loại hàng</label>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                <button
+                  onClick={() => setInventoryCategoryFilter('all')}
+                  className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all ${
+                    inventoryCategoryFilter === 'all'
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                      : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300'
+                  }`}
+                >
+                  Tất cả ({products.length})
+                </button>
+                {['Sản phẩm', 'Nguyên vật liệu', 'Bao bì', 'Sản phẩm & Nguyên vật liệu'].map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setInventoryCategoryFilter(cat as any)}
+                    className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all flex items-center justify-center gap-1.5 ${
+                      inventoryCategoryFilter === cat
+                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300'
+                    }`}
+                  >
+                    <span className="truncate">{cat}</span>
+                    <span className="flex-shrink-0 opacity-60">({getCategoryCount(cat)})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex-1 space-y-1.5 mt-4 md:mt-0">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider ml-1">Nhóm giá vốn</label>
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                 <button
                   onClick={() => setInventoryPriceGroupFilter('all')}

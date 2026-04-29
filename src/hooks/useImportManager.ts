@@ -62,6 +62,7 @@ export function useImportManager({
   const [inventoryTab, setInventoryTab] = useState<'all' | 'single' | 'combo'>('all');
   const [inventoryStockFilter, setInventoryStockFilter] = useState<'all' | 'low' | 'out'>('all');
   const [inventoryPriceGroupFilter, setInventoryPriceGroupFilter] = useState<PriceGroup | 'all'>('all');
+  const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState<'all' | 'Sản phẩm' | 'Nguyên vật liệu' | 'Bao bì' | 'Sản phẩm & Nguyên vật liệu'>('all');
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [printItems, setPrintItems] = useState<PrintItem[]>([]);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
@@ -96,6 +97,20 @@ export function useImportManager({
 
   const exactMatch = products.find(p => p.name.toLowerCase() === searchTerm.toLowerCase());
   const selectedProduct = products.find(p => p.id === selectedProductId);
+
+  // Sync category changes to clear quantities and prevent accidental "average" feel
+  useEffect(() => {
+    // When category changes, we should clear the quantities that don't belong to the new category
+    // This prevents "residual" values from being used in unit cost calculations
+    if (productCategory === 'Sản phẩm') {
+      setMaterialQuantityInput('');
+    } else if (productCategory === 'Nguyên vật liệu') {
+      setQuantity('');
+    } else if (productCategory === 'Bao bì') {
+      setQuantity('');
+      setMaterialQuantityInput('');
+    }
+  }, [productCategory]);
 
   const priceGroupFromUnitCost = (cost: number): PriceGroup => {
     if (cost < 5000) return 'Thấp';
@@ -232,14 +247,14 @@ export function useImportManager({
       productToUpdate = products.find(p => p.name.toLowerCase() === searchTerm.toLowerCase());
     }
     
-    // Calculate Weighted Average Cost only if product exists and has current stock
-    // If it's the first import (qty = 0), use the current unit cost directly
+    // Calculate Weighted Average Cost only if product exists and has current stock and cost
+    // If it's the first import (stock = 0 or cost = 0), use the new unit cost directly
     let finalCost = numUnitCost;
     if (productToUpdate && totalQuantityToImport > 0) {
       const currentQty = (productToUpdate.quantity || 0) + (productToUpdate.warehouseQuantity || 0) + (productToUpdate.materialQuantity || 0);
       const currentCost = productToUpdate.cost || 0;
       
-      if (currentQty > 0) {
+      if (currentQty > 0 && currentCost > 0) {
         // Weighted Average Cost formula: (old_qty * old_cost + new_qty * new_cost) / (old_qty + new_qty)
         finalCost = ((currentQty * currentCost) + (totalQuantityToImport * numUnitCost)) / (currentQty + totalQuantityToImport);
       }
@@ -523,6 +538,7 @@ export function useImportManager({
     inventoryTab, setInventoryTab,
     inventoryStockFilter, setInventoryStockFilter,
     inventoryPriceGroupFilter, setInventoryPriceGroupFilter,
+    inventoryCategoryFilter, setInventoryCategoryFilter,
     showBarcodeModal, setShowBarcodeModal,
     printItems, setPrintItems,
     editingProductId, setEditingProductId,
