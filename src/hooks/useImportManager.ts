@@ -232,14 +232,15 @@ export function useImportManager({
       productToUpdate = products.find(p => p.name.toLowerCase() === searchTerm.toLowerCase());
     }
     
-    // Calculate Weighted Average Cost if product exists
+    // Calculate Weighted Average Cost only if product exists and has current stock
+    // If it's the first import (qty = 0), use the current unit cost directly
     let finalCost = numUnitCost;
     if (productToUpdate && totalQuantityToImport > 0) {
       const currentQty = (productToUpdate.quantity || 0) + (productToUpdate.warehouseQuantity || 0) + (productToUpdate.materialQuantity || 0);
       const currentCost = productToUpdate.cost || 0;
       
       if (currentQty > 0) {
-        // formula: (old_qty * old_cost + new_qty * new_cost) / (old_qty + new_qty)
+        // Weighted Average Cost formula: (old_qty * old_cost + new_qty * new_cost) / (old_qty + new_qty)
         finalCost = ((currentQty * currentCost) + (totalQuantityToImport * numUnitCost)) / (currentQty + totalQuantityToImport);
       }
     }
