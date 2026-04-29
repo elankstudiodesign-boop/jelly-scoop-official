@@ -21,6 +21,7 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
     fileInputRef,
     handleImageUpload,
     quantity, handleQuantityChange,
+    materialQuantityInput, handleMaterialQuantityChange,
     unitCost, handleUnitCostChange,
     totalCost, handleTotalCostChange,
     note,
@@ -85,6 +86,7 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
                             setSelectedProductId(p.id);
                             setUnitCost(p.cost.toString());
                             setRetailPrice(p.retailPrice?.toString() || '');
+                            manager.setProductCategory(p.category || 'Sản phẩm');
                             setNote(p.note || '');
                             setSelectedSupplierId(p.supplierId || '');
                             setImageUrl(p.imageUrl || '');
@@ -136,18 +138,33 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
                     </select>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="block text-sm font-bold text-slate-700 ml-1">Số lượng nhập</label>
-                    <input
-                      type="number"
-                      min="1"
-                      required
-                      value={quantity}
-                      onChange={handleQuantityChange}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-900 text-sm sm:text-base"
-                      placeholder="0"
-                    />
-                  </div>
+                  {(manager.productCategory === 'Sản phẩm' || manager.productCategory === 'Sản phẩm & Nguyên vật liệu' || manager.productCategory === 'Bao bì') && (
+                    <div className="space-y-2">
+                      <label className="block text-sm font-bold text-slate-700 ml-1">Số lượng nhập (Sản phẩm/Bao bì)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={quantity}
+                        onChange={handleQuantityChange}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-900 text-sm sm:text-base"
+                        placeholder="0"
+                      />
+                    </div>
+                  )}
+
+                  {(manager.productCategory === 'Nguyên vật liệu' || manager.productCategory === 'Sản phẩm & Nguyên vật liệu') && (
+                    <div className="space-y-2">
+                      <label className="block text-sm font-bold text-slate-700 ml-1">Số lượng nhập (Nguyên vật liệu)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={materialQuantityInput}
+                        onChange={handleMaterialQuantityChange}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-900 text-sm sm:text-base"
+                        placeholder="0"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
@@ -186,6 +203,20 @@ export function ImportForm({ manager, products, suppliers }: { manager: any, pro
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-900 text-sm sm:text-base"
                       placeholder="0"
                     />
+                  </div>
+
+                  <div className="space-y-2 lg:col-span-3">
+                    <label className="block text-sm font-bold text-slate-700 ml-1 text-xs sm:text-sm">Danh mục</label>
+                    <select
+                      value={manager.productCategory}
+                      onChange={(e) => manager.setProductCategory(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium text-slate-900 appearance-none cursor-pointer text-sm sm:text-base"
+                    >
+                      <option value="Sản phẩm">Sản phẩm</option>
+                      <option value="Nguyên vật liệu">Nguyên vật liệu</option>
+                      <option value="Sản phẩm & Nguyên vật liệu">Sản phẩm & Nguyên vật liệu</option>
+                      <option value="Bao bì">Bao bì</option>
+                    </select>
                   </div>
                 </div>
               </div>

@@ -119,9 +119,12 @@ export default function Live({
     handleOrderCompleted
   );
 
-  const filteredProducts = products.filter(product => 
-    product.name.toLowerCase().includes(productSearch.toLowerCase())
-  );
+  const filteredProducts = products.filter(product => {
+    const availableQty = orderType === 'RETAIL' ? (product.warehouseQuantity || 0) : (product.quantity || 0);
+    return (!product.category || product.category === 'Sản phẩm' || product.category === 'Sản phẩm & Nguyên vật liệu') &&
+      availableQty > 0 &&
+      product.name.toLowerCase().includes(productSearch.toLowerCase());
+  });
 
   useEffect(() => {
     if (!isLocalUpdateRef.current) {
@@ -219,8 +222,9 @@ export default function Live({
   const handleScan = useCallback((decodedText: string) => {
     // Check if it's a product or combo
     const product = products.find(p => 
-      (p.barcode === decodedText) || 
-      (generateBarcodeNumber(p.id) === decodedText)
+      (!p.category || p.category === 'Sản phẩm') &&
+      ((p.barcode === decodedText) || 
+      (generateBarcodeNumber(p.id) === decodedText))
     );
     
     if (product) {

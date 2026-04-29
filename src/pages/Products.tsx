@@ -635,9 +635,12 @@ function ProductCard({ product, viewMode, isSelectionMode, isSelected, onToggleS
               {product.priceGroup}
             </span>
           </div>
-          <div className="flex items-center gap-4 text-xs text-slate-500 font-medium">
+          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 font-medium">
             <span className="flex items-center gap-1.5"><TrendingUp className="w-3.5 h-3.5 text-indigo-400" /> Bể: <b className="text-indigo-600 font-extrabold">{poolQty}</b></span>
             <span className="flex items-center gap-1.5"><Box className="w-3.5 h-3.5 text-emerald-400" /> Kho: <b className="text-emerald-600 font-extrabold">{warehouseQty}</b></span>
+            {(product.materialQuantity || 0) > 0 && (
+              <span className="flex items-center gap-1.5"><Box className="w-3.5 h-3.5 text-amber-400" /> NVL: <b className="text-amber-600 font-extrabold">{product.materialQuantity}</b></span>
+            )}
             {supplier && <span className="flex items-center gap-1.5 text-slate-400"><Truck className="w-3.5 h-3.5" /> {supplier.name}</span>}
           </div>
         </div>
@@ -761,6 +764,15 @@ function ProductCard({ product, viewMode, isSelectionMode, isSelected, onToggleS
               <Box className="w-5 h-5 text-emerald-300 group-hover:scale-110 transition-transform" />
             </div>
           </div>
+          {(product.materialQuantity || 0) > 0 && (
+            <div className="bg-amber-50/30 rounded-[28px] p-5 border border-amber-100/50 group-hover:border-amber-200 transition-all duration-300 group-hover:bg-amber-50/50 col-span-2">
+              <span className="block text-[10px] font-black text-amber-500 uppercase tracking-widest mb-3">Nguyên vật liệu</span>
+              <div className="flex items-center justify-between">
+                <span className="text-3xl font-black text-amber-700 tabular-nums">{product.materialQuantity}</span>
+                <Box className="w-5 h-5 text-amber-300 group-hover:scale-110 transition-transform" />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="pt-5 border-t border-slate-100 flex items-center justify-between mt-auto">

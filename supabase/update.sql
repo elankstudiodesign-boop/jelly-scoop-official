@@ -244,4 +244,24 @@ $$;
 -- UPDATE transactions SET category = 'PACKAGING' WHERE category = 'FEE' AND description ILIKE '%bao bì%';
 -- UPDATE transactions SET category = 'PACKAGING' WHERE category = 'FEE' AND description ILIKE '%hộp%';
 -- UPDATE transactions SET category = 'SHIPPING' WHERE category = 'FEE' AND description ILIKE '%ship%';
--- UPDATE transactions SET category = 'SHIPPING' WHERE category = 'FEE' AND description ILIKE '%vận chuyển%';
+-- Thêm cột category và material_quantity vào bảng products
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 
+    FROM information_schema.columns 
+    WHERE table_name='products' AND column_name='category'
+  ) THEN
+    ALTER TABLE products ADD COLUMN category TEXT DEFAULT 'Sản phẩm';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 
+    FROM information_schema.columns 
+    WHERE table_name='products' AND column_name='material_quantity'
+  ) THEN
+    ALTER TABLE products ADD COLUMN material_quantity NUMERIC DEFAULT 0;
+    UPDATE products SET material_quantity = warehouse_quantity, warehouse_quantity = 0 WHERE category = 'Nguyên vật liệu';
+  END IF;
+END $$;
+

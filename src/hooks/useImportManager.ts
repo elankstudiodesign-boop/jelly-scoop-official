@@ -42,10 +42,13 @@ export function useImportManager({
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('');
   const [quantity, setQuantity] = useState<string>('');
+  const [materialQuantityInput, setMaterialQuantityInput] = useState<string>('');
   const [unitCost, setUnitCost] = useState<string>('');
   const [retailPrice, setRetailPrice] = useState<string>('');
   const [totalCost, setTotalCost] = useState<string>('');
   const [description, setDescription] = useState<string>('');
+  const [priceGroup, setPriceGroup] = useState<PriceGroup>('Thấp');
+  const [productCategory, setProductCategory] = useState<string>('Sản phẩm');
   const [note, setNote] = useState<string>('');
   const [imageUrl, setImageUrl] = useState<string>('');
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -148,9 +151,22 @@ export function useImportManager({
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setQuantity(val);
-    if (val && unitCost) {
+    const numQ = Number(val) || 0;
+    const numM = Number(materialQuantityInput) || 0;
+    if ((numQ || numM) && unitCost) {
       const parsedUnitCost = parseCurrency(unitCost);
-      setTotalCost(formatCurrency(Math.round(Number(val) * parsedUnitCost)));
+      setTotalCost(formatCurrency(Math.round((numQ + numM) * parsedUnitCost)));
+    }
+  };
+
+  const handleMaterialQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setMaterialQuantityInput(val);
+    const numQ = Number(quantity) || 0;
+    const numM = Number(val) || 0;
+    if ((numQ || numM) && unitCost) {
+      const parsedUnitCost = parseCurrency(unitCost);
+      setTotalCost(formatCurrency(Math.round((numQ + numM) * parsedUnitCost)));
     }
   };
 
@@ -158,9 +174,12 @@ export function useImportManager({
     const val = e.target.value;
     const formatted = formatCurrency(val);
     setUnitCost(formatted);
-    if (formatted && quantity) {
+    const numQ = Number(quantity) || 0;
+    const numM = Number(materialQuantityInput) || 0;
+    const totalQ = numQ + numM;
+    if (formatted && totalQ > 0) {
       const parsedUnitCost = parseCurrency(formatted);
-      setTotalCost(formatCurrency(Math.round(Number(quantity) * parsedUnitCost)));
+      setTotalCost(formatCurrency(Math.round(totalQ * parsedUnitCost)));
     }
   };
 
@@ -173,9 +192,12 @@ export function useImportManager({
     const val = e.target.value;
     const formatted = formatCurrency(val);
     setTotalCost(formatted);
-    if (formatted && quantity && Number(quantity) > 0) {
+    const numQ = Number(quantity) || 0;
+    const numM = Number(materialQuantityInput) || 0;
+    const totalQ = numQ + numM;
+    if (formatted && totalQ > 0) {
       const parsedTotalCost = parseCurrency(formatted);
-      setUnitCost(formatCurrency(Math.round(parsedTotalCost / Number(quantity))));
+      setUnitCost(formatCurrency(Math.round(parsedTotalCost / totalQ)));
     }
   };
 
@@ -196,13 +218,16 @@ export function useImportManager({
 
   const handleImport = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchTerm || !quantity || !totalCost || !unitCost) return;
-    const numQuantity = Number(quantity);
+    if (!searchTerm || (!quantity && !materialQuantityInput) || !totalCost || !unitCost) return;
+    const numQuantity = Number(quantity) || 0;
+    const numMaterialQuantity = Number(materialQuantityInput) || 0;
+    const totalQuantityToImport = numQuantity + numMaterialQuantity;
+
     const numTotalCost = parseCurrency(totalCost);
     const numUnitCost = parseCurrency(unitCost);
     const numRetailPrice = retailPrice ? parseCurrency(retailPrice) : undefined;
     const derivedPriceGroup = priceGroupFromUnitCost(numUnitCost);
-    if (numQuantity <= 0 || numTotalCost <= 0 || numUnitCost <= 0) {
+    if (totalQuantityToImport <= 0 || numTotalCost <= 0 || numUnitCost <= 0) {
       alert('Số lượng, giá vốn và tổng chi phí phải lớn hơn 0');
       return;
     }
@@ -256,10 +281,13 @@ export function useImportManager({
     try {
       if (productToUpdate) {
         const newWarehouseQuantity = (productToUpdate.warehouseQuantity || 0) + numQuantity;
+        const newMaterialQuantity = (productToUpdate.materialQuantity || 0) + numMaterialQuantity;
         const updates: Partial<Product> = {
           warehouseQuantity: newWarehouseQuantity,
+          materialQuantity: newMaterialQuantity,
           cost: numUnitCost,
           priceGroup: derivedPriceGroup,
+          category: productCategory,
           note: note,
           supplierId: finalSupplierId,
           retailPrice: numRetailPrice,
@@ -278,7 +306,9 @@ export function useImportManager({
           priceGroup: derivedPriceGroup,
           quantity: 0,
           warehouseQuantity: numQuantity,
+          materialQuantity: numMaterialQuantity,
           retailPrice: numRetailPrice,
+          category: productCategory,
           note: note,
           supplierId: finalSupplierId || undefined
         };
@@ -290,19 +320,21 @@ export function useImportManager({
         type: 'OUT',
         category: 'IMPORT',
         amount: numTotalCost,
-        description: description || `Nhập kho: ${numQuantity} x ${productName}`,
+        description: description || `Nhập kho: ${totalQuantityToImport} x ${productName}`,
         date: new Date().toISOString(),
-        items: [{ productId: productToUpdate ? productToUpdate.id : productIdForImage, quantity: numQuantity, retailPrice: numRetailPrice }],
+        items: [{ productId: productToUpdate ? productToUpdate.id : productIdForImage, quantity: totalQuantityToImport, retailPrice: numRetailPrice }],
         supplierId: finalSupplierId || undefined
       });
 
       setSelectedProductId('');
       setSelectedSupplierId('');
       setQuantity('');
+      setMaterialQuantityInput('');
       setUnitCost('');
       setRetailPrice('');
       setTotalCost('');
       setDescription('');
+      setProductCategory('Sản phẩm');
       setNote('');
       setSearchTerm('');
       setImageUrl('');
@@ -457,11 +489,13 @@ export function useImportManager({
     searchTerm, setSearchTerm,
     selectedProductId, setSelectedProductId,
     selectedSupplierId, setSelectedSupplierId,
-    quantity, setQuantity,
-    unitCost, setUnitCost,
+    quantity, setQuantity, handleQuantityChange,
+    materialQuantityInput, setMaterialQuantityInput, handleMaterialQuantityChange,
+    unitCost, setUnitCost, handleUnitCostChange,
     retailPrice, setRetailPrice,
     totalCost, setTotalCost,
     description, setDescription,
+    productCategory, setProductCategory,
     note, setNote,
     imageUrl, setImageUrl,
     imageProcessing,

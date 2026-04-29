@@ -1,4 +1,5 @@
 export type PriceGroup = 'Thấp' | 'Trung' | 'Cao' | 'Cao cấp';
+export type ProductCategory = 'Nguyên vật liệu' | 'Bao bì' | 'Sản phẩm' | 'Sản phẩm & Nguyên vật liệu';
 
 export interface ComboItem {
   type: 'product' | 'packaging';
@@ -16,6 +17,7 @@ export interface Product {
   priceGroup: PriceGroup;
   quantity?: number;
   warehouseQuantity?: number;
+  materialQuantity?: number;
   note?: string;
   category?: string;
   supplierId?: string | null;

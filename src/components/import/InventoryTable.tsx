@@ -276,6 +276,7 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
               {isSelectionMode && <th className="px-6 py-4 w-12"></th>}
               <th className="px-6 py-4 w-16">Ảnh</th>
               <th className="px-4 py-4">Sản phẩm</th>
+              <th className="px-4 py-4">Danh mục</th>
               <th className="px-4 py-4 text-right">Giá vốn</th>
               <th className="px-4 py-4 text-right">Giá bán lẻ</th>
               <th className="px-4 py-4 text-right">Tồn kho</th>
@@ -330,12 +331,28 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                       <div className="font-bold text-slate-900">{p.name}</div>
                       {p.note && <div className="text-[10px] text-slate-500 mt-0.5 whitespace-pre-wrap line-clamp-1 italic">{p.note}</div>}
                     </td>
+                    <td className="px-4 py-4">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                        p.category === 'Nguyên vật liệu' ? 'bg-amber-100 text-amber-700' :
+                        p.category === 'Bao bì' ? 'bg-blue-100 text-blue-700' :
+                        'bg-indigo-100 text-indigo-700'
+                      }`}>
+                        {p.category || 'Sản phẩm'}
+                      </span>
+                    </td>
                     <td className="px-4 py-4 text-right font-black text-slate-900">{formatCurrency(p.cost)}đ</td>
                     <td className="px-4 py-4 text-right font-black text-indigo-600">{p.retailPrice ? `${formatCurrency(p.retailPrice)}đ` : '-'}</td>
                     <td className="px-4 py-4 text-right">
-                      <span className={`text-sm font-black ${wq === 0 ? 'text-red-600' : wq < 4 ? 'text-orange-600' : 'text-slate-900'}`}>
-                        {wq}
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className={`text-sm font-black ${wq === 0 ? 'text-red-600' : wq < 4 ? 'text-orange-600' : 'text-slate-900'}`} title="Tồn kho Sản phẩm">
+                          {wq} <span className="text-[10px] text-slate-400 font-medium ml-0.5">SP</span>
+                        </span>
+                        {(p.materialQuantity !== undefined && p.materialQuantity > 0) && (
+                          <span className="text-[11px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded shadow-sm border border-amber-100" title="Tồn kho Nguyên vật liệu">
+                            {p.materialQuantity} <span className="text-[9px] text-amber-500 font-medium">NVL</span>
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-4 text-right">
                       {supplier ? (
@@ -449,6 +466,13 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                       <div className="flex justify-between items-start gap-3 mb-2">
                         <div className="flex-1 min-w-0">
                           <h3 className="font-black text-slate-900 text-sm leading-tight truncate pr-1">{p.name}</h3>
+                          <span className={`mt-1 inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${
+                            p.category === 'Nguyên vật liệu' ? 'bg-amber-100 text-amber-700' :
+                            p.category === 'Bao bì' ? 'bg-blue-100 text-blue-700' :
+                            'bg-indigo-100 text-indigo-700'
+                          }`}>
+                            {p.category || 'Sản phẩm'}
+                          </span>
                         </div>
                       </div>
 

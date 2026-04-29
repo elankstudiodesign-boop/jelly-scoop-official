@@ -210,7 +210,7 @@ export default function ComboTab({
     }
   };
 
-  const filteredProducts = products.filter(p => !p.isCombo && p.name.toLowerCase().includes(itemSearchTerm.toLowerCase()));
+  const filteredProducts = products.filter(p => !p.isCombo && (p.category === 'Nguyên vật liệu' || p.category === 'Sản phẩm & Nguyên vật liệu') && p.name.toLowerCase().includes(itemSearchTerm.toLowerCase()));
   const filteredPackaging = packagingItems.filter(p => p.name.toLowerCase().includes(itemSearchTerm.toLowerCase()));
   const comboProducts = products.filter(p => p.isCombo);
 
@@ -338,8 +338,8 @@ export default function ComboTab({
       const required = item.quantity * numQuantity;
       if (item.type === 'product') {
         const p = products.find(p => p.id === item.id);
-        if (!p || (p.warehouseQuantity || 0) < required) {
-          setNotification({ type: 'error', message: `Không đủ tồn kho cho sản phẩm: ${p?.name || item.id}` });
+        if (!p || (p.materialQuantity || 0) < required) {
+          setNotification({ type: 'error', message: `Không đủ tồn kho nguyên vật liệu cho: ${p?.name || item.id}` });
           setTimeout(() => setNotification(null), 3000);
           return;
         }
@@ -390,6 +390,7 @@ export default function ComboTab({
       margin: marginNum,
       imageUrl: finalImageUrl,
       priceGroup: 'Trung',
+      category: 'Sản phẩm',
       warehouseQuantity: numQuantity,
       isCombo: true,
       comboItems: comboItems,
@@ -402,7 +403,9 @@ export default function ComboTab({
       if (item.type === 'product') {
         const p = products.find(p => p.id === item.id);
         if (p) {
-          await updateProduct(p.id, { warehouseQuantity: (p.warehouseQuantity || 0) - deductAmount });
+          // If the product is a material, deduct from materialQuantity
+          const currentMaterialQty = p.materialQuantity || 0;
+          await updateProduct(p.id, { materialQuantity: currentMaterialQty - deductAmount });
         }
       } else {
         const p = packagingItems.find(p => p.id === item.id);
@@ -490,7 +493,7 @@ export default function ComboTab({
                 {showItemDropdown && itemSearchTerm && (
                   <div className="absolute z-10 w-full mt-1 bg-white max-h-60 overflow-y-auto border border-slate-200 rounded-lg shadow-lg divide-y divide-slate-100">
                     {filteredProducts.length > 0 && (
-                      <div className="p-2 bg-slate-50 text-xs font-bold text-slate-500 uppercase">Sản phẩm lẻ</div>
+                      <div className="p-2 bg-slate-50 text-xs font-bold text-slate-500 uppercase">Nguyên vật liệu</div>
                     )}
                     {filteredProducts.map(p => (
                       <button
@@ -500,7 +503,7 @@ export default function ComboTab({
                         className="w-full text-left px-4 py-2 hover:bg-indigo-50 flex justify-between items-center"
                       >
                         <span className="font-medium text-slate-900">{p.name}</span>
-                        <span className="text-sm text-slate-500">Tồn: {p.warehouseQuantity || 0}</span>
+                        <span className="text-sm text-slate-500">Tồn: {p.materialQuantity || 0}</span>
                       </button>
                     ))}
                     {filteredPackaging.length > 0 && (

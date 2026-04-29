@@ -9,6 +9,8 @@ CREATE TABLE products (
   price_group TEXT NOT NULL,
   quantity NUMERIC DEFAULT 0,
   warehouse_quantity NUMERIC DEFAULT 0,
+  material_quantity NUMERIC DEFAULT 0,
+  category TEXT DEFAULT 'Sản phẩm',
   note TEXT,
   supplier_id TEXT,
   is_combo BOOLEAN DEFAULT FALSE,
