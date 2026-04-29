@@ -224,12 +224,17 @@ export function useImportManager({
     const totalQuantityToImport = numQuantity + numMaterialQuantity;
 
     const numTotalCost = parseCurrency(totalCost);
-    const numUnitCost = parseCurrency(totalCost) / totalQuantityToImport; // Use totalCost to derive unit cost for precision
+    const numUnitCost = totalQuantityToImport > 0 ? parseCurrency(totalCost) / totalQuantityToImport : 0;
     const numRetailPrice = retailPrice ? parseCurrency(retailPrice) : undefined;
+
+    let productToUpdate = selectedProduct;
+    if (!productToUpdate) {
+      productToUpdate = products.find(p => p.name.toLowerCase() === searchTerm.toLowerCase());
+    }
     
     // Calculate Weighted Average Cost if product exists
     let finalCost = numUnitCost;
-    if (productToUpdate) {
+    if (productToUpdate && totalQuantityToImport > 0) {
       const currentQty = (productToUpdate.quantity || 0) + (productToUpdate.warehouseQuantity || 0) + (productToUpdate.materialQuantity || 0);
       const currentCost = productToUpdate.cost || 0;
       
@@ -245,10 +250,6 @@ export function useImportManager({
       return;
     }
     let productName = searchTerm;
-    let productToUpdate = selectedProduct;
-    if (!productToUpdate) {
-      productToUpdate = products.find(p => p.name.toLowerCase() === searchTerm.toLowerCase());
-    }
     const productIdForImage = productToUpdate ? productToUpdate.id : uuidv4();
     let finalImageUrl = '';
     const currentImageUrl = imageUrl || '';
