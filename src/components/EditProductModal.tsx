@@ -19,7 +19,6 @@ export default function EditProductModal({ product, products, packagingItems, on
   const [retailPrice, setRetailPrice] = useState(formatCurrency(product.retailPrice || ''));
   const [warehouseQuantity, setWarehouseQuantity] = useState(product.warehouseQuantity?.toString() || '0');
   const [materialQuantity, setMaterialQuantity] = useState(product.materialQuantity?.toString() || '0');
-  const [quantity, setQuantity] = useState(product.quantity.toString());
   const [priceGroup, setPriceGroup] = useState<PriceGroup>(product.priceGroup);
   const [category, setCategory] = useState<string>(product.category || 'Sản phẩm');
   const [note, setNote] = useState(product.note || '');
@@ -129,7 +128,6 @@ export default function EditProductModal({ product, products, packagingItems, on
         retailPrice: retailPrice ? parseCurrency(retailPrice) : undefined,
         warehouseQuantity: Number(warehouseQuantity),
         materialQuantity: Number(materialQuantity),
-        quantity: Number(quantity),
         priceGroup,
         category,
         note,
@@ -201,7 +199,7 @@ export default function EditProductModal({ product, products, packagingItems, on
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] sm:text-xs font-medium text-slate-700 mx-1">Kho: Sản phẩm</label>
                   <input
@@ -222,18 +220,6 @@ export default function EditProductModal({ product, products, packagingItems, on
                     min="0"
                     value={materialQuantity}
                     onChange={(e) => setMaterialQuantity(e.target.value)}
-                    disabled={product.isCombo}
-                    className="w-full border border-slate-300 rounded-lg px-2 sm:px-3 py-2 text-sm sm:text-base focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:text-slate-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] sm:text-xs font-medium text-indigo-700 mx-1">Kho: Bể gắp</label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
                     disabled={product.isCombo}
                     className="w-full border border-slate-300 rounded-lg px-2 sm:px-3 py-2 text-sm sm:text-base focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:text-slate-500"
                   />

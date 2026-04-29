@@ -297,7 +297,6 @@ export function mapProductFromDB(p: any): Product {
     margin: Number(p.margin),
     imageUrl: p.image_url,
     priceGroup: p.price_group,
-    quantity: Number(p.quantity),
     warehouseQuantity: Number(p.warehouse_quantity || 0),
     materialQuantity: Number(p.material_quantity || 0),
     category: p.category || "Sản phẩm",

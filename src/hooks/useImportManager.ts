@@ -251,7 +251,7 @@ export function useImportManager({
     // If it's the first import (stock = 0 or cost = 0), use the new unit cost directly
     let finalCost = numUnitCost;
     if (productToUpdate && totalQuantityToImport > 0) {
-      const currentQty = (productToUpdate.quantity || 0) + (productToUpdate.warehouseQuantity || 0) + (productToUpdate.materialQuantity || 0);
+      const currentQty = (productToUpdate.warehouseQuantity || 0) + (productToUpdate.materialQuantity || 0);
       const currentCost = productToUpdate.cost || 0;
       
       if (currentQty > 0 && currentCost > 0) {
@@ -334,7 +334,6 @@ export function useImportManager({
           cost: finalCost,
           imageUrl: finalImageUrl || 'https://picsum.photos/seed/' + encodeURIComponent(searchTerm) + '/200/200',
           priceGroup: derivedPriceGroup,
-          quantity: 0,
           warehouseQuantity: numQuantity,
           materialQuantity: numMaterialQuantity,
           retailPrice: numRetailPrice,
@@ -463,7 +462,7 @@ export function useImportManager({
       const product = products.find(p => p.id === id);
       if (product && product.isCombo && product.comboItems) {
         for (const item of product.comboItems) {
-          const required = item.quantity * ((product.warehouseQuantity || 0) + (product.quantity || 0));
+          const required = item.quantity * (product.warehouseQuantity || 0);
           if (required > 0) {
             if (item.type === 'product') {
               productUpdates[item.id] = (productUpdates[item.id] || 0) + required;

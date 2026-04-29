@@ -15,7 +15,6 @@ export interface Product {
   margin?: number;
   imageUrl: string;
   priceGroup: PriceGroup;
-  quantity?: number;
   warehouseQuantity?: number;
   materialQuantity?: number;
   note?: string;

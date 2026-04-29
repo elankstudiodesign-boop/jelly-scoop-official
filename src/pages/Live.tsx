@@ -120,7 +120,7 @@ export default function Live({
   );
 
   const filteredProducts = products.filter(product => {
-    const availableQty = orderType === 'RETAIL' ? (product.warehouseQuantity || 0) : (product.quantity || 0);
+    const availableQty = product.warehouseQuantity || 0;
     return (!product.category || product.category === 'Sản phẩm' || product.category === 'Sản phẩm & Nguyên vật liệu') &&
       availableQty > 0 &&
       product.name.toLowerCase().includes(productSearch.toLowerCase());
@@ -190,7 +190,7 @@ export default function Live({
   }, [selectedProductId, orderType, products]);
 
   const addProductToOrder = useCallback((product: Product, customRetailPrice?: number) => {
-    const availableQty = orderType === 'RETAIL' ? (product.warehouseQuantity || 0) : (product.quantity || 0);
+    const availableQty = product.warehouseQuantity || 0;
     
     let parsedRetailPrice: number | undefined;
     if (orderType === 'RETAIL') {
@@ -203,14 +203,14 @@ export default function Live({
       const existing = prev.find(item => item.product.id === product.id);
       if (existing) {
         if (existing.quantity >= availableQty) {
-          alert(`Chỉ còn ${availableQty} sản phẩm trong ${orderType === 'RETAIL' ? 'kho' : 'bể'}`);
+          alert(`Chỉ còn ${availableQty} sản phẩm trong kho`);
           return prev;
         }
         const updatedItem = { ...existing, quantity: existing.quantity + 1, retailPrice: parsedRetailPrice ?? existing.retailPrice };
         return [updatedItem, ...prev.filter(item => item.product.id !== product.id)];
       }
       if (availableQty <= 0) {
-        alert(`Sản phẩm đã hết trong ${orderType === 'RETAIL' ? 'kho' : 'bể'}`);
+        alert(`Sản phẩm đã hết trong kho`);
         return prev;
       }
       return [{ product, quantity: 1, retailPrice: parsedRetailPrice }, ...prev];
@@ -289,10 +289,10 @@ export default function Live({
   const handleUpdateQuantity = (productId: string, delta: number) => {
     setOrderItems(prev => prev.map(item => {
       if (item.product.id === productId) {
-        const availableQty = orderType === 'RETAIL' ? (item.product.warehouseQuantity || 0) : (item.product.quantity || 0);
+        const availableQty = item.product.warehouseQuantity || 0;
         let newQuantity = Math.max(0, item.quantity + delta);
         if (newQuantity > availableQty) {
-          alert(`Chỉ còn ${availableQty} sản phẩm trong ${orderType === 'RETAIL' ? 'kho' : 'bể'}`);
+          alert(`Chỉ còn ${availableQty} sản phẩm trong kho`);
           newQuantity = availableQty;
         }
         return { ...item, quantity: newQuantity };
@@ -366,10 +366,8 @@ export default function Live({
       if (orderType === 'RETAIL') {
         const currentWarehouseQty = item.product.warehouseQuantity || 0;
         await updateProduct(item.product.id, { warehouseQuantity: Math.max(0, currentWarehouseQty - item.quantity) }, true);
-      } else {
-        const currentQty = item.product.quantity || 0;
-        await updateProduct(item.product.id, { quantity: Math.max(0, currentQty - item.quantity) }, true);
       }
+      // Scoop mode no longer subtracts anything as "bể" is removed and Scoop is PDF-only
     }
 
     for (const p of scannedPackagingItems) {
@@ -411,9 +409,6 @@ export default function Live({
                 if (orderType === 'RETAIL') {
                   const currentWarehouseQty = item.product.warehouseQuantity || 0;
                   await updateProduct(item.product.id, { warehouseQuantity: Math.max(0, currentWarehouseQty - item.quantity) });
-                } else {
-                  const currentQty = item.product.quantity || 0;
-                  await updateProduct(item.product.id, { quantity: Math.max(0, currentQty - item.quantity) });
                 }
               }
               for (const p of scannedPackagingItems) {
@@ -590,7 +585,7 @@ export default function Live({
               {filteredProducts.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {filteredProducts.map(product => {
-                    const availableQty = orderType === 'RETAIL' ? (product.warehouseQuantity || 0) : (product.quantity || 0);
+                    const availableQty = product.warehouseQuantity || 0;
                     const isDisabled = availableQty <= 0;
                     return (
                       <button
