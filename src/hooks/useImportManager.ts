@@ -224,11 +224,24 @@ export function useImportManager({
     const totalQuantityToImport = numQuantity + numMaterialQuantity;
 
     const numTotalCost = parseCurrency(totalCost);
-    const numUnitCost = parseCurrency(unitCost);
+    const numUnitCost = parseCurrency(totalCost) / totalQuantityToImport; // Use totalCost to derive unit cost for precision
     const numRetailPrice = retailPrice ? parseCurrency(retailPrice) : undefined;
-    const derivedPriceGroup = priceGroupFromUnitCost(numUnitCost);
-    if (totalQuantityToImport <= 0 || numTotalCost <= 0 || numUnitCost <= 0) {
-      alert('Số lượng, giá vốn và tổng chi phí phải lớn hơn 0');
+    
+    // Calculate Weighted Average Cost if product exists
+    let finalCost = numUnitCost;
+    if (productToUpdate) {
+      const currentQty = (productToUpdate.quantity || 0) + (productToUpdate.warehouseQuantity || 0) + (productToUpdate.materialQuantity || 0);
+      const currentCost = productToUpdate.cost || 0;
+      
+      if (currentQty > 0) {
+        // formula: (old_qty * old_cost + new_qty * new_cost) / (old_qty + new_qty)
+        finalCost = ((currentQty * currentCost) + (totalQuantityToImport * numUnitCost)) / (currentQty + totalQuantityToImport);
+      }
+    }
+
+    const derivedPriceGroup = priceGroupFromUnitCost(finalCost);
+    if (totalQuantityToImport <= 0 || numTotalCost <= 0) {
+      alert('Số lượng và tổng chi phí phải lớn hơn 0');
       return;
     }
     let productName = searchTerm;
@@ -285,7 +298,7 @@ export function useImportManager({
         const updates: Partial<Product> = {
           warehouseQuantity: newWarehouseQuantity,
           materialQuantity: newMaterialQuantity,
-          cost: numUnitCost,
+          cost: finalCost,
           priceGroup: derivedPriceGroup,
           category: productCategory,
           note: note,
@@ -301,7 +314,7 @@ export function useImportManager({
         const newProduct: Product = {
           id: productIdForImage,
           name: searchTerm,
-          cost: numUnitCost,
+          cost: finalCost,
           imageUrl: finalImageUrl || 'https://picsum.photos/seed/' + encodeURIComponent(searchTerm) + '/200/200',
           priceGroup: derivedPriceGroup,
           quantity: 0,
