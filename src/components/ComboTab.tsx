@@ -125,6 +125,7 @@ interface ComboTabProps {
   addTransaction: (transaction: Transaction) => Promise<void>;
   setNotification: (notif: { type: 'success' | 'error', message: string } | null) => void;
   setEditingProductId: (id: string | null) => void;
+  recalculateCombos?: () => Promise<void>;
 }
 
 export default function ComboTab({
@@ -136,7 +137,8 @@ export default function ComboTab({
   updatePackagingItem,
   addTransaction,
   setNotification,
-  setEditingProductId
+  setEditingProductId,
+  recalculateCombos
 }: ComboTabProps) {
   const [comboName, setComboName] = useState('');
   const [comboQuantity, setComboQuantity] = useState('1');
@@ -147,6 +149,7 @@ export default function ComboTab({
   const [comboImageUrl, setComboImageUrl] = useState('');
   const [comboImageFile, setComboImageFile] = useState<File | null>(null);
   const [comboImageProcessing, setComboImageProcessing] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
   
   const [showItemDropdown, setShowItemDropdown] = useState(false);
   const [itemSearchTerm, setItemSearchTerm] = useState('');
@@ -446,6 +449,21 @@ export default function ComboTab({
     comboImageObjectUrlRef.current = null;
   };
 
+  const handleRecalculate = async () => {
+    if (!recalculateCombos) return;
+    setIsRecalculating(true);
+    try {
+      await recalculateCombos();
+      setNotification({ type: 'success', message: 'Đã tính toán lại giá vốn cho tất cả Combo!' });
+    } catch (err) {
+      console.error('Recalculate error:', err);
+      setNotification({ type: 'error', message: 'Lỗi khi tính toán lại giá vốn.' });
+    } finally {
+      setIsRecalculating(false);
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="p-4 sm:p-6">
@@ -682,7 +700,22 @@ export default function ComboTab({
 
       <div className="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm mt-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-          <h2 className="text-lg font-semibold text-slate-800">Danh sách Combo đã tạo</h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-lg font-semibold text-slate-800">Danh sách Combo đã tạo</h2>
+            <button
+              onClick={handleRecalculate}
+              disabled={isRecalculating}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                isRecalculating 
+                  ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-100'
+              }`}
+              title="Tính toán lại giá vốn cho tất cả các combo dựa trên giá nguyên vật liệu & bao bì hiện tại"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRecalculating ? 'animate-spin' : ''}`} />
+              {isRecalculating ? 'Đang tính toán...' : 'Tính lại giá vốn tất cả'}
+            </button>
+          </div>
           <div className="flex items-center gap-3">
             {isSelectionMode && selectedCombos.size > 0 && (
               <button

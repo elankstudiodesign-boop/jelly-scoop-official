@@ -28,6 +28,7 @@ interface ImportProps {
   updatePackagingItem: (id: string, updates: Partial<PackagingItem>) => Promise<void>;
   deletePackagingItem: (id: string) => Promise<void>;
   transactions: Transaction[];
+  recalculateCombos?: () => Promise<void>;
 }
 
 export default function Import({
@@ -44,7 +45,8 @@ export default function Import({
   addPackagingItem,
   updatePackagingItem,
   deletePackagingItem,
-  transactions
+  transactions,
+  recalculateCombos
 }: ImportProps) {
   const manager = useImportManager({
     products,
@@ -279,6 +281,7 @@ export default function Import({
           addTransaction={addTransaction}
           setNotification={(notif) => manager.setNotification(notif)}
           setEditingProductId={manager.setEditingProductId}
+          recalculateCombos={recalculateCombos}
         />
       ) : null}
 

@@ -517,6 +517,7 @@ const useProductsBase = createSupabaseHook<Product>(
 );
 
 export function useSupabaseProducts() {
+  const queryClient = useQueryClient();
   const {
     data: products,
     loading,
@@ -524,12 +525,31 @@ export function useSupabaseProducts() {
     update,
     delete: del,
   } = useProductsBase();
+
+  const syncCombos = async () => {
+    const packagingItems = queryClient.getQueryData<PackagingItem[]>(["packaging_items"]) || [];
+    if (products.length > 0) {
+      const updatedCount = await recalculateComboCosts(products, packagingItems);
+      if (updatedCount > 0) {
+        queryClient.invalidateQueries({ queryKey: ["products"] });
+      }
+    }
+  };
+
   return {
     products,
     loading,
     addProduct: add,
-    updateProduct: update,
+    updateProduct: async (id: string, updates: Partial<Product>, localOnly = false) => {
+      const res = await update(id, updates, localOnly);
+      // Recalculate if cost or combo structure changed
+      if ("cost" in updates || "comboItems" in updates) {
+        await syncCombos();
+      }
+      return res;
+    },
     deleteProduct: del,
+    recalculateCombos: syncCombos
   };
 }
 
@@ -758,6 +778,7 @@ const usePackagingItemsBase = createSupabaseHook<PackagingItem>(
 );
 
 export function useSupabasePackagingItems() {
+  const queryClient = useQueryClient();
   const {
     data: packagingItems,
     loading,
@@ -765,13 +786,78 @@ export function useSupabasePackagingItems() {
     update,
     delete: del,
   } = usePackagingItemsBase();
+
+  const syncCombos = async () => {
+    const products = queryClient.getQueryData<Product[]>(["products"]) || [];
+    if (products.length > 0 && packagingItems.length > 0) {
+      const updatedCount = await recalculateComboCosts(products, packagingItems);
+      if (updatedCount > 0) {
+        queryClient.invalidateQueries({ queryKey: ["products"] });
+      }
+    }
+  };
+
   return {
     packagingItems,
     loading,
     addPackagingItem: add,
-    updatePackagingItem: update,
+    updatePackagingItem: async (id: string, updates: Partial<PackagingItem>, localOnly = false) => {
+      const res = await update(id, updates, localOnly);
+      if ("price" in updates) {
+        await syncCombos();
+      }
+      return res;
+    },
     deletePackagingItem: del,
+    recalculateCombos: syncCombos
   };
+}
+
+export async function recalculateComboCosts(
+  allProducts: Product[],
+  allPackagingItems: PackagingItem[]
+) {
+  if (!hasSupabaseConfig) return 0;
+  
+  const combos = allProducts.filter(p => p.isCombo && p.comboItems && p.comboItems.length > 0);
+  const updates = [];
+
+  for (const combo of combos) {
+    let newCost = 0;
+    for (const item of combo.comboItems!) {
+      if (item.type === 'product') {
+        const component = allProducts.find(p => p.id === item.id);
+        if (component) {
+          newCost += (component.cost || 0) * item.quantity;
+        }
+      } else {
+        const pkg = allPackagingItems.find(p => p.id === item.id);
+        if (pkg) {
+          newCost += (pkg.price || 0) * item.quantity;
+        }
+      }
+    }
+
+    // Nếu giá vốn thay đổi đáng kể (tránh sai số làm tròn nhỏ)
+    if (Math.abs(newCost - (combo.cost || 0)) > 0.01) {
+      updates.push(
+        supabase
+          .from("products")
+          .update({ cost: newCost })
+          .eq("id", combo.id)
+      );
+    }
+  }
+
+  if (updates.length > 0) {
+    const results = await Promise.all(updates);
+    const errors = results.filter(r => r.error).map(r => r.error);
+    if (errors.length > 0) {
+      console.error("Errors recalculating combo costs:", errors);
+    }
+    return updates.length;
+  }
+  return 0;
 }
 
 export interface DailyFinancialSummary {

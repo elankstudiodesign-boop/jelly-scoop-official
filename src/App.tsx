@@ -14,7 +14,7 @@ import { hasSupabaseConfig } from './lib/supabase';
 import { Product, Supplier, Transaction, LiveSession, PackagingItem } from './types';
 
 export default function App() {
-  const { products, addProduct, updateProduct, deleteProduct, loading: productsLoading } = useSupabaseProducts();
+  const { products, addProduct, updateProduct, deleteProduct, recalculateCombos, loading: productsLoading } = useSupabaseProducts();
   const { sessions, addSession, deleteSession, loading: sessionsLoading } = useSupabaseSessions();
   const { transactions, addTransaction, deleteTransaction, loading: transactionsLoading } = useSupabaseTransactions();
   const { suppliers, addSupplier, updateSupplier, deleteSupplier, loading: suppliersLoading } = useSupabaseSuppliers();
@@ -103,7 +103,7 @@ export default function App() {
             )}
             <Routes>
               <Route path="/" element={<Analytics products={products} transactions={transactions} />} />
-              <Route path="/import" element={<Import products={products} transactions={transactions} addProduct={addProduct} updateProduct={updateProduct} addTransaction={addTransaction} deleteProduct={deleteProduct} suppliers={suppliers} addSupplier={addSupplier} updateSupplier={updateSupplier} deleteSupplier={deleteSupplier} packagingItems={packagingItems} addPackagingItem={addPackagingItem} updatePackagingItem={updatePackagingItem} deletePackagingItem={deletePackagingItem} />} />
+              <Route path="/import" element={<Import products={products} transactions={transactions} addProduct={addProduct} updateProduct={updateProduct} addTransaction={addTransaction} deleteProduct={deleteProduct} suppliers={suppliers} addSupplier={addSupplier} updateSupplier={updateSupplier} deleteSupplier={deleteSupplier} packagingItems={packagingItems} addPackagingItem={addPackagingItem} updatePackagingItem={updatePackagingItem} deletePackagingItem={deletePackagingItem} recalculateCombos={recalculateCombos} />} />
               <Route path="/live" element={<Live products={products} updateProduct={updateProduct} addTransaction={addTransaction} addSession={addSession} transactions={transactions} deleteTransaction={deleteTransaction} packagingItems={packagingItems} updatePackagingItem={updatePackagingItem} />} />
               <Route path="/finance" element={<Finance transactions={transactions} deleteTransaction={deleteTransaction} addTransaction={addTransaction} products={products} updateProduct={updateProduct} />} />
               <Route path="/settings" element={<Settings products={products} suppliers={suppliers} transactions={transactions} sessions={sessions} onImportData={handleImportData} />} />
