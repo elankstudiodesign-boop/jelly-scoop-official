@@ -312,6 +312,29 @@ export function useImportManager({
       if (productToUpdate) {
         const newWarehouseQuantity = (productToUpdate.warehouseQuantity || 0) + numQuantity;
         const newMaterialQuantity = (productToUpdate.materialQuantity || 0) + numMaterialQuantity;
+        
+        // Subtract components if it's a combo
+        if (productToUpdate.isCombo && productToUpdate.comboItems && totalQuantityToImport > 0) {
+          for (const item of productToUpdate.comboItems) {
+            const amountToSubtract = item.quantity * totalQuantityToImport;
+            if (item.type === 'product') {
+              const component = products.find(p => p.id === item.id);
+              if (component) {
+                await updateProduct(item.id, { 
+                  warehouseQuantity: Math.max(0, (component.warehouseQuantity || 0) - amountToSubtract) 
+                });
+              }
+            } else {
+              const pkg = packagingItems.find(p => p.id === item.id);
+              if (pkg) {
+                await updatePackagingItem(item.id, { 
+                  quantity: Math.max(0, (pkg.quantity || 0) - amountToSubtract) 
+                });
+              }
+            }
+          }
+        }
+
         const updates: Partial<Product> = {
           warehouseQuantity: newWarehouseQuantity,
           materialQuantity: newMaterialQuantity,
