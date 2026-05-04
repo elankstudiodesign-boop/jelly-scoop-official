@@ -447,13 +447,30 @@ export default function Live({
       const element = document.getElementById('print-content');
       if (element) {
         try {
+          // Temporarily remove shadow and border for cleaner capture
+          const originalStyle = element.style.cssText;
+          element.style.boxShadow = 'none';
+          element.style.border = 'none';
+          
           const canvas = await html2canvas(element, {
-            scale: 2,
+            scale: 3,
             useCORS: true,
             logging: false,
-            backgroundColor: '#ffffff'
+            backgroundColor: '#ffffff',
+            allowTaint: true,
+            width: 80 * 3.78, // 80mm to pixels approx
+            onclone: (clonedDoc) => {
+              const clonedElement = clonedDoc.getElementById('print-content');
+              if (clonedElement) {
+                clonedElement.style.boxShadow = 'none';
+                clonedElement.style.border = 'none';
+              }
+            }
           });
-          const imgData = canvas.toDataURL('image/png');
+          
+          element.style.cssText = originalStyle;
+          
+          const imgData = canvas.toDataURL('image/png', 1.0);
           
           // Use a temporary jsPDF instance just to get image properties
           const tempPdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 100] });
@@ -478,7 +495,7 @@ export default function Live({
           setPrintMode(null);
         }
       }
-    }, 500);
+    }, 600);
   };
 
   const handlePrintInternal = () => {
@@ -1031,44 +1048,44 @@ export default function Live({
             <X className="w-6 h-6 text-slate-600" />
           </button>
 
-          <div id="print-content" style={{ backgroundColor: '#ffffff', color: '#0f172a', width: '80mm' }} className="mx-auto p-3 shadow-2xl rounded-sm border-t-2 border-[#4f46e5] print:border-none print:shadow-none print:m-0">
-            <div className="text-center mb-3">
-              <h1 style={{ color: '#4f46e5' }} className="text-xl font-black uppercase tracking-tighter mb-1">
+          <div id="print-content" style={{ backgroundColor: '#ffffff', color: '#0f172a', width: '80mm', fontFamily: "'Nunito', sans-serif" }} className="mx-auto p-4 shadow-2xl rounded-sm border-t-2 border-[#4f46e5] print:border-none print:shadow-none print:m-0">
+            <div className="text-center mb-4">
+              <h1 style={{ color: '#4f46e5' }} className="text-2xl font-black uppercase tracking-tighter mb-1">
                 Jelly Scoop
               </h1>
-              <div style={{ backgroundColor: '#4f46e5' }} className="h-0.5 w-8 mx-auto"></div>
-              <h2 style={{ color: '#0f172a' }} className="text-[10px] font-bold uppercase tracking-tight mt-2">
+              <div style={{ backgroundColor: '#4f46e5' }} className="h-0.5 w-10 mx-auto"></div>
+              <h2 style={{ color: '#0f172a' }} className="text-xs font-black uppercase tracking-tight mt-3">
                 {printMode === 'CUSTOMER' ? 'Hoá đơn khách hàng' : 'Hoá đơn nội bộ'}
               </h2>
-              <p style={{ color: '#94a3b8' }} className="text-[7px] font-bold mt-0.5 uppercase tracking-widest">{new Date().toLocaleDateString('vi-VN')}</p>
+              <p style={{ color: '#94a3b8' }} className="text-[8px] font-bold mt-1 uppercase tracking-widest">{new Date().toLocaleDateString('vi-VN')}</p>
             </div>
 
-            <div style={{ borderColor: '#cbd5e1' }} className="border-t border-b border-dashed py-2 mb-2">
-              <div style={{ color: '#94a3b8' }} className="grid grid-cols-12 font-black text-[7px] uppercase tracking-widest mb-1">
-                <div className="col-span-5">Sản phẩm</div>
-                <div className="col-span-3 text-right">Đơn giá</div>
-                <div className="col-span-1 text-center">SL</div>
-                <div className="col-span-3 text-right">T.Tiền</div>
+            <div style={{ borderColor: '#e2e8f0' }} className="border-t border-b border-dashed py-3 mb-3">
+              <div style={{ color: '#64748b' }} className="flex font-black text-[8px] uppercase tracking-widest mb-2 border-b border-slate-100 pb-1">
+                <div className="w-[45%]">Sản phẩm</div>
+                <div className="w-[20%] text-right pr-2">Giá</div>
+                <div className="w-[10%] text-center">SL</div>
+                <div className="w-[25%] text-right font-black">T.Tiền</div>
               </div>
               
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {/* Always show items for Retail orders or Internal mode */}
                 {(orderType === 'RETAIL' || printMode === 'INTERNAL') && orderItems.map((item, idx) => (
-                  <div key={idx} style={{ color: '#1e293b' }} className="grid grid-cols-12 text-[9px] font-bold leading-normal py-0.5">
-                    <div className="col-span-5 break-words">{item.product.name}</div>
-                    <div className="col-span-3 text-right">{formatCurrency(item.retailPrice ?? item.product.retailPrice ?? item.product.cost)}</div>
-                    <div className="col-span-1 text-center">x{item.quantity}</div>
-                    <div className="col-span-3 text-right">{formatCurrency((item.retailPrice ?? item.product.retailPrice ?? item.product.cost) * item.quantity)}đ</div>
+                  <div key={idx} style={{ color: '#1e293b' }} className="flex text-[10px] font-bold leading-tight py-0.5 items-start">
+                    <div className="w-[45%] break-words pr-2">{item.product.name}</div>
+                    <div className="w-[20%] text-right pr-2">{formatCurrency(item.retailPrice ?? item.product.retailPrice ?? item.product.cost)}</div>
+                    <div className="w-[10%] text-center">x{item.quantity}</div>
+                    <div className="w-[25%] text-right">{formatCurrency((item.retailPrice ?? item.product.retailPrice ?? item.product.cost) * item.quantity)}đ</div>
                   </div>
                 ))}
                 
                 {/* Scoop item row for Scoop orders */}
                 {orderType === 'SCOOP' && (
-                  <div style={{ color: '#1e293b' }} className="grid grid-cols-12 text-[9px] font-bold leading-normal py-0.5">
-                    <div className="col-span-5 break-words">Scoop</div>
-                    <div className="col-span-3 text-right">{formatCurrency(scoopPrice)}</div>
-                    <div className="col-span-1 text-center">x{Number(scoopQuantity) || 0}</div>
-                    <div className="col-span-3 text-right">{formatCurrency(scoopPrice * (Number(scoopQuantity) || 0))}đ</div>
+                  <div style={{ color: '#1e293b' }} className="flex text-[10px] font-bold leading-tight py-0.5 items-start">
+                    <div className="w-[45%] break-words pr-2">Scoop</div>
+                    <div className="w-[20%] text-right pr-2">{formatCurrency(scoopPrice)}</div>
+                    <div className="w-[10%] text-center">x{Number(scoopQuantity) || 0}</div>
+                    <div className="w-[25%] text-right">{formatCurrency(scoopPrice * (Number(scoopQuantity) || 0))}đ</div>
                   </div>
                 )}
               </div>
