@@ -17,7 +17,7 @@ interface SupplierFormProps {
   onCancel: () => void;
 }
 
-export function SupplierForm({ manager, products, suppliers, deleteSupplier }: { manager: any, products: any[], suppliers: Supplier[], deleteSupplier: (id: string) => void }) {
+export function SupplierForm({ manager, products, suppliers, deleteSupplier, isStaff }: { manager: any, products: any[], suppliers: Supplier[], deleteSupplier: (id: string) => void, isStaff?: boolean }) {
   const {
     supplierName, setSupplierName,
     supplierPhone, setSupplierPhone,
@@ -142,13 +142,15 @@ export function SupplierForm({ manager, products, suppliers, deleteSupplier }: {
               <h2 className="text-lg font-bold text-slate-900">Danh sách nhà cung cấp</h2>
               <p className="text-slate-500 text-sm">Quản lý thông tin các đơn vị cung cấp hàng hóa</p>
             </div>
-            <button
-              onClick={() => setShowSupplierForm(true)}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-100"
-            >
-              <Plus className="w-4 h-4" />
-              Thêm nhà cung cấp
-            </button>
+            {!isStaff && (
+              <button
+                onClick={() => setShowSupplierForm(true)}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-100"
+              >
+                <Plus className="w-4 h-4" />
+                Thêm nhà cung cấp
+              </button>
+            )}
           </div>
 
           <div className="overflow-x-auto hidden md:block">
@@ -194,22 +196,26 @@ export function SupplierForm({ manager, products, suppliers, deleteSupplier }: {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => handleEdit(s)}
-                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (window.confirm('Bạn có chắc chắn muốn xoá nhà cung cấp này?')) {
-                                deleteSupplier(s.id);
-                              }
-                            }}
-                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {!isStaff && (
+                            <>
+                              <button
+                                onClick={() => handleEdit(s)}
+                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (window.confirm('Bạn có chắc chắn muốn xoá nhà cung cấp này?')) {
+                                    deleteSupplier(s.id);
+                                  }
+                                }}
+                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>

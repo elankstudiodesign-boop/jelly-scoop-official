@@ -126,6 +126,7 @@ interface ComboTabProps {
   setNotification: (notif: { type: 'success' | 'error', message: string } | null) => void;
   setEditingProductId: (id: string | null) => void;
   recalculateCombos?: () => Promise<void>;
+  isStaff?: boolean;
 }
 
 export default function ComboTab({
@@ -138,7 +139,8 @@ export default function ComboTab({
   addTransaction,
   setNotification,
   setEditingProductId,
-  recalculateCombos
+  recalculateCombos,
+  isStaff
 }: ComboTabProps) {
   const [comboName, setComboName] = useState('');
   const [comboQuantity, setComboQuantity] = useState('1');
@@ -466,8 +468,9 @@ export default function ComboTab({
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="p-4 sm:p-6">
-        <form onSubmit={handleCreateCombo} className="space-y-6 max-w-3xl">
+      {!isStaff && (
+        <div className="p-4 sm:p-6 border-b border-slate-200">
+          <form onSubmit={handleCreateCombo} className="space-y-6 max-w-3xl">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div className="space-y-2">
@@ -697,24 +700,27 @@ export default function ComboTab({
           </div>
         </form>
       </div>
+      )}
 
       <div className="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm mt-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
           <div className="flex items-center gap-4">
             <h2 className="text-lg font-semibold text-slate-800">Danh sách Combo đã tạo</h2>
-            <button
-              onClick={handleRecalculate}
-              disabled={isRecalculating}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
-                isRecalculating 
-                  ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
-                  : 'bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-100'
-              }`}
-              title="Tính toán lại giá vốn cho tất cả các combo dựa trên giá nguyên vật liệu & bao bì hiện tại"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isRecalculating ? 'animate-spin' : ''}`} />
-              {isRecalculating ? 'Đang tính toán...' : 'Tính lại giá vốn tất cả'}
-            </button>
+            {!isStaff && (
+              <button
+                onClick={handleRecalculate}
+                disabled={isRecalculating}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                  isRecalculating 
+                    ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
+                    : 'bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-100'
+                }`}
+                title="Tính toán lại giá vốn cho tất cả các combo dựa trên giá nguyên vật liệu & bao bì hiện tại"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRecalculating ? 'animate-spin' : ''}`} />
+                {isRecalculating ? 'Đang tính toán...' : 'Tính lại giá vốn tất cả'}
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-3">
             {isSelectionMode && selectedCombos.size > 0 && (
@@ -829,21 +835,25 @@ export default function ComboTab({
                       <Download className="w-3.5 h-3.5" />
                       Mã vạch
                     </button>
-                    <button
-                      onClick={() => setEditingProductId(combo.id)}
-                      className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1.5 rounded-lg transition-colors"
-                      title="Chỉnh sửa sản phẩm và nguyên vật liệu"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                      Sửa
-                    </button>
-                    <button
-                      onClick={() => setDeleteConfirmId(combo.id)}
-                      className="flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Xóa
-                    </button>
+                    {!isStaff && (
+                      <>
+                        <button
+                          onClick={() => setEditingProductId(combo.id)}
+                          className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                          title="Chỉnh sửa sản phẩm và nguyên vật liệu"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                          Sửa
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirmId(combo.id)}
+                          className="flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Xóa
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

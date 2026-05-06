@@ -4,7 +4,7 @@ import { Search, Barcode, Trash2, Edit2, AlertCircle, Truck, X, ImageIcon, Filte
 import { formatCurrency } from '../../lib/format';
 import { downloadBarcode } from '../../lib/barcodeUtils';
 
-export function InventoryTable({ manager, products, suppliers }: { manager: any, products: any[], suppliers: any[] }) {
+export function InventoryTable({ manager, products, suppliers, isStaff }: { manager: any, products: any[], suppliers: any[], isStaff?: boolean }) {
   const {
     inventorySearchTerm, setInventorySearchTerm,
     inventoryTab, setInventoryTab,
@@ -154,7 +154,7 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                   <span>{allSelected ? 'Bỏ chọn hết' : 'Chọn tất cả'}</span>
                 </button>
 
-                {selectedIds.size > 0 && (
+                {selectedIds.size > 0 && !isStaff && (
                   <button
                     type="button"
                     onClick={() => setDeleteConfirmIds(Array.from(selectedIds))}
@@ -171,7 +171,7 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                   className="flex-none flex items-center gap-2 px-4 py-2.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
                 >
                   <X className="w-4 h-4" />
-                  <span>Hủy</span>
+                  <span>{isStaff ? 'Đóng' : 'Hủy'}</span>
                 </button>
               </div>
             ) : (
@@ -181,8 +181,8 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                   onClick={() => setIsSelectionMode(true)}
                   className="flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all bg-white text-slate-700 border border-slate-200 shadow-sm hover:border-indigo-500 hover:text-indigo-600 group"
                 >
-                  <Edit2 className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 transition-colors" />
-                  Quản lý kho
+                  <Barcode className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                  {isStaff ? 'In mã vạch' : 'Quản lý kho'}
                 </button>
               </div>
             )}
@@ -410,22 +410,26 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                       {supplier ? (
                         <div className="flex flex-col items-end">
                           <span className="text-slate-900 font-bold text-xs">{supplier.name}</span>
-                          <button 
-                            onClick={() => openAssignModal(p.id)}
-                            className="text-[10px] text-indigo-600 hover:underline mt-0.5"
-                          >
-                            Thay đổi
-                          </button>
+                          {!isStaff && (
+                            <button 
+                              onClick={() => openAssignModal(p.id)}
+                              className="text-[10px] text-indigo-600 hover:underline mt-0.5"
+                            >
+                              Thay đổi
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <div className="flex flex-col items-end">
                           <span className="text-slate-400 italic text-xs">Chưa gán</span>
-                          <button 
-                            onClick={() => openAssignModal(p.id)}
-                            className="text-[10px] text-indigo-600 hover:underline mt-0.5"
-                          >
-                            Gán ngay
-                          </button>
+                          {!isStaff && (
+                            <button 
+                              onClick={() => openAssignModal(p.id)}
+                              className="text-[10px] text-indigo-600 hover:underline mt-0.5"
+                            >
+                              Gán ngay
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>
@@ -434,13 +438,15 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                     </td>
                     <td className="px-4 py-4 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => setEditingProductId(p.id)}
-                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                          title="Chỉnh sửa sản phẩm"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
+                        {!isStaff && (
+                          <button
+                            onClick={() => setEditingProductId(p.id)}
+                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            title="Chỉnh sửa sản phẩm"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => downloadBarcode(p)}
                           className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
@@ -448,13 +454,15 @@ export function InventoryTable({ manager, products, suppliers }: { manager: any,
                         >
                           <Barcode className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => setDeleteConfirmIds([p.id])}
-                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                          title="Xoá sản phẩm"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {!isStaff && (
+                          <button
+                            onClick={() => setDeleteConfirmIds([p.id])}
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                            title="Xoá sản phẩm"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

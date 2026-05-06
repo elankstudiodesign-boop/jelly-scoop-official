@@ -13,10 +13,9 @@ export default function AccessGuard({ children }: AccessGuardProps) {
   const [password, setPassword] = useState('');
   const [isGranted, setIsGranted] = useState<boolean | null>(null);
   const [error, setError] = useState('');
-  const { accessPassword, isLoading } = useSupabaseAuth();
+  const { adminPassword, staffPassword, isLoading } = useSupabaseAuth();
 
   useEffect(() => {
-    // Check if access was already granted on this device
     const granted = localStorage.getItem(ACCESS_KEY);
     if (granted === 'true') {
       setIsGranted(true);
@@ -31,13 +30,20 @@ export default function AccessGuard({ children }: AccessGuardProps) {
 
     if (isLoading) return;
 
-    if (!accessPassword) {
-      setError('Hệ thống chưa tìm thấy cấu hình mật khẩu. Hãy chắc chắn bạn đã tạo bảng "app_settings" với cột "key" và "value", và thêm một dòng với key là "access_password". Ngoài ra, hãy kiểm tra Policy của bảng (RLS) để cho phép SELECT.');
+    if (!adminPassword && !staffPassword) {
+      setError('Hệ thống chưa tìm thấy cấu hình mật khẩu. Hãy chắc chắn bạn đã thêm "admin_password" hoặc "staff_password" vào bảng app_settings.');
       return;
     }
 
-    if (password.trim() === accessPassword.trim()) {
+    const inputPwd = password.trim();
+
+    if (adminPassword && inputPwd === adminPassword.trim()) {
       localStorage.setItem(ACCESS_KEY, 'true');
+      localStorage.setItem('scoop_app_role', 'ADMIN');
+      setIsGranted(true);
+    } else if (staffPassword && inputPwd === staffPassword.trim()) {
+      localStorage.setItem(ACCESS_KEY, 'true');
+      localStorage.setItem('scoop_app_role', 'STAFF');
       setIsGranted(true);
     } else {
       setError('Mật khẩu không chính xác. Vui lòng thử lại.');

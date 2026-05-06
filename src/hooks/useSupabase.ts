@@ -867,19 +867,33 @@ export function useSupabaseAuth() {
       if (!hasSupabaseConfig) return [];
       const { data, error } = await supabase.from("app_settings").select("*");
       if (error) {
-        if (error.code === 'PGRST116' || error.code === '42P01') return []; // Table doesn't exist yet
+        if (error.code === 'PGRST116' || error.code === '42P01') return [];
         throw error;
       }
       return data;
     },
   });
 
-  const getPassword = () => {
-    const pwdSetting = settings.find(s => s.key === 'access_password');
-    return pwdSetting ? pwdSetting.value : null;
+  const getAdminPassword = () => {
+    return settings.find(s => s.key === 'admin_password')?.value || 
+           settings.find(s => s.key === 'access_password')?.value || null;
   };
 
-  return { accessPassword: getPassword(), isLoading };
+  const getStaffPassword = () => {
+    return settings.find(s => s.key === 'staff_password')?.value || null;
+  };
+
+  const getCurrentRole = (): 'ADMIN' | 'STAFF' | null => {
+    const role = localStorage.getItem('scoop_app_role');
+    return (role as 'ADMIN' | 'STAFF') || null;
+  };
+
+  return { 
+    adminPassword: getAdminPassword(), 
+    staffPassword: getStaffPassword(),
+    currentRole: getCurrentRole(),
+    isLoading 
+  };
 }
 
 export interface DailyFinancialSummary {

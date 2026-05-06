@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Package, Truck, Box, Layers, AlertCircle, CheckCircle2, RefreshCw, X, TrendingUp, DollarSign, ChevronDown, ChevronUp } from 'lucide-react';
+import { useSupabaseAuth } from '../hooks/useSupabase';
 import { Product, Transaction, Supplier, PackagingItem } from '../types';
 import { useImportManager } from '../hooks/useImportManager';
 import { ImportForm } from '../components/import/ImportForm';
@@ -48,6 +49,9 @@ export default function Import({
   transactions,
   recalculateCombos
 }: ImportProps) {
+  const { currentRole } = useSupabaseAuth();
+  const isStaff = currentRole === 'STAFF';
+  
   const manager = useImportManager({
     products,
     addProduct,
@@ -263,13 +267,13 @@ export default function Import({
       {/* Main Content */}
       {activeTab === 'import' ? (
         <div className="space-y-8">
-          <ImportForm manager={manager} products={products} suppliers={suppliers} />
-          <InventoryTable manager={manager} products={products} suppliers={suppliers} />
+          {!isStaff && <ImportForm manager={manager} products={products} suppliers={suppliers} />}
+          <InventoryTable manager={manager} products={products} suppliers={suppliers} isStaff={isStaff} />
         </div>
       ) : activeTab === 'suppliers' ? (
-        <SupplierForm manager={manager} products={products} suppliers={suppliers} deleteSupplier={deleteSupplier} />
+        <SupplierForm manager={manager} products={products} suppliers={suppliers} deleteSupplier={deleteSupplier} isStaff={isStaff} />
       ) : activeTab === 'packaging' ? (
-        <PackagingForm manager={manager} packagingItems={packagingItems} deletePackagingItem={deletePackagingItem} />
+        <PackagingForm manager={manager} packagingItems={packagingItems} deletePackagingItem={deletePackagingItem} isStaff={isStaff} />
       ) : activeTab === 'combo' ? (
         <ComboTab
           products={products}
@@ -282,6 +286,7 @@ export default function Import({
           setNotification={(notif) => manager.setNotification(notif)}
           setEditingProductId={manager.setEditingProductId}
           recalculateCombos={recalculateCombos}
+          isStaff={isStaff}
         />
       ) : null}
 

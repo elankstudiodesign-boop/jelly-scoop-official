@@ -3,7 +3,7 @@ import { Transaction, Product } from '../types';
 import { Wallet, TrendingUp, TrendingDown, Trash2, AlertTriangle, X, Plus, ChevronDown, Calendar, BarChart3, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '../lib/format';
 import { v4 as uuidv4 } from 'uuid';
-import { useSupabaseFinancialSummaries, usePaginatedTransactions } from '../hooks/useSupabase';
+import { useSupabaseFinancialSummaries, usePaginatedTransactions, useSupabaseAuth } from '../hooks/useSupabase';
 import CurrencyInput from '../components/CurrencyInput';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -16,6 +16,8 @@ interface FinanceProps {
 }
 
 export default function Finance({ transactions, deleteTransaction, addTransaction, products, updateProduct }: FinanceProps) {
+  const { currentRole } = useSupabaseAuth();
+  const isStaff = currentRole === 'STAFF';
   const [deleteConfirmIds, setDeleteConfirmIds] = useState<string[] | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -514,14 +516,16 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
                   />
                   Chọn tất cả
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setDeleteConfirmIds(Array.from(selectedIds))}
-                  disabled={selectedIds.size === 0}
-                  className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Xóa đã chọn {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
-                </button>
+                {!isStaff && (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirmIds(Array.from(selectedIds))}
+                    disabled={selectedIds.size === 0}
+                    className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Xóa đã chọn {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -534,13 +538,15 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
                 </button>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => setIsSelectionMode(true)}
-                className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-slate-200 text-slate-700 hover:bg-slate-50"
-              >
-                Chọn
-              </button>
+              !isStaff && (
+                <button
+                  type="button"
+                  onClick={() => setIsSelectionMode(true)}
+                  className="px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-slate-200 text-slate-700 hover:bg-slate-50"
+                >
+                  Chọn
+                </button>
+              )
             )}
             <button
               onClick={() => setIsAddModalOpen(true)}
@@ -591,13 +597,15 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
                   <span>
                     {new Date(t.date).toLocaleDateString('vi-VN')} {new Date(t.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                   </span>
-                  <button
-                    onClick={() => setDeleteConfirmIds([t.id])}
-                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                    title="Xóa giao dịch"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {!isStaff && (
+                    <button
+                      onClick={() => setDeleteConfirmIds([t.id])}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                      title="Xóa giao dịch"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))
@@ -666,13 +674,15 @@ export default function Finance({ transactions, deleteTransaction, addTransactio
                       {t.type === 'IN' ? '+' : '-'}{formatCurrency(t.amount)}đ
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => setDeleteConfirmIds([t.id])}
-                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                        title="Xóa giao dịch"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {!isStaff && (
+                        <button
+                          onClick={() => setDeleteConfirmIds([t.id])}
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Xóa giao dịch"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))

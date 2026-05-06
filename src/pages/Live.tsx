@@ -6,6 +6,7 @@ import { useDraftOrderSync, DraftOrderState } from '../hooks/useDraftOrderSync';
 import { defaultConfigs } from '../constants';
 import { v4 as uuidv4 } from 'uuid';
 import { CheckCircle, ChevronDown, Barcode, ShoppingBag, Package, RefreshCw, Search, X, Printer, Download, Truck, Tag, Coins, Hash, FileText, Store } from 'lucide-react';
+import { useSupabaseAuth } from '../hooks/useSupabase';
 import { formatCurrency, parseCurrency, generateBarcodeNumber } from '../lib/format';
 import { toast } from 'sonner';
 import { hasSupabaseConfig } from '../lib/supabase';
@@ -36,6 +37,8 @@ export default function Live({
   packagingItems,
   updatePackagingItem
 }: LiveProps) {
+  const { currentRole } = useSupabaseAuth();
+  const isStaff = currentRole === 'STAFF';
   const { configs, loading } = useSupabaseConfigs(defaultConfigs);
   
   const [activeTab, setActiveTab] = useState<'CREATE' | 'LIST'>('CREATE');
@@ -998,19 +1001,19 @@ export default function Live({
                     <div className="space-y-1 text-center">
                       <button
                         onClick={handleDownloadCustomerPDF}
-                        disabled={orderItems.length === 0}
+                        disabled={orderItems.length === 0 || isStaff}
                         className="w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest border-2 border-slate-100 text-slate-500 hover:bg-slate-50 hover:border-slate-200 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         <Download className="w-4 h-4" />
                         Tải PDF
                       </button>
                       <p className="text-[9px] font-bold text-slate-400 italic">
-                        * Chỉ tải hoá đơn, không trừ kho
+                        {isStaff ? '* Quyền STAFF không được tải PDF lẻ' : '* Chỉ tải hoá đơn, không trừ kho'}
                       </p>
                     </div>
                     <button
                       onClick={handlePrintInternal}
-                      disabled={orderItems.length === 0}
+                      disabled={orderItems.length === 0 || isStaff}
                       className="py-4 rounded-xl font-black text-xs uppercase tracking-widest text-white shadow-[0_4px_12px_rgba(5,150,105,0.3)] hover:shadow-[0_6px_20px_rgba(5,150,105,0.4)] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700"
                     >
                       <Printer className="w-4 h-4" />
@@ -1022,10 +1025,10 @@ export default function Live({
                 {orderType === 'RETAIL' && (
                   <button
                     onClick={handleCompleteOrder}
-                    disabled={orderItems.length === 0 || currentRevenue <= 0}
+                    disabled={orderItems.length === 0 || currentRevenue <= 0 || isStaff}
                     className="w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-400 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50 border border-transparent hover:border-emerald-100 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Chỉ hoàn tất (Không in hoá đơn)
+                    {isStaff ? 'Chỉ ADMIN mới có thể hoàn tất đơn lẻ' : 'Chỉ hoàn tất (Không in hoá đơn)'}
                   </button>
                 )}
               </div>
