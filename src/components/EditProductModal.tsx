@@ -24,6 +24,26 @@ export default function EditProductModal({ product, products, packagingItems, on
   const [note, setNote] = useState(product.note || '');
   const [isCombo, setIsCombo] = useState(product.isCombo || false);
   const [comboItems, setComboItems] = useState<ComboItem[]>(product.comboItems || []);
+
+  const calculateComboCost = (items: ComboItem[]) => {
+    return items.reduce((sum, item) => {
+      if (item.type === 'product') {
+        const p = products.find(p => p.id === item.id);
+        return sum + (p ? p.cost * item.quantity : 0);
+      } else {
+        const pkg = packagingItems.find(p => p.id === item.id);
+        return sum + (pkg ? pkg.price * item.quantity : 0);
+      }
+    }, 0);
+  };
+
+  const handleUpdateComboItems = (newItems: ComboItem[]) => {
+    setComboItems(newItems);
+    if (isCombo) {
+      const newTotalCost = calculateComboCost(newItems);
+      setCost(formatCurrency(newTotalCost));
+    }
+  };
   
   const [showItemDropdown, setShowItemDropdown] = useState(false);
   const [itemSearchTerm, setItemSearchTerm] = useState('');
@@ -306,11 +326,13 @@ export default function EditProductModal({ product, products, packagingItems, on
                                 key={p.id}
                                 type="button"
                                 onClick={() => {
-                                  setComboItems(prev => {
-                                    const exists = prev.find(i => i.id === p.id && i.type === 'product');
-                                    if (exists) return prev.map(i => i.id === p.id ? { ...i, quantity: i.quantity + 1 } : i);
-                                    return [...prev, { type: 'product', id: p.id, quantity: 1 }];
-                                  });
+                                  const newItems = [...comboItems];
+                                  const exists = newItems.find(i => i.id === p.id && i.type === 'product');
+                                  if (exists) {
+                                    handleUpdateComboItems(newItems.map(i => i.id === p.id ? { ...i, quantity: i.quantity + 1 } : i));
+                                  } else {
+                                    handleUpdateComboItems([...newItems, { type: 'product', id: p.id, quantity: 1 }]);
+                                  }
                                   setItemSearchTerm('');
                                   setShowItemDropdown(false);
                                 }}
@@ -327,11 +349,13 @@ export default function EditProductModal({ product, products, packagingItems, on
                                 key={p.id}
                                 type="button"
                                 onClick={() => {
-                                  setComboItems(prev => {
-                                    const exists = prev.find(i => i.id === p.id && i.type === 'packaging');
-                                    if (exists) return prev.map(i => i.id === p.id ? { ...i, quantity: i.quantity + 1 } : i);
-                                    return [...prev, { type: 'packaging', id: p.id, quantity: 1 }];
-                                  });
+                                  const newItems = [...comboItems];
+                                  const exists = newItems.find(i => i.id === p.id && i.type === 'packaging');
+                                  if (exists) {
+                                    handleUpdateComboItems(newItems.map(i => i.id === p.id ? { ...i, quantity: i.quantity + 1 } : i));
+                                  } else {
+                                    handleUpdateComboItems([...newItems, { type: 'packaging', id: p.id, quantity: 1 }]);
+                                  }
                                   setItemSearchTerm('');
                                   setShowItemDropdown(false);
                                 }}
@@ -363,19 +387,19 @@ export default function EditProductModal({ product, products, packagingItems, on
                               <div className="flex items-center border border-slate-300 rounded-md bg-white overflow-hidden">
                                 <button 
                                   type="button" 
-                                  onClick={() => setComboItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i))}
+                                  onClick={() => handleUpdateComboItems(comboItems.map(i => i.id === item.id && i.type === item.type ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i))}
                                   className="px-1.5 py-0.5 hover:bg-slate-100 text-slate-600"
                                 >-</button>
                                 <span className="px-2 py-0.5 text-xs font-bold min-w-[1.5rem] text-center">{item.quantity}</span>
                                 <button 
                                   type="button" 
-                                  onClick={() => setComboItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i))}
+                                  onClick={() => handleUpdateComboItems(comboItems.map(i => i.id === item.id && i.type === item.type ? { ...i, quantity: i.quantity + 1 } : i))}
                                   className="px-1.5 py-0.5 hover:bg-slate-100 text-slate-600"
                                 >+</button>
                               </div>
                               <button 
                                 type="button" 
-                                onClick={() => setComboItems(prev => prev.filter(i => !(i.id === item.id && i.type === item.type)))}
+                                onClick={() => handleUpdateComboItems(comboItems.filter(i => !(i.id === item.id && i.type === item.type)))}
                                 className="p-1.5 text-red-500 hover:bg-red-50 rounded"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
