@@ -860,6 +860,28 @@ export async function recalculateComboCosts(
   return 0;
 }
 
+export function useSupabaseAuth() {
+  const { data: settings = [], isLoading } = useQuery({
+    queryKey: ["app_settings"],
+    queryFn: async () => {
+      if (!hasSupabaseConfig) return [];
+      const { data, error } = await supabase.from("app_settings").select("*");
+      if (error) {
+        if (error.code === 'PGRST116' || error.code === '42P01') return []; // Table doesn't exist yet
+        throw error;
+      }
+      return data;
+    },
+  });
+
+  const getPassword = () => {
+    const pwdSetting = settings.find(s => s.key === 'access_password');
+    return pwdSetting ? pwdSetting.value : null;
+  };
+
+  return { accessPassword: getPassword(), isLoading };
+}
+
 export interface DailyFinancialSummary {
   summary_date: string;
   total_revenue: number;

@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import Sidebar from './components/Sidebar';
+import AccessGuard from './components/AccessGuard';
 import Analytics from './pages/Analytics';
 import Live from './pages/Live';
 import Import from './pages/Import';
@@ -83,34 +84,36 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <div className="flex min-h-screen min-h-[100dvh] bg-slate-50 font-sans text-slate-900 selection:bg-indigo-100 selection:text-indigo-900">
-        <Toaster position="top-right" richColors />
-        <Sidebar />
-        <main className="flex-1 flex flex-col p-3 sm:p-4 lg:p-6 overflow-y-auto mt-16 md:mt-0">
-          <div className="w-full flex-1 flex flex-col">
-            {!hasSupabaseConfig && (
-              <div className="mb-8 bg-amber-50 border border-amber-200 rounded-xl p-5 shadow-sm">
-                <h2 className="text-amber-800 font-bold text-lg mb-2">Chưa kết nối Supabase!</h2>
-                <p className="text-amber-700 text-sm mb-3">
-                  Dữ liệu hiện tại chỉ lưu tạm thời trên trình duyệt và sẽ bị mất khi tải lại trang. Để lưu trữ dữ liệu vĩnh viễn, vui lòng:
-                </p>
-                <ol className="list-decimal list-inside text-sm text-amber-700 space-y-1 ml-2">
-                  <li>Tạo dự án trên Supabase.</li>
-                  <li>Chạy mã SQL trong file <code>supabase/schema.sql</code> ở mục SQL Editor.</li>
-                  <li>Thêm <code>VITE_SUPABASE_URL</code> và <code>VITE_SUPABASE_ANON_KEY</code> vào môi trường (Settings &gt; Secrets).</li>
-                </ol>
-              </div>
-            )}
-            <Routes>
-              <Route path="/" element={<Analytics products={products} transactions={transactions} />} />
-              <Route path="/import" element={<Import products={products} transactions={transactions} addProduct={addProduct} updateProduct={updateProduct} addTransaction={addTransaction} deleteProduct={deleteProduct} suppliers={suppliers} addSupplier={addSupplier} updateSupplier={updateSupplier} deleteSupplier={deleteSupplier} packagingItems={packagingItems} addPackagingItem={addPackagingItem} updatePackagingItem={updatePackagingItem} deletePackagingItem={deletePackagingItem} recalculateCombos={recalculateCombos} />} />
-              <Route path="/live" element={<Live products={products} updateProduct={updateProduct} addTransaction={addTransaction} addSession={addSession} transactions={transactions} deleteTransaction={deleteTransaction} packagingItems={packagingItems} updatePackagingItem={updatePackagingItem} />} />
-              <Route path="/finance" element={<Finance transactions={transactions} deleteTransaction={deleteTransaction} addTransaction={addTransaction} products={products} updateProduct={updateProduct} />} />
-              <Route path="/settings" element={<Settings products={products} suppliers={suppliers} transactions={transactions} sessions={sessions} onImportData={handleImportData} />} />
-            </Routes>
-          </div>
-        </main>
-      </div>
+      <AccessGuard>
+        <div className="flex min-h-screen min-h-[100dvh] bg-slate-50 font-sans text-slate-900 selection:bg-indigo-100 selection:text-indigo-900">
+          <Toaster position="top-right" richColors />
+          <Sidebar />
+          <main className="flex-1 flex flex-col p-3 sm:p-4 lg:p-6 overflow-y-auto mt-16 md:mt-0">
+            <div className="w-full flex-1 flex flex-col">
+              {!hasSupabaseConfig && (
+                <div className="mb-8 bg-amber-50 border border-amber-200 rounded-xl p-5 shadow-sm">
+                  <h2 className="text-amber-800 font-bold text-lg mb-2">Chưa kết nối Supabase!</h2>
+                  <p className="text-amber-700 text-sm mb-3">
+                    Dữ liệu hiện tại chỉ lưu tạm thời trên trình duyệt và sẽ bị mất khi tải lại trang. Để lưu trữ dữ liệu vĩnh viễn, vui lòng:
+                  </p>
+                  <ol className="list-decimal list-inside text-sm text-amber-700 space-y-1 ml-2">
+                    <li>Tạo dự án trên Supabase.</li>
+                    <li>Chạy mã SQL trong file <code>supabase/schema.sql</code> ở mục SQL Editor.</li>
+                    <li>Thêm <code>VITE_SUPABASE_URL</code> và <code>VITE_SUPABASE_ANON_KEY</code> vào môi trường (Settings &gt; Secrets).</li>
+                  </ol>
+                </div>
+              )}
+              <Routes>
+                <Route path="/" element={<Analytics products={products} transactions={transactions} />} />
+                <Route path="/import" element={<Import products={products} transactions={transactions} addProduct={addProduct} updateProduct={updateProduct} addTransaction={addTransaction} deleteProduct={deleteProduct} suppliers={suppliers} addSupplier={addSupplier} updateSupplier={updateSupplier} deleteSupplier={deleteSupplier} packagingItems={packagingItems} addPackagingItem={addPackagingItem} updatePackagingItem={updatePackagingItem} deletePackagingItem={deletePackagingItem} recalculateCombos={recalculateCombos} />} />
+                <Route path="/live" element={<Live products={products} updateProduct={updateProduct} addTransaction={addTransaction} addSession={addSession} transactions={transactions} deleteTransaction={deleteTransaction} packagingItems={packagingItems} updatePackagingItem={updatePackagingItem} />} />
+                <Route path="/finance" element={<Finance transactions={transactions} deleteTransaction={deleteTransaction} addTransaction={addTransaction} products={products} updateProduct={updateProduct} />} />
+                <Route path="/settings" element={<Settings products={products} suppliers={suppliers} transactions={transactions} sessions={sessions} onImportData={handleImportData} />} />
+              </Routes>
+            </div>
+          </main>
+        </div>
+      </AccessGuard>
     </BrowserRouter>
   );
 }
